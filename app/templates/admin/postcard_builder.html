@@ -395,12 +395,12 @@
     document.getElementById('pb-phone').textContent= backPhone;
 
     // Address block — always shows sample recipient data
-    document.getElementById('addr-name').innerHTML       = applyMergeTags('{{full_name}}');
-    document.getElementById('addr-company').innerHTML    = applyMergeTags('{{company}}');
-    document.getElementById('addr-street').innerHTML     = applyMergeTags('{{address}}');
-    document.getElementById('addr-citystatezip').innerHTML = applyMergeTags('{{city}}') + ', ' +
-                                                             applyMergeTags('{{state}}') + ' ' +
-                                                             applyMergeTags('{{zip}}');
+    document.getElementById('addr-name').innerHTML       = applyMergeTags(T('full_name'));
+    document.getElementById('addr-company').innerHTML    = applyMergeTags(T('company'));
+    document.getElementById('addr-street').innerHTML     = applyMergeTags(T('address'));
+    document.getElementById('addr-citystatezip').innerHTML = applyMergeTags(T('city')) + ', ' +
+                                                             applyMergeTags(T('state')) + ' ' +
+                                                             applyMergeTags(T('zip'));
     const backCanvas = document.getElementById('back-canvas');
     if (currentBackBgB64) {
       backCanvas.style.backgroundImage = `url('data:image/png;base64,${currentBackBgB64}')`;
@@ -590,16 +590,18 @@
   let draggedTag = null;
 
   // ── Sample data for merge tag preview ──
+  // Note: curly braces escaped to avoid Jinja2 template parsing
+  const T = s => '{' + '{' + s + '}' + '}';
   const SAMPLE = {
-    '{{first_name}}':  'Joe',
-    '{{last_name}}':   'Smith',
-    '{{full_name}}':   'Joe Smith',
-    '{{address}}':     '456 Oak Street',
-    '{{city}}':        'Atlanta',
-    '{{state}}':       'GA',
-    '{{zip}}':         '30301',
-    '{{company}}':     'Smith & Associates',
-    '{{offer_code}}':  'SAVE20',
+    [T('first_name')]:  'Joe',
+    [T('last_name')]:   'Smith',
+    [T('full_name')]:   'Joe Smith',
+    [T('address')]:     '456 Oak Street',
+    [T('city')]:        'Atlanta',
+    [T('state')]:       'GA',
+    [T('zip')]:         '30301',
+    [T('company')]:     'Smith & Associates',
+    [T('offer_code')]:  'SAVE20',
   };
 
   function applyMergeTags(text) {
