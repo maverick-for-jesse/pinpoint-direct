@@ -32,4 +32,12 @@ def create_app():
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(client_bp, url_prefix='/portal')
 
+    import traceback
+    from flask import jsonify
+
+    @app.errorhandler(500)
+    def handle_500(e):
+        tb = traceback.format_exc()
+        return f"<pre style='padding:20px;font-size:13px;'><strong>500 Error:</strong>\n\n{tb}</pre>", 500
+
     return app
