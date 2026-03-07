@@ -1,0 +1,177 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ mailing_list.name }}{% endblock %}
+{% block page_title %}{{ mailing_list.name }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.list_export', list_id=mailing_list.id) }}"
+     class="btn btn-secondary">⬇️ Export All</a>
+  <a href="{{ url_for('admin.list_export', list_id=mailing_list.id, verified_only=1) }}"
+     class="btn btn-secondary">✅ Export Verified</a>
+  <a href="{{ url_for('admin.lists') }}" class="btn btn-secondary">← Lists</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Stats row -->
+<div class="stats-grid" style="grid-template-columns: repeat(4,1fr); margin-bottom: 20px;">
+  <div class="stat-card">
+    <div class="stat-label">Total Records</div>
+    <div class="stat-value">{{ '{:,}'.format(stats.total or 0) }}</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-label">Verified</div>
+    <div class="stat-value">{{ '{:,}'.format(stats.verified or 0) }}</div>
+    <div class="stat-sub">
+      {% if stats.total %}{{ '%.0f'|format((stats.verified or 0) / stats.total * 100) }}%{% endif %}
+    </div>
+  </div>
+  <div class="stat-card red">
+    <div class="stat-label">Failed</div>
+    <div class="stat-value">{{ '{:,}'.format(stats.failed or 0) }}</div>
+  </div>
+  <div class="stat-card blue">
+    <div class="stat-label">Pending</div>
+    <div class="stat-value">{{ '{:,}'.format(stats.pending or 0) }}</div>
+  </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start;">
+
+  <!-- Records table -->
+  <div class="card" style="padding: 0;">
+    <div style="padding: 16px 20px; border-bottom: 1px solid #f0f0f0; display:flex;
+                justify-content:space-between; align-items:center;">
+      <div style="font-size:14px; color:#888;">
+        Showing {{ records|length }} of {{ '{:,}'.format(stats.total or 0) }} records
+        {% if total_pages > 1 %}— Page {{ page }} of {{ total_pages }}{% endif %}
+      </div>
+      {% if (stats.pending or 0) > 0 %}
+      <form method="POST" action="{{ url_for('admin.list_verify', list_id=mailing_list.id) }}">
+        <button type="submit" class="btn btn-primary" style="font-size:13px;">
+          🔍 Verify Addresses ({{ '{:,}'.format(stats.pending or 0) }} pending)
+        </button>
+      </form>
+      {% else %}
+        <span class="badge badge-green" style="font-size:13px; padding:6px 14px;">✅ All verified</span>
+      {% endif %}
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Address</th>
+            <th>City</th>
+            <th>ST</th>
+            <th>Zip</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rec in records %}
+          <tr>
+            <td>
+              <div style="font-weight:600;">{{ rec.first_name }} {{ rec.last_name }}</div>
+              {% if rec.company %}<div style="font-size:11px; color:#888;">{{ rec.company }}</div>{% endif %}
+            </td>
+            <td>
+              {{ rec.address1 }}
+              {% if rec.address2 %}<br><span style="font-size:12px; color:#888;">{{ rec.address2 }}</span>{% endif %}
+            </td>
+            <td>{{ rec.city }}</td>
+            <td>{{ rec.state }}</td>
+            <td>{{ rec.zip }}</td>
+            <td>
+              {% if rec.verify_status == 'verified' %}
+                <span class="badge badge-green">✓</span>
+              {% elif rec.verify_status == 'failed' %}
+                <span class="badge badge-red" title="{{ rec.verify_message }}">✗</span>
+              {% else %}
+                <span class="badge badge-gray">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div style="padding: 16px 20px; display:flex; gap:8px; justify-content:center; border-top:1px solid #f0f0f0;">
+      {% if page > 1 %}
+        <a href="?page={{ page - 1 }}" class="btn btn-secondary" style="font-size:13px;">← Prev</a>
+      {% endif %}
+      <span style="padding:8px 14px; font-size:13px; color:#888;">{{ page }} / {{ total_pages }}</span>
+      {% if page < total_pages %}
+        <a href="?page={{ page + 1 }}" class="btn btn-secondary" style="font-size:13px;">Next →</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Sidebar -->
+  <div>
+    <!-- List info -->
+    <div class="card" style="margin-bottom: 16px;">
+      <div class="card-title">List Info</div>
+      <div style="font-size:14px; line-height:2.2;">
+        <div><strong>Client:</strong> {{ mailing_list.client or '—' }}</div>
+        <div><strong>Campaign:</strong>
+          {% if mailing_list.campaign %}
+            <span class="badge badge-blue">{{ mailing_list.campaign }}</span>
+          {% else %}—{% endif %}
+        </div>
+        <div><strong>Uploaded:</strong> {{ mailing_list.created_at[:10] }}</div>
+      </div>
+      {% if mailing_list.notes %}
+      <div style="margin-top:12px; padding-top:12px; border-top:1px solid #f0f0f0;">
+        <p style="font-size:13px; color:#666;">{{ mailing_list.notes }}</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Assign to campaign -->
+    <div class="card" style="margin-bottom: 16px;">
+      <div class="card-title">Assign to Campaign</div>
+      <form method="POST" action="{{ url_for('admin.list_assign', list_id=mailing_list.id) }}">
+        <div class="form-group">
+          <select name="campaign_name" class="form-control" required onchange="updateCampaignId(this)">
+            <option value="">— Select campaign —</option>
+            {% for c in campaigns %}
+              <option value="{{ c.fields.get('Campaign Name','') }}"
+                      data-id="{{ c.id }}"
+                      {% if mailing_list.campaign == c.fields.get('Campaign Name') %}selected{% endif %}>
+                {{ c.fields.get('Campaign Name','') }}
+              </option>
+            {% endfor %}
+          </select>
+          <input type="hidden" name="campaign_id" id="campaign_id_input">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Assign</button>
+      </form>
+    </div>
+
+    <!-- Danger zone -->
+    <div class="card" style="border: 1.5px solid #ffcdd2;">
+      <div class="card-title" style="color:#c62828;">Danger Zone</div>
+      <form method="POST" action="{{ url_for('admin.list_delete', list_id=mailing_list.id) }}"
+            onsubmit="return confirm('Delete this list and all {{ '{:,}'.format(stats.total or 0) }} records? This cannot be undone.')">
+        <button type="submit" class="btn" style="width:100%; background:#ffebee; color:#c62828; font-size:13px;">
+          🗑️ Delete This List
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function updateCampaignId(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  document.getElementById('campaign_id_input').value = opt ? opt.dataset.id || '' : '';
+}
+// Init
+const sel = document.querySelector('select[name="campaign_name"]');
+if (sel) updateCampaignId(sel);
+</script>
+{% endblock %}

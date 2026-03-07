@@ -1,0 +1,161 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ campaign.fields.get('Campaign Name','Campaign') }}{% endblock %}
+{% block page_title %}{{ campaign.fields.get('Campaign Name','Campaign') }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.campaign_edit', record_id=campaign.id) }}" class="btn btn-secondary">Edit</a>
+  <a href="{{ url_for('admin.campaigns') }}" class="btn btn-secondary">← Campaigns</a>
+{% endblock %}
+
+{% block content %}
+
+{# Status pipeline #}
+{% set all_statuses = ['Draft','Artwork Pending','Artwork Approved','Mailing Approval Pending','Mailing Approved','In Production','Mailed'] %}
+{% set current_status = campaign.fields.get('Status','Draft') %}
+<div class="card" style="margin-bottom: 20px; padding: 20px 24px;">
+  <div style="display: flex; align-items: center; gap: 0; overflow-x: auto;">
+    {% for s in all_statuses %}
+      {% set is_current = s == current_status %}
+      {% set is_done = all_statuses.index(s) < all_statuses.index(current_status) if current_status in all_statuses else false %}
+      <div style="display: flex; align-items: center; flex-shrink: 0;">
+        <div style="
+          padding: 6px 14px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 600;
+          background: {{ '#e63946' if is_current else ('#e8f5e9' if is_done else '#f5f5f5') }};
+          color: {{ 'white' if is_current else ('#2e7d32' if is_done else '#bbb') }};
+          white-space: nowrap;
+        ">{{ s }}</div>
+        {% if not loop.last %}
+          <div style="width: 24px; height: 2px; background: {{ '#c8e6c9' if is_done else '#e0e0e0' }};"></div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+
+  {# Campaign info #}
+  <div class="card">
+    <div class="card-title">Campaign Details</div>
+    <div style="font-size: 14px; line-height: 2.2;">
+      <div><strong>Client:</strong> {{ campaign.fields.get('Client','—') }}</div>
+      <div><strong>Postcard Size:</strong> {{ campaign.fields.get('Postcard Size','—') }}</div>
+      <div><strong>Piece Count:</strong> {{ '{:,}'.format(campaign.fields.get('Piece Count',0)|int) if campaign.fields.get('Piece Count') else '—' }}</div>
+      <div><strong>Mail Date:</strong> {{ campaign.fields.get('Mail Date','—') }}</div>
+    </div>
+    {% if campaign.fields.get('Notes') %}
+    <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid #f0f0f0;">
+      <div class="card-title">Notes</div>
+      <p style="font-size: 13px; color: #666; line-height: 1.6;">{{ campaign.fields.get('Notes') }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  {# Quick actions #}
+  <div class="card">
+    <div class="card-title">Quick Actions</div>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <a href="{{ url_for('admin.postcard_builder') }}?campaign={{ campaign.id }}" class="btn btn-primary">
+        🎨 Open Postcard Builder
+      </a>
+      <a href="{{ url_for('admin.lists') }}?campaign={{ campaign.id }}" class="btn btn-secondary">
+        📋 Assign Mailing List
+      </a>
+
+      {# Status advance button #}
+      {% if current_status != 'Mailed' and current_status != 'Cancelled' %}
+        {% set next_statuses = {
+          'Draft': 'Artwork Pending',
+          'Artwork Pending': 'Artwork Approved',
+          'Artwork Approved': 'Mailing Approval Pending',
+          'Mailing Approval Pending': 'Mailing Approved',
+          'Mailing Approved': 'In Production',
+          'In Production': 'Mailed'
+        } %}
+        {% if current_status in next_statuses %}
+        <form method="POST" action="{{ url_for('admin.campaign_advance', record_id=campaign.id) }}">
+          <button type="submit" class="btn btn-secondary" style="width: 100%;">
+            ✅ Mark as "{{ next_statuses[current_status] }}"
+          </button>
+        </form>
+        {% endif %}
+      {% endif %}
+
+      {% if current_status != 'Cancelled' %}
+      <form method="POST" action="{{ url_for('admin.campaign_cancel', record_id=campaign.id) }}"
+            onsubmit="return confirm('Cancel this campaign?')">
+        <button type="submit" class="btn" style="width: 100%; background: #fff0f0; color: #c62828;">
+          ✕ Cancel Campaign
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# Artwork #}
+<div class="card" style="margin-bottom: 20px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+    <div class="card-title" style="margin: 0;">Artwork</div>
+  </div>
+  {% if artwork %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Version</th><th>Status</th><th>Front</th><th>Back</th><th>Client Notes</th></tr></thead>
+      <tbody>
+        {% for a in artwork %}
+        <tr>
+          <td>v{{ a.fields.get('Version','1') }}</td>
+          <td>
+            {% set s = a.fields.get('Status','Pending Review') %}
+            {% if s == 'Approved' %}<span class="badge badge-green">{{ s }}</span>
+            {% elif s == 'Revision Requested' %}<span class="badge badge-yellow">{{ s }}</span>
+            {% elif s == 'Rejected' %}<span class="badge badge-red">{{ s }}</span>
+            {% else %}<span class="badge badge-gray">{{ s }}</span>{% endif %}
+          </td>
+          <td>{% if a.fields.get('Front File URL') %}<a href="{{ a.fields.get('Front File URL') }}" target="_blank">View</a>{% else %}—{% endif %}</td>
+          <td>{% if a.fields.get('Back File URL') %}<a href="{{ a.fields.get('Back File URL') }}" target="_blank">View</a>{% else %}—{% endif %}</td>
+          <td style="color: #666; font-size: 13px;">{{ a.fields.get('Client Notes','—') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state" style="padding: 24px;">
+    <p>No artwork uploaded yet. Use the <a href="{{ url_for('admin.postcard_builder') }}?campaign={{ campaign.id }}">Postcard Builder</a> to create it.</p>
+  </div>
+  {% endif %}
+</div>
+
+{# Print Job #}
+<div class="card">
+  <div class="card-title">Print Job</div>
+  {% if print_job %}
+  <div style="font-size: 14px; line-height: 2.2;">
+    <div><strong>Status:</strong>
+      {% set s = print_job.fields.get('Status','Queued') %}
+      {% if s == 'Mailed' %}<span class="badge badge-green">{{ s }}</span>
+      {% elif s == 'Printing' %}<span class="badge badge-blue">{{ s }}</span>
+      {% else %}<span class="badge badge-gray">{{ s }}</span>{% endif %}
+    </div>
+    <div><strong>Pieces:</strong> {{ print_job.fields.get('Piece Count','—') }}</div>
+    <div><strong>Print Date:</strong> {{ print_job.fields.get('Print Date','—') }}</div>
+    <div><strong>Mail Date:</strong> {{ print_job.fields.get('Mail Date','—') }}</div>
+  </div>
+  {% if print_job.fields.get('PDF URL') %}
+  <div style="margin-top: 12px;">
+    <a href="{{ print_job.fields.get('PDF URL') }}" class="btn btn-secondary" target="_blank">📄 Download Print PDF</a>
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="empty-state" style="padding: 24px;">
+    <p>Print job will be created when artwork is approved and mailing is confirmed.</p>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

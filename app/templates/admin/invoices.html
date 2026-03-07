@@ -1,0 +1,94 @@
+{% extends "admin/base.html" %}
+{% block title %}Invoices{% endblock %}
+{% block page_title %}Invoices{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.invoice_new') }}" class="btn btn-primary">+ New Invoice</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Summary cards -->
+<div class="stats-grid" style="margin-bottom:20px;">
+  <div class="stat-card blue">
+    <div class="stat-label">Total Invoiced</div>
+    <div class="stat-value">${{ '%.0f'|format(totals.all) }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Unpaid / Sent</div>
+    <div class="stat-value">${{ '%.0f'|format(totals.sent) }}</div>
+  </div>
+  <div class="stat-card red">
+    <div class="stat-label">Overdue</div>
+    <div class="stat-value">${{ '%.0f'|format(totals.overdue) }}</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-label">Collected</div>
+    <div class="stat-value">${{ '%.0f'|format(totals.paid) }}</div>
+  </div>
+</div>
+
+<!-- Status tabs -->
+<div style="display:flex; gap:8px; margin-bottom:16px;">
+  {% for status in ['all','Draft','Sent','Overdue','Paid','Cancelled'] %}
+  <a href="?status={{ status }}"
+     class="btn {{ 'btn-primary' if current_filter == status else 'btn-secondary' }}"
+     style="font-size:13px;">{{ status.title() }}</a>
+  {% endfor %}
+</div>
+
+{% if invoices %}
+<div class="card" style="padding:0;">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Invoice #</th>
+          <th>Client</th>
+          <th>Campaign</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Due Date</th>
+          <th>Paid Date</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in invoices %}
+        <tr>
+          <td><strong>{{ inv.fields.get('Invoice Number','—') }}</strong></td>
+          <td>{{ inv.fields.get('Client','—') }}</td>
+          <td>{{ inv.fields.get('Campaign','—') }}</td>
+          <td><strong>${{ '%.2f'|format(inv.fields.get('Amount',0)|float) }}</strong></td>
+          <td>
+            {% set s = inv.fields.get('Status','Draft') %}
+            {% if s == 'Paid' %}<span class="badge badge-green">{{ s }}</span>
+            {% elif s == 'Overdue' %}<span class="badge badge-red">{{ s }}</span>
+            {% elif s == 'Sent' %}<span class="badge badge-blue">{{ s }}</span>
+            {% elif s == 'Cancelled' %}<span class="badge badge-gray">{{ s }}</span>
+            {% else %}<span class="badge badge-gray">{{ s }}</span>{% endif %}
+          </td>
+          <td style="font-size:13px; color:{% if inv.fields.get('Status') == 'Overdue' %}#c62828{% else %}#888{% endif %};">
+            {{ inv.fields.get('Due Date','—') }}
+          </td>
+          <td style="font-size:13px; color:#888;">{{ inv.fields.get('Paid Date','—') }}</td>
+          <td>
+            <a href="{{ url_for('admin.invoice_detail', record_id=inv.id) }}"
+               class="btn btn-secondary" style="font-size:12px; padding:5px 12px;">View</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-icon">💰</div>
+    <p>No invoices{{ ' with status "' + current_filter + '"' if current_filter != 'all' else '' }}.</p><br>
+    <a href="{{ url_for('admin.invoice_new') }}" class="btn btn-primary">Create First Invoice</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

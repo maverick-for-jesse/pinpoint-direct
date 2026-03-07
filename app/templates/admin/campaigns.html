@@ -1,0 +1,44 @@
+{% extends "admin/base.html" %}
+{% block title %}Campaigns{% endblock %}
+{% block page_title %}Campaigns{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.campaign_new') }}" class="btn btn-primary">+ New Campaign</a>
+{% endblock %}
+{% block content %}
+{% if campaigns %}
+<div class="card" style="padding: 0;">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Campaign</th><th>Client</th><th>Status</th><th>Size</th><th>Pieces</th><th>Mail Date</th></tr></thead>
+      <tbody>
+        {% for c in campaigns %}
+        <tr>
+          <td><strong>{{ c.fields.get('Campaign Name','—') }}</strong></td>
+          <td>{{ c.fields.get('Client','—') }}</td>
+          <td>
+            {% set s = c.fields.get('Status','Draft') %}
+            {% if s == 'Mailed' %}<span class="badge badge-green">{{ s }}</span>
+            {% elif s in ['Artwork Pending','Mailing Approval Pending'] %}<span class="badge badge-yellow">{{ s }}</span>
+            {% elif s == 'In Production' %}<span class="badge badge-blue">{{ s }}</span>
+            {% elif s == 'Cancelled' %}<span class="badge badge-red">{{ s }}</span>
+            {% else %}<span class="badge badge-gray">{{ s }}</span>{% endif %}
+          </td>
+          <td>{{ c.fields.get('Postcard Size','—') }}</td>
+          <td>{{ c.fields.get('Piece Count','—') }}</td>
+          <td>{{ c.fields.get('Mail Date','—') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-icon">📬</div>
+    <p>No campaigns yet.</p><br>
+    <a href="{{ url_for('admin.campaign_new') }}" class="btn btn-primary">Create First Campaign</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

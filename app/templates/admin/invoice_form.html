@@ -1,0 +1,91 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ 'Edit Invoice' if invoice else 'New Invoice' }}{% endblock %}
+{% block page_title %}{{ 'Edit Invoice' if invoice else 'New Invoice' }}{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.invoices') }}" class="btn btn-secondary">← Back</a>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:680px;">
+  <form method="POST">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Invoice Number *</label>
+        <input type="text" name="invoice_number" class="form-control" required
+               placeholder="e.g. INV-2025-001"
+               value="{{ invoice.fields.get('Invoice Number','') if invoice else next_number }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-control">
+          {% for s in ['Draft','Sent','Overdue','Paid','Cancelled'] %}
+            <option value="{{ s }}"
+              {% if invoice and invoice.fields.get('Status') == s %}selected
+              {% elif not invoice and s == 'Draft' %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Client *</label>
+        <select name="client" class="form-control" required>
+          <option value="">— Select client —</option>
+          {% for c in clients %}
+            <option value="{{ c.fields.get('Company Name','') }}"
+              {% if invoice and invoice.fields.get('Client') == c.fields.get('Company Name') %}selected{% endif %}>
+              {{ c.fields.get('Company Name','') }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Campaign</label>
+        <select name="campaign" class="form-control">
+          <option value="">— None —</option>
+          {% for c in campaigns %}
+            <option value="{{ c.fields.get('Campaign Name','') }}"
+              {% if invoice and invoice.fields.get('Campaign') == c.fields.get('Campaign Name') %}selected{% endif %}>
+              {{ c.fields.get('Campaign Name','') }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Amount ($) *</label>
+        <input type="number" name="amount" class="form-control" required step="0.01" min="0"
+               placeholder="0.00"
+               value="{{ invoice.fields.get('Amount','') if invoice else '' }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Due Date</label>
+        <input type="date" name="due_date" class="form-control"
+               value="{{ invoice.fields.get('Due Date','') if invoice else '' }}">
+      </div>
+    </div>
+
+    {% if invoice and invoice.fields.get('Status') == 'Paid' %}
+    <div class="form-group">
+      <label class="form-label">Paid Date</label>
+      <input type="date" name="paid_date" class="form-control"
+             value="{{ invoice.fields.get('Paid Date','') if invoice else '' }}">
+    </div>
+    {% endif %}
+
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <textarea name="notes" class="form-control" rows="3"
+                placeholder="Line items, services rendered, terms...">{{ invoice.fields.get('Notes','') if invoice else '' }}</textarea>
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:8px;">
+      <button type="submit" class="btn btn-primary">{{ 'Save Changes' if invoice else 'Create Invoice' }}</button>
+      <a href="{{ url_for('admin.invoices') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

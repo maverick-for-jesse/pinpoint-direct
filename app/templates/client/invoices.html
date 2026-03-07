@@ -1,0 +1,61 @@
+{% extends "client/base.html" %}
+{% block title %}Invoices{% endblock %}
+{% block page_title %}Invoices{% endblock %}
+{% block page_sub %}<p>View and pay your invoices</p>{% endblock %}
+
+{% block content %}
+
+{% if invoices %}
+<div class="card" style="padding:0;">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Invoice #</th>
+          <th>Campaign</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Due Date</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in invoices %}
+        <tr>
+          <td><strong>{{ inv.fields.get('Invoice Number','—') }}</strong></td>
+          <td>{{ inv.fields.get('Campaign','—') }}</td>
+          <td><strong>${{ '%.2f'|format(inv.fields.get('Amount',0)|float) }}</strong></td>
+          <td>
+            {% set s = inv.fields.get('Status','Draft') %}
+            {% if s == 'Paid' %}<span class="badge badge-green">✓ Paid</span>
+            {% elif s == 'Overdue' %}<span class="badge badge-red">⚠ Overdue</span>
+            {% elif s == 'Sent' %}<span class="badge badge-blue">Due</span>
+            {% else %}<span class="badge badge-gray">{{ s }}</span>{% endif %}
+          </td>
+          <td style="font-size:13px; color:{% if inv.fields.get('Status') == 'Overdue' %}#c62828; font-weight:700{% else %}#888{% endif %};">
+            {{ inv.fields.get('Due Date','—') }}
+          </td>
+          <td>
+            {% if inv.fields.get('Status') in ('Sent','Overdue') %}
+            <a href="{{ url_for('client.invoice_detail', record_id=inv.id) }}"
+               class="btn btn-primary" style="font-size:12px; padding:5px 14px;">Pay Now</a>
+            {% else %}
+            <a href="{{ url_for('client.invoice_detail', record_id=inv.id) }}"
+               class="btn btn-secondary" style="font-size:12px; padding:5px 14px;">View</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <div class="icon">💰</div>
+    <p>No invoices yet.</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

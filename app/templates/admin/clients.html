@@ -1,0 +1,60 @@
+{% extends "admin/base.html" %}
+{% block title %}Clients{% endblock %}
+{% block page_title %}Clients{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.client_new') }}" class="btn btn-primary">+ New Client</a>
+{% endblock %}
+
+{% block content %}
+{% if clients %}
+<div class="card" style="padding: 0;">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Company</th>
+          <th>Contact</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in clients %}
+        <tr>
+          <td><strong>{{ c.fields.get('Company Name', '—') }}</strong></td>
+          <td>{{ c.fields.get('Contact Name', '—') }}</td>
+          <td>{{ c.fields.get('Contact Email', '—') }}</td>
+          <td>{{ c.fields.get('Contact Phone', '—') }}</td>
+          <td>
+            {% set status = c.fields.get('Status', 'Active') %}
+            {% if status == 'Active' %}
+              <span class="badge badge-green">{{ status }}</span>
+            {% elif status == 'Prospect' %}
+              <span class="badge badge-blue">{{ status }}</span>
+            {% else %}
+              <span class="badge badge-gray">{{ status }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('admin.client_detail', record_id=c.id) }}" class="btn btn-secondary" style="padding: 5px 12px; font-size: 12px;">View</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-icon">🏢</div>
+    <p>No clients yet.</p>
+    <br>
+    <a href="{{ url_for('admin.client_new') }}" class="btn btn-primary">Add Your First Client</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

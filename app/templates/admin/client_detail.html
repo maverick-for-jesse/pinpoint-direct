@@ -1,0 +1,103 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ client.fields.get('Company Name','Client') }}{% endblock %}
+{% block page_title %}{{ client.fields.get('Company Name','Client') }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.client_edit', record_id=client.id) }}" class="btn btn-secondary">Edit</a>
+  <a href="{{ url_for('admin.clients') }}" class="btn btn-secondary">← Clients</a>
+{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; align-items: start;">
+
+  <div class="card">
+    <div class="card-title">Client Info</div>
+    <div style="font-size: 14px; line-height: 2;">
+      <div><strong>Company:</strong> {{ client.fields.get('Company Name','—') }}</div>
+      <div><strong>Contact:</strong> {{ client.fields.get('Contact Name','—') }}</div>
+      <div><strong>Email:</strong> {{ client.fields.get('Contact Email','—') }}</div>
+      <div><strong>Phone:</strong> {{ client.fields.get('Contact Phone','—') }}</div>
+      <div><strong>Portal Login:</strong> {{ client.fields.get('Portal Username','—') }}</div>
+      <div style="margin-top: 8px;">
+        {% set status = client.fields.get('Status','Active') %}
+        {% if status == 'Active' %}<span class="badge badge-green">{{ status }}</span>
+        {% elif status == 'Prospect' %}<span class="badge badge-blue">{{ status }}</span>
+        {% else %}<span class="badge badge-gray">{{ status }}</span>{% endif %}
+      </div>
+    </div>
+    {% if client.fields.get('Notes') %}
+    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f0;">
+      <div class="card-title">Notes</div>
+      <p style="font-size: 13px; color: #666; line-height: 1.6;">{{ client.fields.get('Notes') }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div>
+    <div class="card" style="margin-bottom: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div class="card-title" style="margin: 0;">Campaigns</div>
+        <a href="{{ url_for('admin.campaign_new') }}?client={{ client.fields.get('Company Name','') }}" class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;">+ New Campaign</a>
+      </div>
+      {% if campaigns %}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Campaign</th><th>Status</th><th>Mail Date</th><th>Pieces</th></tr></thead>
+          <tbody>
+            {% for c in campaigns %}
+            <tr>
+              <td><strong>{{ c.fields.get('Campaign Name','—') }}</strong></td>
+              <td>
+                {% set s = c.fields.get('Status','Draft') %}
+                {% if s == 'Mailed' %}<span class="badge badge-green">{{ s }}</span>
+                {% elif s in ['Artwork Pending','Mailing Approval Pending'] %}<span class="badge badge-yellow">{{ s }}</span>
+                {% elif s == 'In Production' %}<span class="badge badge-blue">{{ s }}</span>
+                {% else %}<span class="badge badge-gray">{{ s }}</span>{% endif %}
+              </td>
+              <td>{{ c.fields.get('Mail Date','—') }}</td>
+              <td>{{ c.fields.get('Piece Count','—') }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state" style="padding: 24px;">
+        <p>No campaigns for this client yet.</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div class="card-title" style="margin: 0;">Invoices</div>
+      </div>
+      {% if invoices %}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Invoice #</th><th>Amount</th><th>Status</th><th>Due</th></tr></thead>
+          <tbody>
+            {% for inv in invoices %}
+            <tr>
+              <td>{{ inv.fields.get('Invoice Number','—') }}</td>
+              <td><strong>${{ inv.fields.get('Amount','0') }}</strong></td>
+              <td>
+                {% set s = inv.fields.get('Status','Draft') %}
+                {% if s == 'Paid' %}<span class="badge badge-green">{{ s }}</span>
+                {% elif s == 'Overdue' %}<span class="badge badge-red">{{ s }}</span>
+                {% elif s == 'Sent' %}<span class="badge badge-blue">{{ s }}</span>
+                {% else %}<span class="badge badge-gray">{{ s }}</span>{% endif %}
+              </td>
+              <td>{{ inv.fields.get('Due Date','—') }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state" style="padding: 24px;"><p>No invoices yet.</p></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

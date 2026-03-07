@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Portal{% endblock %} — Pinpoint Direct</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f4f5f7;
+      color: #1a1a2e;
+    }
+
+    /* Top nav */
+    .topnav {
+      background: #1a1a2e;
+      padding: 0 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+    }
+    .topnav-logo img { height: 30px; filter: brightness(0) invert(1); }
+    .topnav-links { display: flex; align-items: center; gap: 4px; }
+    .nav-link {
+      padding: 8px 16px;
+      color: rgba(255,255,255,0.65);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+    .nav-link:hover { background: rgba(255,255,255,0.08); color: white; }
+    .nav-link.active { background: rgba(230,57,70,0.2); color: white; }
+    .topnav-user {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: rgba(255,255,255,0.6);
+      font-size: 13px;
+    }
+    .topnav-user strong { color: white; }
+    .logout-btn {
+      padding: 6px 14px;
+      background: rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.7);
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+    .logout-btn:hover { background: rgba(255,255,255,0.18); color: white; }
+
+    /* Page -->
+    .page-header {
+      background: white;
+      border-bottom: 1px solid #e8e8e8;
+      padding: 20px 40px;
+    }
+    .page-header h1 { font-size: 22px; font-weight: 700; }
+    .page-header p { font-size: 14px; color: #888; margin-top: 3px; }
+
+    .content { padding: 28px 40px; max-width: 1100px; margin: 0 auto; }
+
+    /* Flash */
+    .flash { padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
+    .flash-success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+    .flash-error   { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+    .flash-info    { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+
+    /* Cards */
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .card-title {
+      font-size: 13px; font-weight: 700; color: #888;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+
+    /* Stats */
+    .stats-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: white; border-radius: 10px; padding: 20px 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .stat-label { font-size: 12px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-value { font-size: 30px; font-weight: 700; color: #1a1a2e; margin: 6px 0 2px; }
+    .stat-value.red { color: #e63946; }
+    .stat-value.green { color: #27ae60; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align:left; font-size:11px; font-weight:700; color:#999; text-transform:uppercase;
+         letter-spacing:0.5px; padding:10px 16px; border-bottom:1px solid #f0f0f0; }
+    td { padding:13px 16px; font-size:14px; border-bottom:1px solid #f8f8f8; vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:#fafafa; }
+
+    /* Badge */
+    .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+    .badge-green  { background:#e8f5e9; color:#2e7d32; }
+    .badge-red    { background:#ffebee; color:#c62828; }
+    .badge-blue   { background:#e3f2fd; color:#1565c0; }
+    .badge-yellow { background:#fff8e1; color:#f57f17; }
+    .badge-gray   { background:#f5f5f5; color:#757575; }
+    .badge-orange { background:#fff3e0; color:#e65100; }
+
+    /* Buttons */
+    .btn { padding:9px 18px; border-radius:7px; font-size:14px; font-weight:600;
+           cursor:pointer; text-decoration:none; border:none; transition:all 0.15s; display:inline-block; }
+    .btn-primary   { background:#e63946; color:white; }
+    .btn-primary:hover { background:#c0392b; }
+    .btn-secondary { background:#f0f0f0; color:#444; }
+    .btn-secondary:hover { background:#e0e0e0; }
+    .btn-success   { background:#27ae60; color:white; }
+    .btn-success:hover { background:#219a52; }
+
+    /* Empty state */
+    .empty-state { text-align:center; padding:48px 24px; color:#aaa; }
+    .empty-state .icon { font-size:40px; margin-bottom:12px; }
+    .empty-state p { font-size:14px; }
+
+    /* Action card */
+    .action-needed {
+      border-left: 4px solid #e63946;
+      background: #fff8f8;
+    }
+  </style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="{{ url_for('client.dashboard') }}" class="topnav-logo">
+    <img src="/static/img/logo.png" alt="Pinpoint Direct">
+  </a>
+  <div class="topnav-links">
+    <a href="{{ url_for('client.dashboard') }}"
+       class="nav-link {% if request.endpoint == 'client.dashboard' %}active{% endif %}">Dashboard</a>
+    <a href="{{ url_for('client.campaigns') }}"
+       class="nav-link {% if 'campaign' in request.endpoint %}active{% endif %}">Campaigns</a>
+    <a href="{{ url_for('client.approvals') }}"
+       class="nav-link {% if 'approval' in request.endpoint %}active{% endif %}">Approvals</a>
+    <a href="{{ url_for('client.invoices') }}"
+       class="nav-link {% if 'invoice' in request.endpoint %}active{% endif %}">Invoices</a>
+  </div>
+  <div class="topnav-user">
+    <span>Welcome, <strong>{{ current_user.name }}</strong></span>
+    <a href="{{ url_for('auth.logout') }}" class="logout-btn">Sign Out</a>
+  </div>
+</nav>
+
+<div class="page-header">
+  <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+  {% block page_sub %}<p>{{ current_user.client }}</p>{% endblock %}
+</div>
+
+<div class="content">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="flash flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</div>
+
+</body>
+</html>

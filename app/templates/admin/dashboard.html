@@ -1,0 +1,114 @@
+{% extends "admin/base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+  <div class="stat-card blue">
+    <div class="stat-label">Active Campaigns</div>
+    <div class="stat-value">{{ stats.active_campaigns }}</div>
+    <div class="stat-sub">currently running</div>
+  </div>
+  <div class="stat-card red">
+    <div class="stat-label">Pending Approvals</div>
+    <div class="stat-value">{{ stats.pending_approvals }}</div>
+    <div class="stat-sub">awaiting client sign-off</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Print Queue</div>
+    <div class="stat-value">{{ stats.print_queue }}</div>
+    <div class="stat-sub">jobs ready to print</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-label">Outstanding Invoices</div>
+    <div class="stat-value">${{ stats.outstanding_invoices }}</div>
+    <div class="stat-sub">unpaid balance</div>
+  </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+  <div class="card">
+    <div class="card-title">Recent Campaigns</div>
+    {% if recent_campaigns %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Campaign</th>
+            <th>Client</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in recent_campaigns %}
+          <tr>
+            <td><strong>{{ c.fields.get('Campaign Name', '—') }}</strong></td>
+            <td>{{ c.fields.get('Client', '—') }}</td>
+            <td>
+              {% set status = c.fields.get('Status', 'Draft') %}
+              {% if status == 'Mailed' %}
+                <span class="badge badge-green">{{ status }}</span>
+              {% elif status in ['Artwork Pending', 'Mailing Approval Pending'] %}
+                <span class="badge badge-yellow">{{ status }}</span>
+              {% elif status == 'In Production' %}
+                <span class="badge badge-blue">{{ status }}</span>
+              {% elif status == 'Cancelled' %}
+                <span class="badge badge-red">{{ status }}</span>
+              {% else %}
+                <span class="badge badge-gray">{{ status }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">📬</div>
+      <p>No campaigns yet. <a href="{{ url_for('admin.campaigns') }}">Create one</a></p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-title">Recent Clients</div>
+    {% if recent_clients %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Company</th>
+            <th>Contact</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in recent_clients %}
+          <tr>
+            <td><strong>{{ c.fields.get('Company Name', '—') }}</strong></td>
+            <td>{{ c.fields.get('Contact Name', '—') }}</td>
+            <td>
+              {% set status = c.fields.get('Status', 'Active') %}
+              {% if status == 'Active' %}
+                <span class="badge badge-green">{{ status }}</span>
+              {% elif status == 'Prospect' %}
+                <span class="badge badge-blue">{{ status }}</span>
+              {% else %}
+                <span class="badge badge-gray">{{ status }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">🏢</div>
+      <p>No clients yet. <a href="{{ url_for('admin.client_new') }}">Add one</a></p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

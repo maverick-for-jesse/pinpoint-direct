@@ -1,0 +1,12 @@
+flask
+flask-login
+flask-wtf
+python-dotenv
+stripe
+requests
+pillow
+pandas
+openpyxl
+werkzeug
+gunicorn
+psycopg2-binary

@@ -1,0 +1,112 @@
+{% extends "client/base.html" %}
+{% block title %}Approvals{% endblock %}
+{% block page_title %}Approvals{% endblock %}
+{% block page_sub %}<p>Review and approve artwork and mailings before they go to print.</p>{% endblock %}
+
+{% block content %}
+
+{% if not artwork_pending and not mailing_pending %}
+<div class="card">
+  <div class="empty-state">
+    <div class="icon">✅</div>
+    <p style="font-weight:700; color:#2e7d32;">You're all caught up!</p>
+    <p style="margin-top:6px;">No approvals waiting on you right now.</p>
+  </div>
+</div>
+{% endif %}
+
+<!-- Artwork approvals -->
+{% if artwork_pending %}
+<div style="margin-bottom:24px;">
+  <h3 style="font-size:15px; font-weight:700; color:#1a1a2e; margin-bottom:14px;">
+    🎨 Artwork Awaiting Approval ({{ artwork_pending|length }})
+  </h3>
+  {% for art in artwork_pending %}
+  <div class="card" style="margin-bottom:14px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+      <div>
+        <div style="font-weight:700; font-size:16px;">{{ art.fields.get('Artwork Name','—') }}</div>
+        <div style="font-size:13px; color:#888; margin-top:3px;">
+          Campaign: <strong>{{ art.fields.get('Campaign','—') }}</strong>
+          &nbsp;·&nbsp; Version {{ art.fields.get('Version','1') }}
+        </div>
+        {% if art.fields.get('Staff Notes') %}
+        <div style="margin-top:10px; padding:10px 14px; background:#f8f8f8; border-radius:6px; font-size:13px; color:#555;">
+          <strong>Note from your account manager:</strong><br>{{ art.fields.get('Staff Notes') }}
+        </div>
+        {% endif %}
+      </div>
+      <div style="display:flex; gap:8px; flex-shrink:0;">
+        {% if art.fields.get('Front File URL') %}
+        <a href="{{ art.fields.get('Front File URL') }}" target="_blank"
+           class="btn btn-secondary" style="font-size:13px;">View Front</a>
+        {% endif %}
+        {% if art.fields.get('Back File URL') %}
+        <a href="{{ art.fields.get('Back File URL') }}" target="_blank"
+           class="btn btn-secondary" style="font-size:13px;">View Back</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div style="border-top:1px solid #f0f0f0; margin-top:16px; padding-top:16px; display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+      <form method="POST" action="{{ url_for('client.artwork_approve', record_id=art.id) }}" style="display:flex; gap:10px; align-items:flex-end; flex:1; flex-wrap:wrap;">
+        <div style="flex:1; min-width:200px;">
+          <label style="font-size:12px; font-weight:600; color:#888; display:block; margin-bottom:5px;">
+            Comments (optional)
+          </label>
+          <input type="text" name="client_notes" class="form-control"
+                 style="width:100%; padding:9px 13px; border:1.5px solid #e0e0e0; border-radius:7px; font-size:14px; outline:none;"
+                 placeholder="Any feedback or revisions needed...">
+        </div>
+        <button type="submit" name="decision" value="approve" class="btn btn-success">✅ Approve Artwork</button>
+        <button type="submit" name="decision" value="revise" class="btn"
+                style="background:#fff8e1; color:#f57f17;">↩ Request Revision</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Mailing approvals -->
+{% if mailing_pending %}
+<div>
+  <h3 style="font-size:15px; font-weight:700; color:#1a1a2e; margin-bottom:14px;">
+    📬 Mailings Awaiting Approval ({{ mailing_pending|length }})
+  </h3>
+  {% for campaign in mailing_pending %}
+  <div class="card action-needed" style="margin-bottom:14px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+      <div>
+        <div style="font-weight:700; font-size:16px;">{{ campaign.fields.get('Campaign Name','—') }}</div>
+        <div style="font-size:13px; color:#888; margin-top:4px; line-height:1.8;">
+          <span>📐 {{ campaign.fields.get('Postcard Size','—') }}</span>
+          &nbsp;·&nbsp;
+          <span>📋 {{ '{:,}'.format(campaign.fields.get('Piece Count',0)|int) if campaign.fields.get('Piece Count') else '—' }} pieces</span>
+          &nbsp;·&nbsp;
+          <span>📅 Target mail date: <strong>{{ campaign.fields.get('Mail Date','—') }}</strong></span>
+        </div>
+        {% if campaign.fields.get('Notes') %}
+        <div style="margin-top:10px; padding:10px 14px; background:#fff8f8; border-radius:6px; font-size:13px; color:#555;">
+          <strong>Notes:</strong> {{ campaign.fields.get('Notes') }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    <div style="border-top:1px solid #f0f0f0; margin-top:16px; padding-top:16px; display:flex; gap:10px;">
+      <form method="POST" action="{{ url_for('client.mailing_approve', record_id=campaign.id) }}">
+        <input type="hidden" name="decision" value="approve">
+        <button type="submit" class="btn btn-success">✅ Approve This Mailing</button>
+      </form>
+      <form method="POST" action="{{ url_for('client.mailing_approve', record_id=campaign.id) }}"
+            onsubmit="return confirm('Are you sure you want to put this mailing on hold?')">
+        <input type="hidden" name="decision" value="hold">
+        <button type="submit" class="btn" style="background:#fff0f0; color:#c62828;">✋ Put On Hold</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}

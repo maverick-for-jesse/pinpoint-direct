@@ -1,0 +1,111 @@
+{% extends "client/base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_sub %}<p>{{ current_user.client }} — Client Portal</p>{% endblock %}
+
+{% block content %}
+
+<!-- Action items banner -->
+{% if pending_approvals %}
+<div class="card action-needed" style="margin-bottom:20px; padding:16px 20px;">
+  <div style="display:flex; align-items:center; justify-content:space-between;">
+    <div>
+      <div style="font-weight:700; color:#c62828; font-size:15px;">
+        🔔 {{ pending_approvals }} item{{ 's' if pending_approvals != 1 else '' }} need{{ '' if pending_approvals != 1 else 's' }} your attention
+      </div>
+      <div style="font-size:13px; color:#888; margin-top:2px;">Artwork or mailing approvals are waiting on you.</div>
+    </div>
+    <a href="{{ url_for('client.approvals') }}" class="btn btn-primary">Review Now →</a>
+  </div>
+</div>
+{% endif %}
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">Active Campaigns</div>
+    <div class="stat-value">{{ stats.active }}</div>
+    <div style="font-size:12px; color:#aaa; margin-top:2px;">currently in progress</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Pieces Mailed</div>
+    <div class="stat-value green">{{ '{:,}'.format(stats.pieces_mailed) }}</div>
+    <div style="font-size:12px; color:#aaa; margin-top:2px;">all time</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Outstanding Balance</div>
+    <div class="stat-value {{ 'red' if stats.outstanding > 0 else '' }}">${{ '%.0f'|format(stats.outstanding) }}</div>
+    <div style="font-size:12px; color:#aaa; margin-top:2px;">
+      {% if stats.outstanding > 0 %}<a href="{{ url_for('client.invoices') }}" style="color:#e63946;">View invoices →</a>
+      {% else %}all paid up ✓{% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Recent campaigns -->
+<div class="card" style="margin-bottom:20px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+    <div class="card-title" style="margin:0;">Recent Campaigns</div>
+    <a href="{{ url_for('client.campaigns') }}" style="font-size:13px; color:#e63946; text-decoration:none;">View all →</a>
+  </div>
+  {% if campaigns %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Campaign</th><th>Status</th><th>Pieces</th><th>Mail Date</th></tr></thead>
+      <tbody>
+        {% for c in campaigns[:5] %}
+        <tr>
+          <td><strong>{{ c.fields.get('Campaign Name','—') }}</strong></td>
+          <td>
+            {% set s = c.fields.get('Status','Draft') %}
+            {% if s == 'Mailed' %}<span class="badge badge-green">{{ s }}</span>
+            {% elif s in ['Artwork Pending','Mailing Approval Pending'] %}<span class="badge badge-orange">⚠ {{ s }}</span>
+            {% elif s == 'In Production' %}<span class="badge badge-blue">{{ s }}</span>
+            {% else %}<span class="badge badge-gray">{{ s }}</span>{% endif %}
+          </td>
+          <td>{{ '{:,}'.format(c.fields.get('Piece Count',0)|int) if c.fields.get('Piece Count') else '—' }}</td>
+          <td style="color:#888; font-size:13px;">{{ c.fields.get('Mail Date','—') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state" style="padding:24px;">
+    <p>No campaigns yet. Your account manager will set these up for you.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Recent invoices -->
+{% if unpaid_invoices %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+    <div class="card-title" style="margin:0;">Outstanding Invoices</div>
+    <a href="{{ url_for('client.invoices') }}" style="font-size:13px; color:#e63946; text-decoration:none;">View all →</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Invoice #</th><th>Campaign</th><th>Amount</th><th>Due</th><th></th></tr></thead>
+      <tbody>
+        {% for inv in unpaid_invoices %}
+        <tr>
+          <td><strong>{{ inv.fields.get('Invoice Number','—') }}</strong></td>
+          <td>{{ inv.fields.get('Campaign','—') }}</td>
+          <td><strong>${{ '%.2f'|format(inv.fields.get('Amount',0)|float) }}</strong></td>
+          <td style="color:{% if inv.fields.get('Status') == 'Overdue' %}#c62828; font-weight:700;{% else %}#888;{% endif %} font-size:13px;">
+            {{ inv.fields.get('Due Date','—') }}
+            {% if inv.fields.get('Status') == 'Overdue' %} ⚠{% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('client.invoice_detail', record_id=inv.id) }}"
+               class="btn btn-primary" style="font-size:12px; padding:5px 14px;">Pay</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

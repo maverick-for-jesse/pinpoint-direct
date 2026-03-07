@@ -1,0 +1,70 @@
+{% extends "admin/base.html" %}
+{% block title %}Print Queue{% endblock %}
+{% block page_title %}Print Queue{% endblock %}
+
+{% block content %}
+
+<!-- Status filter tabs -->
+<div style="display:flex; gap:8px; margin-bottom:20px;">
+  {% for status, label, color in [('all','All Jobs','#888'),('Queued','Queued','#1565c0'),('Printing','Printing','#f57f17'),('Printed','Printed','#6a1b9a'),('Mailed','Mailed','#2e7d32')] %}
+  <a href="?status={{ status }}"
+     class="btn {{ 'btn-primary' if current_filter == status else 'btn-secondary' }}"
+     style="font-size:13px;">
+    {{ label }}
+    {% if counts.get(status) %}<span style="margin-left:6px; background:rgba(255,255,255,0.3); padding:1px 7px; border-radius:10px;">{{ counts[status] }}</span>{% endif %}
+  </a>
+  {% endfor %}
+</div>
+
+{% if jobs %}
+<div class="card" style="padding:0;">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Job</th>
+          <th>Client</th>
+          <th>Campaign</th>
+          <th>Pieces</th>
+          <th>Status</th>
+          <th>Print Date</th>
+          <th>Mail Date</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in jobs %}
+        <tr>
+          <td><strong>{{ job.fields.get('Job Name','—') }}</strong></td>
+          <td>{{ job.fields.get('Client','—') }}</td>
+          <td>{{ job.fields.get('Campaign','—') }}</td>
+          <td>{{ '{:,}'.format(job.fields.get('Piece Count',0)|int) if job.fields.get('Piece Count') else '—' }}</td>
+          <td>
+            {% set s = job.fields.get('Status','Queued') %}
+            {% if s == 'Mailed' %}<span class="badge badge-green">{{ s }}</span>
+            {% elif s == 'Printed' %}<span class="badge" style="background:#f3e5f5;color:#6a1b9a;">{{ s }}</span>
+            {% elif s == 'Printing' %}<span class="badge badge-yellow">{{ s }}</span>
+            {% else %}<span class="badge badge-blue">{{ s }}</span>{% endif %}
+          </td>
+          <td style="font-size:13px; color:#888;">{{ job.fields.get('Print Date','—') }}</td>
+          <td style="font-size:13px; color:#888;">{{ job.fields.get('Mail Date','—') }}</td>
+          <td>
+            <a href="{{ url_for('admin.print_job_detail', record_id=job.id) }}"
+               class="btn btn-secondary" style="font-size:12px; padding:5px 12px;">Manage</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-icon">🖨️</div>
+    <p>No print jobs{{ ' with status "' + current_filter + '"' if current_filter != 'all' else '' }}.</p>
+    <p style="font-size:13px; margin-top:8px; color:#bbb;">Jobs are created automatically when a campaign reaches "Mailing Approved".</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

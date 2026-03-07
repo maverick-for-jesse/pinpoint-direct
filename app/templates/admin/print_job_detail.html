@@ -1,0 +1,145 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ job.fields.get('Job Name','Print Job') }}{% endblock %}
+{% block page_title %}{{ job.fields.get('Job Name','Print Job') }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.print_queue') }}" class="btn btn-secondary">← Print Queue</a>
+{% endblock %}
+
+{% block content %}
+{% set status = job.fields.get('Status','Queued') %}
+
+<!-- Status pipeline -->
+<div class="card" style="margin-bottom:20px; padding:20px 24px;">
+  <div style="display:flex; align-items:center; gap:0;">
+    {% for s in ['Queued','Printing','Printed','Mailed'] %}
+      {% set is_current = s == status %}
+      {% set all_s = ['Queued','Printing','Printed','Mailed'] %}
+      {% set is_done = all_s.index(s) < all_s.index(status) %}
+      <div style="display:flex; align-items:center; flex-shrink:0;">
+        <div style="padding:6px 18px; border-radius:20px; font-size:13px; font-weight:700;
+             background:{{ '#e63946' if is_current else ('#e8f5e9' if is_done else '#f5f5f5') }};
+             color:{{ 'white' if is_current else ('#2e7d32' if is_done else '#bbb') }};">
+          {{ s }}
+        </div>
+        {% if not loop.last %}
+          <div style="width:32px; height:2px; background:{{ '#c8e6c9' if is_done else '#e0e0e0' }};"></div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 300px; gap:20px; align-items:start;">
+
+  <!-- Job details -->
+  <div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title">Job Details</div>
+      <div style="font-size:14px; line-height:2.4; display:grid; grid-template-columns:1fr 1fr; gap:0 24px;">
+        <div><strong>Client:</strong> {{ job.fields.get('Client','—') }}</div>
+        <div><strong>Campaign:</strong> {{ job.fields.get('Campaign','—') }}</div>
+        <div><strong>Piece Count:</strong> {{ '{:,}'.format(job.fields.get('Piece Count',0)|int) if job.fields.get('Piece Count') else '—' }}</div>
+        <div><strong>Status:</strong>
+          {% if status == 'Mailed' %}<span class="badge badge-green">{{ status }}</span>
+          {% elif status == 'Printed' %}<span class="badge" style="background:#f3e5f5;color:#6a1b9a;">{{ status }}</span>
+          {% elif status == 'Printing' %}<span class="badge badge-yellow">{{ status }}</span>
+          {% else %}<span class="badge badge-blue">{{ status }}</span>{% endif %}
+        </div>
+        <div><strong>Print Date:</strong> {{ job.fields.get('Print Date','—') }}</div>
+        <div><strong>Mail Date:</strong> {{ job.fields.get('Mail Date','—') }}</div>
+      </div>
+      {% if job.fields.get('Notes') %}
+      <div style="margin-top:14px; padding-top:14px; border-top:1px solid #f0f0f0;">
+        <p style="font-size:13px; color:#666;">{{ job.fields.get('Notes') }}</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- PDF section -->
+    <div class="card">
+      <div class="card-title">Print File</div>
+      {% if job.fields.get('PDF URL') %}
+        <a href="{{ job.fields.get('PDF URL') }}" target="_blank" class="btn btn-primary" style="margin-bottom:10px;">
+          📄 Download Print PDF
+        </a>
+        <p style="font-size:13px; color:#888;">Print this file, then mark the job as Printing below.</p>
+      {% else %}
+        <div class="empty-state" style="padding:20px;">
+          <div class="empty-icon" style="font-size:28px;">📄</div>
+          <p>No PDF attached yet.</p>
+          <p style="font-size:12px; margin-top:6px;">Generate one from the <a href="{{ url_for('admin.postcard_builder') }}">Postcard Builder</a> and link it here.</p>
+        </div>
+        <form method="POST" action="{{ url_for('admin.print_job_update', record_id=job.id) }}" style="margin-top:12px;">
+          <input type="hidden" name="action" value="add_pdf">
+          <div class="form-group">
+            <label class="form-label">Paste PDF URL or file path</label>
+            <input type="text" name="pdf_url" class="form-control" placeholder="https://... or /path/to/file.pdf">
+          </div>
+          <button type="submit" class="btn btn-secondary">Save PDF Link</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Actions sidebar -->
+  <div>
+    <div class="card">
+      <div class="card-title">Update Status</div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+
+        {% if status == 'Queued' %}
+        <form method="POST" action="{{ url_for('admin.print_job_update', record_id=job.id) }}">
+          <input type="hidden" name="action" value="start_printing">
+          <button type="submit" class="btn btn-primary" style="width:100%;">
+            🖨️ Mark as Printing
+          </button>
+        </form>
+
+        {% elif status == 'Printing' %}
+        <form method="POST" action="{{ url_for('admin.print_job_update', record_id=job.id) }}">
+          <input type="hidden" name="action" value="mark_printed">
+          <div class="form-group">
+            <label class="form-label">Print Date</label>
+            <input type="date" name="print_date" class="form-control" value="{{ today }}">
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;">
+            ✅ Mark as Printed
+          </button>
+        </form>
+
+        {% elif status == 'Printed' %}
+        <form method="POST" action="{{ url_for('admin.print_job_update', record_id=job.id) }}">
+          <input type="hidden" name="action" value="mark_mailed">
+          <div class="form-group">
+            <label class="form-label">Mail Date</label>
+            <input type="date" name="mail_date" class="form-control" value="{{ today }}">
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;">
+            📬 Mark as Mailed
+          </button>
+        </form>
+
+        {% elif status == 'Mailed' %}
+        <div style="text-align:center; padding:12px; background:#e8f5e9; border-radius:8px;">
+          <div style="font-size:24px;">✅</div>
+          <div style="font-weight:700; color:#2e7d32; margin-top:4px;">Job Complete</div>
+          <div style="font-size:12px; color:#888; margin-top:2px;">Mailed on {{ job.fields.get('Mail Date','—') }}</div>
+        </div>
+        {% endif %}
+
+        {% if status not in ('Mailed',) %}
+        <form method="POST" action="{{ url_for('admin.print_job_update', record_id=job.id) }}">
+          <input type="hidden" name="action" value="add_note">
+          <div class="form-group" style="margin-top:8px;">
+            <label class="form-label">Add Note</label>
+            <textarea name="notes" class="form-control" rows="2" placeholder="Any notes..."></textarea>
+          </div>
+          <button type="submit" class="btn btn-secondary" style="width:100%;">Save Note</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

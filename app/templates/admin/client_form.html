@@ -1,0 +1,70 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ 'Edit' if client else 'New Client' }}{% endblock %}
+{% block page_title %}{{ 'Edit Client' if client else 'New Client' }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.clients') }}" class="btn btn-secondary">← Back</a>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 680px;">
+  <form method="POST">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Company Name *</label>
+        <input type="text" name="company_name" class="form-control" required
+               value="{{ client.fields.get('Company Name','') if client else '' }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-control">
+          {% for opt in ['Active','Prospect','Inactive'] %}
+            <option value="{{ opt }}"
+              {% if client and client.fields.get('Status') == opt %}selected{% endif %}
+              {% if not client and opt == 'Active' %}selected{% endif %}>
+              {{ opt }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Contact Name</label>
+        <input type="text" name="contact_name" class="form-control"
+               value="{{ client.fields.get('Contact Name','') if client else '' }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contact Email</label>
+        <input type="email" name="contact_email" class="form-control"
+               value="{{ client.fields.get('Contact Email','') if client else '' }}">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Contact Phone</label>
+        <input type="text" name="contact_phone" class="form-control"
+               value="{{ client.fields.get('Contact Phone','') if client else '' }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Portal Username (Email)</label>
+        <input type="email" name="portal_username" class="form-control"
+               value="{{ client.fields.get('Portal Username','') if client else '' }}">
+        <div class="form-hint">Login email for the client portal</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <textarea name="notes" class="form-control" rows="3">{{ client.fields.get('Notes','') if client else '' }}</textarea>
+    </div>
+
+    <div style="display: flex; gap: 10px; margin-top: 8px;">
+      <button type="submit" class="btn btn-primary">{{ 'Save Changes' if client else 'Create Client' }}</button>
+      <a href="{{ url_for('admin.clients') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ 'Edit Campaign' if campaign else 'New Campaign' }}{% endblock %}
+{% block page_title %}{{ 'Edit Campaign' if campaign else 'New Campaign' }}{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.campaigns') }}" class="btn btn-secondary">← Back</a>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 720px;">
+  <form method="POST">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Campaign Name *</label>
+        <input type="text" name="campaign_name" class="form-control" required
+               placeholder="e.g. Spring Promo — April 2025"
+               value="{{ campaign.fields.get('Campaign Name','') if campaign else request.args.get('campaign_name','') }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Client *</label>
+        <select name="client" class="form-control" required>
+          <option value="">— Select client —</option>
+          {% for c in clients %}
+            <option value="{{ c.fields.get('Company Name','') }}"
+              {% if campaign and campaign.fields.get('Client') == c.fields.get('Company Name') %}selected
+              {% elif request.args.get('client') == c.fields.get('Company Name') %}selected{% endif %}>
+              {{ c.fields.get('Company Name','') }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Postcard Size</label>
+        <select name="postcard_size" class="form-control">
+          {% for size in ['4x6', '6x9', '6x11'] %}
+            <option value="{{ size }}"
+              {% if campaign and campaign.fields.get('Postcard Size') == size %}selected
+              {% elif not campaign and size == '6x9' %}selected{% endif %}>
+              {{ size }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Piece Count</label>
+        <input type="number" name="piece_count" class="form-control" min="1"
+               placeholder="e.g. 5000"
+               value="{{ campaign.fields.get('Piece Count','') if campaign else '' }}">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Target Mail Date</label>
+        <input type="date" name="mail_date" class="form-control"
+               value="{{ campaign.fields.get('Mail Date','') if campaign else '' }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-control">
+          {% set statuses = ['Draft','Artwork Pending','Artwork Approved','Mailing Approval Pending','Mailing Approved','In Production','Mailed','Cancelled'] %}
+          {% for s in statuses %}
+            <option value="{{ s }}"
+              {% if campaign and campaign.fields.get('Status') == s %}selected
+              {% elif not campaign and s == 'Draft' %}selected{% endif %}>
+              {{ s }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <textarea name="notes" class="form-control" rows="3"
+                placeholder="Any special instructions, offer details, targeting notes...">{{ campaign.fields.get('Notes','') if campaign else '' }}</textarea>
+    </div>
+
+    <div style="display: flex; gap: 10px; margin-top: 8px;">
+      <button type="submit" class="btn btn-primary">{{ 'Save Changes' if campaign else 'Create Campaign' }}</button>
+      <a href="{{ url_for('admin.campaigns') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
