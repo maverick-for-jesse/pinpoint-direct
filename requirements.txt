@@ -1,6 +1,6 @@
 flask
 flask-login
-flask-wtf
+# flask-wtf  # not used, removed to avoid CSRF conflicts
 python-dotenv
 stripe
 requests

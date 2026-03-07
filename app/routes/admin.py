@@ -78,9 +78,12 @@ def client_new():
         }
         # Remove empty fields
         fields = {k: v for k, v in fields.items() if v}
-        create_record('clients', fields)
-        flash(f"Client '{fields.get('Company Name')}' created.", 'success')
-        return redirect(url_for('admin.clients'))
+        try:
+            create_record('clients', fields)
+            flash(f"Client '{fields.get('Company Name')}' created.", 'success')
+            return redirect(url_for('admin.clients'))
+        except Exception as e:
+            flash(f"Error: {str(e)}", 'error')
     return render_template('admin/client_form.html', client=None)
 
 
