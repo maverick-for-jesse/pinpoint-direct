@@ -29,48 +29,56 @@ def _load_config():
         }
     return token, base_id, tables
 
-TOKEN, BASE_ID, TABLES = _load_config()
-HEADERS  = {'Authorization': f'Bearer {TOKEN}', 'Content-Type': 'application/json'}
-BASE_URL = f'https://api.airtable.com/v0/{BASE_ID}'
+def _get_headers():
+    token, _, _ = _load_config()
+    return {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+
+def _get_base_url():
+    _, base_id, _ = _load_config()
+    return f'https://api.airtable.com/v0/{base_id}'
+
+def _get_tables():
+    _, _, tables = _load_config()
+    return tables
 
 
 def get_records(table_key, filter_formula=None, fields=None):
-    url = f"{BASE_URL}/{TABLES[table_key]}"
+    url = f"{_get_base_url()}/{_get_tables()[table_key]}"
     params = {}
     if filter_formula:
         params['filterByFormula'] = filter_formula
     if fields:
         for f in fields:
             params.setdefault('fields[]', []).append(f)
-    resp = requests.get(url, headers=HEADERS, params=params)
+    resp = requests.get(url, headers=_get_headers(), params=params)
     resp.raise_for_status()
     return resp.json().get('records', [])
 
 
 def get_record(table_key, record_id):
-    url = f"{BASE_URL}/{TABLES[table_key]}/{record_id}"
-    resp = requests.get(url, headers=HEADERS)
+    url = f"{_get_base_url()}/{_get_tables()[table_key]}/{record_id}"
+    resp = requests.get(url, headers=_get_headers())
     resp.raise_for_status()
     return resp.json()
 
 
 def create_record(table_key, fields):
-    url = f"{BASE_URL}/{TABLES[table_key]}"
-    resp = requests.post(url, headers=HEADERS, json={'fields': fields})
+    url = f"{_get_base_url()}/{_get_tables()[table_key]}"
+    resp = requests.post(url, headers=_get_headers(), json={'fields': fields})
     resp.raise_for_status()
     return resp.json()
 
 
 def update_record(table_key, record_id, fields):
-    url = f"{BASE_URL}/{TABLES[table_key]}/{record_id}"
-    resp = requests.patch(url, headers=HEADERS, json={'fields': fields})
+    url = f"{_get_base_url()}/{_get_tables()[table_key]}/{record_id}"
+    resp = requests.patch(url, headers=_get_headers(), json={'fields': fields})
     resp.raise_for_status()
     return resp.json()
 
 
 def delete_record(table_key, record_id):
-    url = f"{BASE_URL}/{TABLES[table_key]}/{record_id}"
-    resp = requests.delete(url, headers=HEADERS)
+    url = f"{_get_base_url()}/{_get_tables()[table_key]}/{record_id}"
+    resp = requests.delete(url, headers=_get_headers())
     resp.raise_for_status()
     return resp.json()
 
