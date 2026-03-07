@@ -3,45 +3,63 @@ import requests
 import base64
 import json
 
-# Load Gemini key from env or config
+
 def get_api_key():
-    key = os.getenv('GEMINI_API_KEY')
+    key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
     if not key:
         config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'config', 'gemini.json')
         if os.path.exists(config_path):
             with open(config_path) as f:
                 key = json.load(f).get('api_key')
-    return key or os.getenv('GOOGLE_API_KEY')
+    return key
 
 
 def generate_image(prompt, aspect_ratio='LANDSCAPE'):
     """
-    Generate an image using Google Imagen 3 via Gemini API.
+    Generate an image using Gemini 2.0 Flash image generation.
     Returns base64-encoded PNG string or raises on error.
-    aspect_ratio: LANDSCAPE (6x9 postcard) or PORTRAIT
     """
     api_key = get_api_key()
     if not api_key:
         raise ValueError("GEMINI_API_KEY not configured.")
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key={api_key}"
 
     payload = {
-        "instances": [{"prompt": prompt}],
-        "parameters": {
-            "sampleCount": 1,
-            "aspectRatio": "16:9" if aspect_ratio == "LANDSCAPE" else "4:3",
-            "safetyFilterLevel": "block_only_high",
-            "personGeneration": "allow_adult"
+        "contents": [
+            {
+                "parts": [
+                    {"text": prompt}
+                ]
+            }
+        ],
+        "generationConfig": {
+            "responseModalities": ["IMAGE"],
+            "responseMimeType": "image/png"
         }
     }
 
-    resp = requests.post(url, json=payload, timeout=30)
-    resp.raise_for_status()
+    resp = requests.post(url, json=payload, timeout=60)
+
+    if not resp.ok:
+        # Fallback to standard gemini-2.0-flash-exp
+        url2 = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={api_key}"
+        payload2 = {
+            "contents": [{"parts": [{"text": f"Generate a photorealistic image: {prompt}"}]}],
+            "generationConfig": {"responseModalities": ["IMAGE", "TEXT"]}
+        }
+        resp = requests.post(url2, json=payload2, timeout=60)
+        resp.raise_for_status()
+
     data = resp.json()
 
-    predictions = data.get('predictions', [])
-    if not predictions:
+    # Extract base64 image from response
+    candidates = data.get('candidates', [])
+    if not candidates:
         raise ValueError("No image returned from Gemini API.")
 
-    return predictions[0].get('bytesBase64Encoded', '')
+    for part in candidates[0].get('content', {}).get('parts', []):
+        if 'inlineData' in part:
+            return part['inlineData']['data']
+
+    raise ValueError("No image data in Gemini response.")
