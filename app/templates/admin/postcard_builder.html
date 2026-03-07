@@ -230,22 +230,29 @@
       <!-- Back preview — USPS-accurate layout -->
       <div id="preview-back" style="display:none; position:relative; width:100%; border-radius:10px; overflow:hidden;
            box-shadow: 0 4px 24px rgba(0,0,0,0.15);">
-        <div id="back-canvas" style="position:relative; background:#fff; min-height:300px;
+        <!-- Aspect ratio wrapper: 6x9 = 3:2, height = 66.67% of width -->
+        <div style="padding-bottom: 66.67%; position:relative; width:100%;">
+        <div id="back-canvas" style="position:absolute; inset:0; background:#fff;
              background-size:cover; background-position:center;">
 
           <!-- Background image tint — only shows on left side via clip -->
           <div id="back-bg-tint" style="position:absolute; inset:0; background:rgba(255,255,255,0.0); z-index:0;"></div>
 
           <!-- Full postcard back layout -->
-          <div style="position:relative; z-index:2; display:flex; min-height:300px;">
+          <div style="position:absolute; inset:0; z-index:2; display:flex;">
 
             <!-- ── LEFT 60%: Message area ── -->
             <div style="flex:0 0 60%; display:flex; flex-direction:column; padding:20px 18px 16px 20px;
                         border-right: 1.5px solid #ccc; background:rgba(255,255,255,0.82);">
 
               <!-- Return address — top left -->
-              <div id="pb-return" style="font-size:10px; color:#666; line-height:1.6; margin-bottom:14px;
-                                         border-bottom:1px solid #eee; padding-bottom:10px;"></div>
+              <div id="pb-return-wrap" style="font-size:10px; color:#666; line-height:1.6; margin-bottom:14px;
+                                         border-bottom:1px solid #eee; padding-bottom:10px;">
+                <div id="pb-return"></div>
+                <div id="pb-return-placeholder" style="color:#ccc; font-style:italic;">
+                  Your return address will appear here
+                </div>
+              </div>
 
               <!-- Offer / back copy — center -->
               <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
@@ -290,6 +297,7 @@
 
           </div>
         </div>
+        </div><!-- end aspect ratio wrapper -->
       </div>
 
       <!-- Size indicator -->
@@ -413,7 +421,11 @@
     const backPhone  = document.getElementById('back-phone').value;
     const backBg     = document.getElementById('back-bg-color').value;
 
-    document.getElementById('pb-return').innerHTML = applyMergeTags(returnAddr).replace(/\n/g,'<br>');
+    const pbReturn = document.getElementById('pb-return');
+    const pbReturnPH = document.getElementById('pb-return-placeholder');
+    pbReturn.innerHTML = applyMergeTags(returnAddr).replace(/\n/g,'<br>');
+    if (pbReturnPH) pbReturnPH.style.display = returnAddr.trim() ? 'none' : 'block';
+    if (pbReturn) pbReturn.style.display = returnAddr.trim() ? 'block' : 'none';
     document.getElementById('pb-body').innerHTML   = applyMergeTags(backBody);
     document.getElementById('pb-url').textContent  = backUrl;
     document.getElementById('pb-phone').textContent= backPhone;
