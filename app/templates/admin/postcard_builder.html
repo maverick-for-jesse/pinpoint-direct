@@ -229,31 +229,38 @@
       <!-- Back preview -->
       <div id="preview-back" style="display:none; position:relative; width:100%; border-radius:10px; overflow:hidden;
            box-shadow: 0 4px 24px rgba(0,0,0,0.15);">
-        <div id="back-canvas" style="padding-bottom: 66.67%; position:relative; background:#fff; min-height:300px;">
-          <div style="position:absolute; inset:0; display:grid; grid-template-columns: 1fr 1fr; padding:32px; gap:24px;">
+        <div id="back-canvas" style="padding-bottom: 66.67%; position:relative; background:#fff; min-height:300px;
+             background-size:cover; background-position:center;">
+          <div style="position:absolute; inset:0; display:grid; grid-template-columns: 1fr 1fr; padding:24px; gap:16px; z-index:2;">
 
-            <!-- Left side: offer copy -->
-            <div style="display:flex; flex-direction:column; justify-content:center; border-right: 2px dashed #e0e0e0; padding-right: 24px;">
-              <div id="pb-return" style="font-size:11px; color:#888; margin-bottom: 16px; line-height:1.5;"></div>
-              <div id="pb-body" style="font-size:13px; color:#333; line-height:1.6; margin-bottom:12px;"></div>
+            <!-- Left side: offer copy — semi-transparent overlay for readability -->
+            <div style="display:flex; flex-direction:column; justify-content:center; padding:16px;
+                        background: rgba(255,255,255,0.88); border-radius:8px;
+                        border-right: 2px dashed #e0e0e0;">
+              <div id="pb-return" style="font-size:11px; color:#888; margin-bottom:12px; line-height:1.5;"></div>
+              <div id="pb-body" style="font-size:13px; color:#333; line-height:1.6; margin-bottom:10px;"></div>
               <div id="pb-url" style="font-size:13px; font-weight:700; color:#e63946;"></div>
               <div id="pb-phone" style="font-size:14px; font-weight:700; color:#1a1a2e; margin-top:4px;"></div>
             </div>
 
-            <!-- Right side: address area -->
-            <div style="display:flex; flex-direction:column; justify-content:space-between;">
-              <!-- Indicia box -->
-              <div style="border: 1.5px solid #ccc; border-radius:4px; padding:8px; width:80px; text-align:center;
-                          font-size:8px; color:#888; line-height:1.4; margin-left:auto;">
-                PRESORTED<br>STANDARD<br>U.S. POSTAGE<br>PAID<br>PERMIT
+            <!-- Right side: address area — always white for USPS compliance -->
+            <div style="display:flex; flex-direction:column; justify-content:space-between; padding:16px;
+                        background: rgba(255,255,255,0.95); border-radius:8px;">
+              <!-- Indicia box (top-right) -->
+              <div style="border: 1.5px solid #999; border-radius:4px; padding:7px 10px; width:90px; text-align:center;
+                          font-size:8px; color:#555; line-height:1.5; margin-left:auto;
+                          background:#fff;">
+                PRESORTED<br>STANDARD<br>U.S. POSTAGE<br>PAID<br><strong>PERMIT #000</strong>
               </div>
-              <!-- Address placeholder -->
+              <!-- Address block -->
               <div style="margin-top:auto;">
-                <div style="font-size:12px; color:#bbb; text-align:center; padding:20px;
-                            border: 2px dashed #e0e0e0; border-radius:6px;">
-                  <div style="font-size:16px; margin-bottom:6px;">📬</div>
-                  Recipient address<br>will appear here<br>
-                  <span style="font-size:10px;">from mailing list</span>
+                <div style="font-size:12px; color:#999; text-align:center; padding:18px;
+                            border: 2px dashed #ccc; border-radius:6px; background:#fafafa;">
+                  <div style="font-size:20px; margin-bottom:6px;">📬</div>
+                  <strong style="font-size:12px; color:#555;">Recipient Name</strong><br>
+                  <span style="color:#aaa;">123 Main St</span><br>
+                  <span style="color:#aaa;">City, ST 00000</span><br>
+                  <span style="font-size:10px; color:#bbb;">from mailing list</span>
                 </div>
               </div>
             </div>
