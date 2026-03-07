@@ -86,3 +86,8 @@ def delete_record(table_key, record_id):
 def find_user_by_email(email):
     records = get_records('users', filter_formula=f"{{Email}}='{email}'")
     return records[0] if records else None
+
+
+def at_str(value):
+    """Escape a string for safe use inside Airtable filter formula single quotes."""
+    return str(value).replace("'", "\\'")

@@ -166,11 +166,13 @@ def campaign_new():
 @login_required
 @admin_required
 def campaign_detail(record_id):
+    from app.utils.airtable import at_str
     campaign = get_record('campaigns', record_id)
     campaign_name = campaign['fields'].get('Campaign Name', '')
-    artwork = get_records('artwork', filter_formula=f"{{Campaign}}='{campaign_name}'")
+    safe_name = at_str(campaign_name)
+    artwork = get_records('artwork', filter_formula=f"{{Campaign}}='{safe_name}'")
     artwork = sorted(artwork, key=lambda x: x['fields'].get('Version', 0), reverse=True)
-    print_jobs = get_records('print_jobs', filter_formula=f"{{Campaign}}='{campaign_name}'")
+    print_jobs = get_records('print_jobs', filter_formula=f"{{Campaign}}='{safe_name}'")
     print_job = print_jobs[0] if print_jobs else None
     return render_template('admin/campaign_detail.html',
                            campaign=campaign,
@@ -291,7 +293,7 @@ def postcard_save():
     campaign_id = data.get('campaign_id', '').strip()
 
     # Figure out version number
-    existing = get_records('artwork', filter_formula=f"{{Campaign}}='{campaign_name}'")
+    existing = get_records('artwork', filter_formula=f"{{Campaign}}='{campaign_name.replace(chr(39), chr(92)+chr(39))}'") 
     version = len(existing) + 1
 
     fields = {
@@ -623,7 +625,7 @@ def print_job_update(record_id):
         # Also advance campaign to Mailed
         campaign_name = job['fields'].get('Campaign', '')
         if campaign_name:
-            campaigns = get_records('campaigns', filter_formula=f"{{Campaign Name}}='{campaign_name}'")
+            campaigns = get_records('campaigns', filter_formula=f"{{Campaign Name}}='{campaign_name.replace(chr(39), chr(92)+chr(39))}'")
             for c in campaigns:
                 if c['fields'].get('Status') == 'In Production':
                     update_record('campaigns', c['id'], {'Status': 'Mailed'})
