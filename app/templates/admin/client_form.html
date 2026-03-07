@@ -20,7 +20,7 @@
         <select name="status" class="form-control">
           {% for opt in ['Active','Prospect','Inactive'] %}
             <option value="{{ opt }}"
-              {% if client and client.fields.get('Status') == opt %}selected{% endif %}
+              {% if client and client.fields.get('Client Status') == opt %}selected{% endif %}
               {% if not client and opt == 'Active' %}selected{% endif %}>
               {{ opt }}
             </option>

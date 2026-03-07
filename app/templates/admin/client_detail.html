@@ -19,7 +19,7 @@
       <div><strong>Phone:</strong> {{ client.fields.get('Contact Phone','—') }}</div>
       <div><strong>Portal Login:</strong> {{ client.fields.get('Portal Username','—') }}</div>
       <div style="margin-top: 8px;">
-        {% set status = client.fields.get('Status','Active') %}
+        {% set status = client.fields.get('Client Status','Active') %}
         {% if status == 'Active' %}<span class="badge badge-green">{{ status }}</span>
         {% elif status == 'Prospect' %}<span class="badge badge-blue">{{ status }}</span>
         {% else %}<span class="badge badge-gray">{{ status }}</span>{% endif %}
@@ -48,7 +48,7 @@
             <tr>
               <td><strong>{{ c.fields.get('Campaign Name','—') }}</strong></td>
               <td>
-                {% set s = c.fields.get('Status','Draft') %}
+                {% set s = c.fields.get('Client Status','Draft') %}
                 {% if s == 'Mailed' %}<span class="badge badge-green">{{ s }}</span>
                 {% elif s in ['Artwork Pending','Mailing Approval Pending'] %}<span class="badge badge-yellow">{{ s }}</span>
                 {% elif s == 'In Production' %}<span class="badge badge-blue">{{ s }}</span>
@@ -82,7 +82,7 @@
               <td>{{ inv.fields.get('Invoice Number','—') }}</td>
               <td><strong>${{ inv.fields.get('Amount','0') }}</strong></td>
               <td>
-                {% set s = inv.fields.get('Status','Draft') %}
+                {% set s = inv.fields.get('Client Status','Draft') %}
                 {% if s == 'Paid' %}<span class="badge badge-green">{{ s }}</span>
                 {% elif s == 'Overdue' %}<span class="badge badge-red">{{ s }}</span>
                 {% elif s == 'Sent' %}<span class="badge badge-blue">{{ s }}</span>

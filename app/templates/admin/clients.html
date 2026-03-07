@@ -29,7 +29,7 @@
           <td>{{ c.fields.get('Contact Email', '—') }}</td>
           <td>{{ c.fields.get('Contact Phone', '—') }}</td>
           <td>
-            {% set status = c.fields.get('Status', 'Active') %}
+            {% set status = c.fields.get('Client Status', 'Active') %}
             {% if status == 'Active' %}
               <span class="badge badge-green">{{ status }}</span>
             {% elif status == 'Prospect' %}

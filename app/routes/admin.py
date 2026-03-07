@@ -73,7 +73,7 @@ def client_new():
             'Contact Email': request.form.get('contact_email', '').strip(),
             'Contact Phone': request.form.get('contact_phone', '').strip(),
             'Portal Username': request.form.get('portal_username', '').strip(),
-            'Status': request.form.get('status', 'Active'),
+            'Client Status': request.form.get('status', 'Active'),
             'Notes': request.form.get('notes', '').strip(),
         }
         # Remove empty fields

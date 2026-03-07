@@ -45,7 +45,7 @@
             <td><strong>{{ c.fields.get('Campaign Name', '—') }}</strong></td>
             <td>{{ c.fields.get('Client', '—') }}</td>
             <td>
-              {% set status = c.fields.get('Status', 'Draft') %}
+              {% set status = c.fields.get('Client Status', 'Draft') %}
               {% if status == 'Mailed' %}
                 <span class="badge badge-green">{{ status }}</span>
               {% elif status in ['Artwork Pending', 'Mailing Approval Pending'] %}
@@ -89,7 +89,7 @@
             <td><strong>{{ c.fields.get('Company Name', '—') }}</strong></td>
             <td>{{ c.fields.get('Contact Name', '—') }}</td>
             <td>
-              {% set status = c.fields.get('Status', 'Active') %}
+              {% set status = c.fields.get('Client Status', 'Active') %}
               {% if status == 'Active' %}
                 <span class="badge badge-green">{{ status }}</span>
               {% elif status == 'Prospect' %}
