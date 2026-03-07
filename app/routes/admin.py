@@ -153,9 +153,12 @@ def campaign_new():
         if mail_date:
             fields['Mail Date'] = mail_date
         fields = {k: v for k, v in fields.items() if v != ''}
-        record = create_record('campaigns', fields)
-        flash(f"Campaign '{fields.get('Campaign Name')}' created.", 'success')
-        return redirect(url_for('admin.campaign_detail', record_id=record['id']))
+        try:
+            record = create_record('campaigns', fields)
+            flash(f"Campaign '{fields.get('Campaign Name')}' created.", 'success')
+            return redirect(url_for('admin.campaign_detail', record_id=record['id']))
+        except Exception as e:
+            flash(f"Error creating campaign: {str(e)}", 'error')
     return render_template('admin/campaign_form.html', campaign=None, clients=clients)
 
 
