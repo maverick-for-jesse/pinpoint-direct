@@ -3,21 +3,8 @@ import json
 import os
 
 
-def get_gemini_key():
-    config_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-        'config', 'gemini.json'
-    )
-    if os.path.exists(config_path):
-        with open(config_path) as f:
-            key = json.load(f).get('api_key')
-        if key:
-            return ('gemini', key)
-    # Fallback: env vars
-    key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
-    if key:
-        return ('gemini', key)
-    # Fallback: xAI Grok
+def get_ai_provider():
+    # Prefer xAI Grok (reliable text generation)
     xai_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
         'config', 'xai.json'
@@ -30,7 +17,17 @@ def get_gemini_key():
     key = os.getenv('XAI_API_KEY')
     if key:
         return ('xai', key)
-    raise ValueError("No AI API key configured. Add config/gemini.json or config/xai.json.")
+    # Fallback: Gemini
+    config_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        'config', 'gemini.json'
+    )
+    if os.path.exists(config_path):
+        with open(config_path) as f:
+            key = json.load(f).get('api_key')
+        if key:
+            return ('gemini', key)
+    raise ValueError("No AI API key configured. Add config/xai.json or config/gemini.json.")
 
 
 def _generate_with_gemini(api_key, system_prompt):
@@ -77,7 +74,7 @@ def generate_postcard_copy(business_name, business_type, offer_description, targ
     Returns dict with option_a and option_b, each having:
     headline, subheadline, body, cta, image_prompt
     """
-    provider, api_key = get_gemini_key()
+    provider, api_key = get_ai_provider()
 
     system_prompt = f"""You are an expert direct mail copywriter specializing in 6x9 postcards for local businesses.
 Generate compelling postcard copy that gets recipients to take action.
