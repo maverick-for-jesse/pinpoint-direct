@@ -272,16 +272,29 @@ def postcard_builder():
 @login_required
 @admin_required
 def generate_image():
-    from app.utils.ideogram import generate_two_options
+    from app.utils.ideogram import generate_four_images
     data = request.get_json()
-    prompt_a = data.get('prompt_a', '').strip()
-    prompt_b = data.get('prompt_b', prompt_a).strip()
+    prompt_a   = data.get('prompt_a', '').strip()
+    prompt_b   = data.get('prompt_b', prompt_a).strip()
     style_type = data.get('style_type', 'REALISTIC')
+    biz_type   = data.get('biz_type', 'business')
+    biz_name   = data.get('biz_name', '')
     if not prompt_a:
         return jsonify({'error': 'Prompt is required.'}), 400
+    # Back image prompts: softer, texture-based — complements front without competing
+    back_prompt_a = (
+        f"Soft lifestyle background for {biz_type} postcard back. "
+        f"Muted tones, shallow depth of field, no text, no people, minimal, premium feel. "
+        f"Same mood as: {prompt_a[:120]}"
+    )
+    back_prompt_b = (
+        f"Subtle textured background for {biz_type} postcard back. "
+        f"Different color palette from option A, elegant, no text, no faces. "
+        f"Complements: {prompt_b[:120]}"
+    )
     try:
-        images = generate_two_options(prompt_a, prompt_b, style_type)
-        return jsonify({'image_a': images[0], 'image_b': images[1]})
+        images = generate_four_images(prompt_a, prompt_b, back_prompt_a, back_prompt_b, style_type)
+        return jsonify(images)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

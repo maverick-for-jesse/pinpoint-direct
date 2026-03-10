@@ -50,3 +50,18 @@ def generate_two_options(prompt_a, prompt_b, style_type='REALISTIC'):
         fa = ex.submit(generate_postcard_image, prompt_a, style_type)
         fb = ex.submit(generate_postcard_image, prompt_b, style_type)
         return [fa.result(), fb.result()]
+
+
+def generate_four_images(prompt_a, prompt_b, back_prompt_a, back_prompt_b, style_type='REALISTIC'):
+    """Generate front A, front B, back A, back B in parallel. Returns dict."""
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+        fa  = ex.submit(generate_postcard_image, prompt_a, style_type)
+        fb  = ex.submit(generate_postcard_image, prompt_b, style_type)
+        bpa = ex.submit(generate_postcard_image, back_prompt_a, style_type)
+        bpb = ex.submit(generate_postcard_image, back_prompt_b, style_type)
+        return {
+            'image_a':      fa.result(),
+            'image_b':      fb.result(),
+            'back_image_a': bpa.result(),
+            'back_image_b': bpb.result(),
+        }

@@ -733,7 +733,11 @@
       const res = await fetch('/admin/postcard-builder/generate-image', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ prompt_a: promptA, prompt_b: promptB, style_type: styleType })
+        body: JSON.stringify({
+          prompt_a: promptA, prompt_b: promptB, style_type: styleType,
+          biz_type: document.getElementById('biz-type').value,
+          biz_name: document.getElementById('biz-name').value
+        })
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -750,12 +754,10 @@
   }
 
   function renderGeneratedPreviews(data) {
-    // Draw front canvases for A and B
-    ['a', 'b'].forEach(letter => {
-      const b64 = letter === 'a' ? data.image_a : data.image_b;
-      drawPostcardFrontCanvas(`canvas-${letter}-front`, b64);
-      drawPostcardBackCanvas(`canvas-${letter}-back`);
-    });
+    drawPostcardFrontCanvas('canvas-a-front', data.image_a);
+    drawPostcardFrontCanvas('canvas-b-front', data.image_b);
+    drawPostcardBackCanvas('canvas-a-back', data.back_image_a);
+    drawPostcardBackCanvas('canvas-b-back', data.back_image_b);
   }
 
   function drawPostcardFrontCanvas(canvasId, bgB64) {
@@ -807,7 +809,7 @@
     img.src = `data:image/jpeg;base64,${bgB64}`;
   }
 
-  function drawPostcardBackCanvas(canvasId) {
+  function drawPostcardBackCanvas(canvasId, bgB64) {
     const canvas = document.getElementById(canvasId);
     canvas.width  = 900;
     canvas.height = 600;
@@ -815,14 +817,15 @@
     canvas.style.height = 'auto';
     const ctx = canvas.getContext('2d');
 
-    // White background
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, 900, 600);
+    const drawContent = () => {
+      // Right half: clean white for USPS address area
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(540, 0, 360, 600);
 
-    // Dividing line
-    ctx.strokeStyle = '#ccc';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(540, 0); ctx.lineTo(540, 600); ctx.stroke();
+      // Dividing line
+      ctx.strokeStyle = '#bbb';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(540, 0); ctx.lineTo(540, 600); ctx.stroke();
 
     // Left section
     const bizName  = document.getElementById('biz-name').value || 'Your Business';
@@ -831,22 +834,22 @@
     const website  = document.getElementById('biz-website').value || '';
     const backBody = document.getElementById('back-body').value || '';
 
-    ctx.fillStyle = '#1a1a2e';
-    ctx.font = 'bold 22px sans-serif';
-    ctx.fillText(bizName, 32, 52);
+      ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 4;
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 24px sans-serif';
+      ctx.fillText(bizName, 32, 52);
 
-    ctx.fillStyle = '#666';
-    ctx.font = '16px sans-serif';
-    let ly = 80;
-    if (address) { ctx.fillText(address, 32, ly); ly += 22; }
-    if (phone)   { ctx.fillText(phone, 32, ly);   ly += 22; }
-    if (website) { ctx.fillStyle = '#e63946'; ctx.fillText(website, 32, ly); ly += 22; ctx.fillStyle = '#666'; }
-
-    if (backBody) {
-      ctx.fillStyle = '#333';
       ctx.font = '15px sans-serif';
-      wrapText(ctx, backBody, 32, 300, 480, 22);
-    }
+      let ly = 80;
+      if (address) { ctx.fillText(address, 32, ly); ly += 22; }
+      if (phone)   { ctx.fillText(phone, 32, ly);   ly += 22; }
+      if (website) { ctx.fillStyle = '#ffb3b3'; ctx.fillText(website, 32, ly); ly += 22; ctx.fillStyle = '#fff'; }
+
+      if (backBody) {
+        ctx.font = '15px sans-serif';
+        wrapText(ctx, backBody, 32, 300, 490, 22);
+      }
+      ctx.shadowBlur = 0;
 
     // Indicia (right top)
     ctx.strokeStyle = '#888';
@@ -869,9 +872,31 @@
     ctx.fillRect(555, 424, 300, 14);
     ctx.fillRect(555, 446, 260, 14);
 
-    ctx.fillStyle = '#bbb';
-    ctx.font = '11px sans-serif';
-    ctx.fillText('POSTAL CUSTOMER', 555, 580);
+      ctx.fillStyle = '#bbb';
+      ctx.font = '11px sans-serif';
+      ctx.fillText('POSTAL CUSTOMER', 555, 580);
+    }; // end drawContent
+
+    if (bgB64) {
+      // Draw AI image on left content side (0–540), then overlay text
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, 540, 600);
+        // Subtle dark overlay on left so text is readable
+        const grad = ctx.createLinearGradient(0, 0, 0, 600);
+        grad.addColorStop(0, 'rgba(0,0,0,0.45)');
+        grad.addColorStop(1, 'rgba(0,0,0,0.55)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 540, 600);
+        drawContent();
+      };
+      img.src = `data:image/jpeg;base64,${bgB64}`;
+    } else {
+      // Fallback: plain white left side
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, 540, 600);
+      drawContent();
+    }
   }
 
   function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
