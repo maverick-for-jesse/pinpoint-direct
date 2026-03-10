@@ -49,7 +49,7 @@ def _generate_with_xai(api_key, system_prompt):
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "grok-2-latest",
+        "model": "grok-3-mini",
         "messages": [
             {"role": "system", "content": "You are an expert direct mail copywriter. Return only valid JSON as instructed."},
             {"role": "user", "content": system_prompt}
