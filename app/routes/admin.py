@@ -299,6 +299,22 @@ def generate_image():
         return jsonify({'error': str(e)}), 500
 
 
+@admin_bp.route('/postcard-builder/analyze-website', methods=['POST'])
+@login_required
+@admin_required
+def analyze_website():
+    from app.utils.website_analyzer import analyze_website as do_analyze
+    data = request.get_json()
+    url = data.get('url', '').strip()
+    if not url:
+        return jsonify({'error': 'URL is required.'}), 400
+    try:
+        result = do_analyze(url)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': f'Could not analyze site: {str(e)}'}), 500
+
+
 @admin_bp.route('/postcard-builder/generate-copy', methods=['POST'])
 @login_required
 @admin_required

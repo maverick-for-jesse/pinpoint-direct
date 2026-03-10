@@ -130,6 +130,21 @@
   ═══════════════════════════════════════════════════════════ -->
   <div id="left-panel">
 
+    <!-- Website Analyzer -->
+    <div class="card" style="margin-bottom:12px; border:2px solid #e63946;">
+      <div class="card-title" style="margin-bottom:8px;">🌐 Auto-Fill from Website</div>
+      <p style="font-size:12px;color:#888;margin-bottom:10px;">Paste a business URL and we'll pull their brand, colors, and copy automatically.</p>
+      <div style="display:flex;gap:8px;">
+        <input type="url" id="website-url-input" class="form-control"
+               placeholder="https://example.com" style="flex:1;"
+               onkeydown="if(event.key==='Enter') analyzeWebsite()">
+        <button onclick="analyzeWebsite()" id="analyze-btn" class="btn btn-primary" style="white-space:nowrap;">
+          🔍 Analyze
+        </button>
+      </div>
+      <div id="analyze-status" style="font-size:12px;margin-top:8px;display:none;"></div>
+    </div>
+
     <!-- Campaign selector (compact, outside steps) -->
     <div class="card" style="margin-bottom:12px;">
       <div class="card-title" style="margin-bottom:8px;">Campaign</div>
@@ -718,12 +733,19 @@
       promptB = copyOptions.option_b?.image_prompt || promptA;
     }
 
+    // Append brand notes from website analysis if available
+    const brandHint = window.websiteImageHint || '';
+    if (brandHint) {
+      promptA = (promptA || '') + ` Brand style: ${brandHint}`;
+      promptB = (promptB || '') + ` Brand style: ${brandHint}`;
+    }
+
     // Fallback: build prompt from fields
     if (!promptA) {
       const bizType = document.getElementById('biz-type').value;
       const headline = document.getElementById('front-headline').value;
-      promptA = `Professional ${bizType} marketing photo. ${headline}. Photorealistic, commercial quality, no text.`;
-      promptB = `Alternative angle for ${bizType}. ${headline}. Different mood, photorealistic, no text.`;
+      promptA = `Professional ${bizType} marketing photo. ${headline}. Photorealistic, commercial quality, no text.${brandHint ? ' ' + brandHint : ''}`;
+      promptB = `Alternative angle for ${bizType}. ${headline}. Different mood, photorealistic, no text.${brandHint ? ' ' + brandHint : ''}`;
     }
 
     const styleType = document.getElementById('style-type').value;
@@ -914,6 +936,67 @@
       }
     }
     ctx.fillText(line.trim(), x, y);
+  }
+
+  async function analyzeWebsite() {
+    const url = document.getElementById('website-url-input').value.trim();
+    if (!url) { alert('Please enter a website URL.'); return; }
+
+    const btn = document.getElementById('analyze-btn');
+    const status = document.getElementById('analyze-status');
+    btn.disabled = true;
+    btn.textContent = '⏳ Analyzing...';
+    status.style.display = 'block';
+    status.style.color = '#888';
+    status.textContent = 'Scraping site and analyzing with AI — usually 10–15 seconds...';
+
+    try {
+      const res = await fetch('/admin/postcard-builder/analyze-website', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ url })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      // Auto-fill all form fields
+      const setVal = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+      setVal('biz-name',    data.business_name);
+      setVal('biz-type',    data.business_type);
+      setVal('biz-phone',   data.phone);
+      setVal('biz-website', data.website);
+      setVal('biz-address', data.address || '');
+      setVal('target-audience', data.target_audience);
+      setVal('offer-description', data.offer_suggestion);
+      setVal('color-primary', data.primary_color);
+      setVal('color-accent',  data.accent_color);
+      if (data.style_recommendation) {
+        const styleEl = document.getElementById('style-type');
+        if (styleEl) styleEl.value = data.style_recommendation;
+      }
+
+      // Store brand notes for use in image prompts
+      window.websiteBrandNotes = data.brand_notes || '';
+      window.websiteImageHint  = data.image_prompt_hint || '';
+
+      updatePreview();
+
+      // Open steps 1 and 2
+      ['step-body-1','step-body-2'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'block';
+      });
+
+      status.style.color = '#2e7d32';
+      status.textContent = `✅ Filled in from ${data.business_name || url} — review and adjust, then generate copy!`;
+      showToast('✅ Website analyzed! Fields auto-filled.');
+    } catch(e) {
+      status.style.color = '#c62828';
+      status.textContent = '❌ ' + e.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🔍 Analyze';
+    }
   }
 
   function useOption(letter) {
