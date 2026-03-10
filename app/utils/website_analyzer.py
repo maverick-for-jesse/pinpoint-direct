@@ -150,12 +150,15 @@ Based on this website data, return ONLY valid JSON with this structure:
     resp = requests.post(url, headers=headers, json=payload, timeout=30)
     resp.raise_for_status()
     text = resp.json()['choices'][0]['message']['content'].strip()
-    # Strip markdown fences if present
-    if text.startswith('```'):
-        text = '\n'.join(text.split('\n')[1:])
-        if text.endswith('```'):
-            text = text[:-3]
-    return json.loads(text.strip())
+    # Strip markdown fences
+    text = re.sub(r'^```(?:json)?\s*', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\s*```$', '', text)
+    text = text.strip()
+    # Extract JSON object if there's surrounding text
+    match = re.search(r'\{[\s\S]*\}', text)
+    if match:
+        text = match.group(0)
+    return json.loads(text)
 
 
 def analyze_website(url):
