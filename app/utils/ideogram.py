@@ -6,12 +6,17 @@ import concurrent.futures
 
 
 def get_api_key():
+    key = os.getenv('IDEOGRAM_API_KEY')
+    if key:
+        return key
     config_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
         'config', 'ideogram.json'
     )
-    with open(config_path) as f:
-        return json.load(f)['api_key']
+    if os.path.exists(config_path):
+        with open(config_path) as f:
+            return json.load(f)['api_key']
+    raise ValueError("IDEOGRAM_API_KEY not configured.")
 
 
 def generate_postcard_image(prompt, style_type='REALISTIC'):
