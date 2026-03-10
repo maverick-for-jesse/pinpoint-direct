@@ -272,16 +272,59 @@ def postcard_builder():
 @login_required
 @admin_required
 def generate_image():
-    from app.utils.gemini import generate_image as gen_img
+    from app.utils.ideogram import generate_two_options
     data = request.get_json()
-    prompt = data.get('prompt', '').strip()
-    if not prompt:
+    prompt_a = data.get('prompt_a', '').strip()
+    prompt_b = data.get('prompt_b', prompt_a).strip()
+    style_type = data.get('style_type', 'REALISTIC')
+    if not prompt_a:
         return jsonify({'error': 'Prompt is required.'}), 400
     try:
-        b64 = gen_img(prompt, aspect_ratio=data.get('aspect_ratio', 'LANDSCAPE'))
-        return jsonify({'image': b64})
+        images = generate_two_options(prompt_a, prompt_b, style_type)
+        return jsonify({'image_a': images[0], 'image_b': images[1]})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@admin_bp.route('/postcard-builder/generate-copy', methods=['POST'])
+@login_required
+@admin_required
+def generate_copy():
+    from app.utils.copy_generator import generate_postcard_copy
+    data = request.get_json()
+    try:
+        result = generate_postcard_copy(
+            business_name=data.get('business_name', ''),
+            business_type=data.get('business_type', ''),
+            offer_description=data.get('offer_description', ''),
+            target_audience=data.get('target_audience', 'local customers')
+        )
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@admin_bp.route('/postcard-builder/upload-asset', methods=['POST'])
+@login_required
+@admin_required
+def upload_asset():
+    import uuid
+    file = request.files.get('file')
+    if not file:
+        return jsonify({'error': 'No file'}), 400
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg']:
+        return jsonify({'error': 'Invalid file type'}), 400
+    filename = f"{uuid.uuid4().hex}{ext}"
+    upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'uploads', 'assets')
+    os.makedirs(upload_dir, exist_ok=True)
+    filepath = os.path.join(upload_dir, filename)
+    file.save(filepath)
+    # Return as base64 for preview
+    with open(filepath, 'rb') as f:
+        import base64 as _b64
+        b64 = _b64.b64encode(f.read()).decode()
+    return jsonify({'filename': filename, 'url': f'/uploads/assets/{filename}', 'base64': b64})
 
 
 @admin_bp.route('/postcard-builder/save', methods=['POST'])

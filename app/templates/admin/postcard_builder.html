@@ -8,16 +8,133 @@
 {% endblock %}
 
 {% block content %}
-<div style="display: grid; grid-template-columns: 360px 1fr; gap: 20px; align-items: start;">
+<style>
+  .builder-grid {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  .step-card {
+    background: #fff;
+    border: 1.5px solid #e8e8e8;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 16px;
+    cursor: pointer;
+    user-select: none;
+    background: #fafafa;
+    border-bottom: 1.5px solid #e8e8e8;
+    transition: background 0.15s;
+  }
+  .step-header:hover { background: #f0f0f0; }
+  .step-header.active { background: #fff5f5; border-bottom-color: #ffcdd2; }
+  .step-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: #e63946;
+    color: #fff;
+    font-weight: 800;
+    font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-title { font-weight: 700; font-size: 14px; color: #1a1a2e; flex: 1; }
+  .step-chevron { font-size: 12px; color: #aaa; transition: transform 0.2s; }
+  .step-chevron.open { transform: rotate(90deg); }
+  .step-body { padding: 16px; display: none; }
+  .step-body.open { display: block; }
+  .copy-option-card {
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .copy-option-card:hover { border-color: #e63946; background: #fff5f5; }
+  .copy-option-card.selected { border-color: #e63946; background: #fff0f0; }
+  .copy-option-letter {
+    font-size: 11px;
+    font-weight: 800;
+    color: #e63946;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .copy-headline { font-size: 15px; font-weight: 800; color: #1a1a2e; margin-bottom: 4px; }
+  .copy-sub { font-size: 12px; color: #666; margin-bottom: 6px; }
+  .copy-body { font-size: 12px; color: #444; margin-bottom: 6px; line-height: 1.5; }
+  .copy-cta { display: inline-block; background: #e63946; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 4px; }
+  .preview-toggle { display: flex; gap: 6px; }
+  .preview-toggle button {
+    padding: 6px 18px; border: 2px solid #e0e0e0; border-radius: 6px;
+    font-size: 13px; font-weight: 700; cursor: pointer; background: #fff; color: #888; transition: all 0.15s;
+  }
+  .preview-toggle button.active { border-color: #e63946; color: #e63946; background: #fff5f5; }
+  .generated-previews { display: none; }
+  .gen-option-wrap { margin-bottom: 20px; }
+  .gen-option-label { font-weight: 800; font-size: 14px; color: #1a1a2e; margin-bottom: 8px; }
+  .gen-previews-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .gen-preview-img { width: 100%; border-radius: 6px; border: 1.5px solid #e0e0e0; }
+  .gen-option-actions { display: flex; gap: 8px; }
+  .spinner-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(255,255,255,0.85);
+    z-index: 9000;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .spinner-overlay.show { display: flex; }
+  .spinner {
+    width: 48px; height: 48px;
+    border: 5px solid #f0f0f0;
+    border-top-color: #e63946;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .logo-drop-area {
+    border: 2px dashed #d0d0d0;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 10px;
+  }
+  .logo-drop-area:hover, .logo-drop-area.drag-over { border-color: #e63946; background: #fff5f5; }
+  .ref-thumbs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .ref-thumb { width: 72px; height: 72px; object-fit: cover; border-radius: 6px; border: 1.5px solid #e0e0e0; }
+</style>
 
-  <!-- ── LEFT PANEL ── -->
-  <div>
+<!-- Spinner overlay -->
+<div class="spinner-overlay" id="spinnerOverlay">
+  <div class="spinner"></div>
+  <div id="spinnerMsg" style="font-size:16px;font-weight:700;color:#1a1a2e;">Generating... this takes ~15 seconds</div>
+</div>
 
-    <!-- Campaign selector -->
-    <div class="card" style="margin-bottom: 16px;">
-      <div class="card-title">Campaign</div>
+<div class="builder-grid">
+
+  <!-- ═══════════════════════════════════════════════════════════
+       LEFT PANEL — Controls
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="left-panel">
+
+    <!-- Campaign selector (compact, outside steps) -->
+    <div class="card" style="margin-bottom:12px;">
+      <div class="card-title" style="margin-bottom:8px;">Campaign</div>
       <select id="campaignSelect" class="form-control" onchange="onCampaignChange()">
-        <option value="">— Select campaign —</option>
+        <option value="">— Select campaign (optional) —</option>
         {% for c in campaigns %}
           <option value="{{ c.id }}"
                   data-name="{{ c.fields.get('Campaign Name','') }}"
@@ -30,603 +147,387 @@
       </select>
     </div>
 
-    <!-- Size picker -->
-    <div class="card" style="margin-bottom: 16px;">
-      <div class="card-title">Postcard Size</div>
-      <div style="display: flex; gap: 8px;">
-        {% for size in ['4x6','6x9','6x11'] %}
-        <label style="flex: 1; cursor: pointer;">
-          <input type="radio" name="size" value="{{ size }}" {% if size == '6x9' %}checked{% endif %}
-                 onchange="updatePreview()" style="display:none;" class="size-radio">
-          <div class="size-btn" data-size="{{ size }}"
-               style="border: 2px solid {% if size == '6x9' %}#e63946{% else %}#e0e0e0{% endif %};
-                      border-radius: 8px; padding: 8px; text-align: center; font-size: 13px; font-weight: 600;
-                      color: {% if size == '6x9' %}#e63946{% else %}#888{% endif %}; transition: all 0.15s;">
-            {{ size }}
-          </div>
-        </label>
-        {% endfor %}
+    <!-- ── STEP 1: Business Info ── -->
+    <div class="step-card">
+      <div class="step-header active" onclick="toggleStep(1)">
+        <div class="step-num">1</div>
+        <div class="step-title">Business Info</div>
+        <div class="step-chevron open" id="chevron-1">▶</div>
       </div>
-    </div>
-
-    <!-- Front / Back tabs -->
-    <div style="display: flex; gap: 0; margin-bottom: 0;">
-      <button class="tab-btn active" onclick="switchTab('front')" id="tab-front"
-              style="flex:1; padding: 10px; border: none; background: #e63946; color: white;
-                     font-weight: 700; font-size: 13px; border-radius: 8px 0 0 0; cursor: pointer;">
-        Front
-      </button>
-      <button class="tab-btn" onclick="switchTab('back')" id="tab-back"
-              style="flex:1; padding: 10px; border: none; background: #f0f0f0; color: #888;
-                     font-weight: 700; font-size: 13px; border-radius: 0 8px 0 0; cursor: pointer;">
-        Back
-      </button>
-    </div>
-
-    <!-- Front panel -->
-    <div id="panel-front" class="card" style="border-radius: 0 8px 8px 8px; margin-bottom: 16px;">
-
-      <div class="form-group">
-        <label class="form-label">Headline</label>
-        <input type="text" data-mergeable="true" id="front-headline" class="form-control" placeholder="Bold attention-grabbing line"
-               oninput="updatePreview()">
-        <div class="form-hint">Merge tags: {{first_name}} {{company}}</div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Body Copy</label>
-        <textarea data-mergeable="true" id="front-body" class="form-control" rows="3"
-                  placeholder="Your offer or message..."
-                  oninput="updatePreview()"></textarea>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Call to Action</label>
-        <input type="text" data-mergeable="true" id="front-cta" class="form-control" placeholder="e.g. Call Now: 555-1234"
-               oninput="updatePreview()">
-      </div>
-
-      <div class="form-row">
+      <div class="step-body open" id="step-body-1">
         <div class="form-group">
-          <label class="form-label">Headline Color</label>
-          <input type="color" id="front-headline-color" value="#ffffff" oninput="updatePreview()"
-                 style="width:100%; height:38px; border-radius:7px; border:1.5px solid #e0e0e0; cursor:pointer;">
+          <label class="form-label">Business Name</label>
+          <input type="text" id="biz-name" class="form-control" placeholder="e.g. Smith Dental" oninput="updatePreview()">
         </div>
         <div class="form-group">
-          <label class="form-label">CTA Button Color</label>
-          <input type="color" id="front-cta-bg" value="#e63946" oninput="updatePreview()"
-                 style="width:100%; height:38px; border-radius:7px; border:1.5px solid #e0e0e0; cursor:pointer;">
+          <label class="form-label">Business Type</label>
+          <select id="biz-type" class="form-control" onchange="updatePreview()">
+            <option value="Local Business">— Select type —</option>
+            <option>E-Commerce</option>
+            <option>Law Firm</option>
+            <option>Dental Office</option>
+            <option>Auto Shop</option>
+            <option>Restaurant</option>
+            <option>Real Estate</option>
+            <option>Home Services</option>
+            <option>Medical/Health</option>
+            <option>Retail Store</option>
+            <option>Other</option>
+          </select>
         </div>
-      </div>
-
-      <!-- AI Image Generation -->
-      <div style="border-top: 1px solid #f0f0f0; padding-top: 16px; margin-top: 4px;">
-        <div class="card-title">🤖 AI Background Image</div>
-        <textarea id="image-prompt" class="form-control" rows="3"
-                  placeholder="Describe the image... e.g. 'Aerial photo of a beautiful suburban neighborhood in autumn, warm golden tones, professional real estate photography'"></textarea>
-        <button onclick="generateImage()" id="gen-btn"
-                class="btn btn-primary" style="width:100%; margin-top: 10px;">
-          ✨ Generate Image
-        </button>
-        <div id="gen-status" style="font-size: 12px; color: #888; margin-top: 6px; text-align: center; display:none;">
-          Generating... this takes about 15 seconds ⏳
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Phone Number</label>
+            <input type="text" id="biz-phone" class="form-control" placeholder="(555) 123-4567" oninput="updatePreview()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Website</label>
+            <input type="text" id="biz-website" class="form-control" placeholder="www.example.com" oninput="updatePreview()">
+          </div>
         </div>
-        <div id="image-preview-thumb" style="margin-top: 10px; display:none;">
-          <img id="gen-thumb" style="width:100%; border-radius:8px; border:1.5px solid #e0e0e0;">
-          <button onclick="clearImage()" style="width:100%; margin-top:6px; padding:6px; font-size:12px;
-                  background:#fff0f0; color:#c62828; border:1px solid #ffcdd2; border-radius:6px; cursor:pointer;">
-            Remove Image
-          </button>
+        <div class="form-group">
+          <label class="form-label">Physical Address</label>
+          <input type="text" id="biz-address" class="form-control" placeholder="123 Main St, Atlanta GA 30001" oninput="updatePreview()">
         </div>
-
-        <div style="margin-top: 10px;">
-          <label class="form-label">Or upload your own</label>
-          <input type="file" id="image-upload" accept="image/*" onchange="handleImageUpload(event)"
-                 class="form-control" style="font-size:13px; padding:6px;">
+        <div class="form-group">
+          <label class="form-label">Target Audience</label>
+          <input type="text" id="biz-audience" class="form-control" placeholder="e.g. homeowners within 5 miles, families with young kids">
         </div>
       </div>
     </div>
 
-    <!-- Back panel -->
-    <div id="panel-back" class="card" style="border-radius: 0 8px 8px 8px; margin-bottom: 16px; display:none;">
-
-      <div class="form-group">
-        <label class="form-label">Return Address</label>
-        <textarea data-mergeable="true" id="back-return-address" class="form-control" rows="2"
-                  placeholder="Pinpoint Direct&#10;123 Main St, Atlanta GA 30001"
-                  oninput="updatePreview()"></textarea>
+    <!-- ── STEP 2: The Offer ── -->
+    <div class="step-card">
+      <div class="step-header" onclick="toggleStep(2)">
+        <div class="step-num">2</div>
+        <div class="step-title">The Offer</div>
+        <div class="step-chevron" id="chevron-2">▶</div>
       </div>
-
-      <div class="form-group">
-        <label class="form-label">Offer / Back Copy</label>
-        <textarea data-mergeable="true" id="back-body" class="form-control" rows="3"
-                  placeholder="Additional offer details, terms, etc."
-                  oninput="updatePreview()"></textarea>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Website / URL</label>
-        <input type="text" id="back-url" class="form-control" placeholder="www.yourwebsite.com"
-               oninput="updatePreview()">
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Phone Number</label>
-        <input type="text" id="back-phone" class="form-control" placeholder="(555) 123-4567"
-               oninput="updatePreview()">
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Background Color</label>
-        <input type="color" id="back-bg-color" value="#ffffff" oninput="updatePreview()"
-               style="width:100%; height:38px; border-radius:7px; border:1.5px solid #e0e0e0; cursor:pointer;">
-      </div>
-
-      <!-- Back AI Image -->
-      <div class="card-title" style="margin-top:8px;">🤖 AI Background Image</div>
-      <div class="form-group">
-        <textarea id="back-image-prompt" class="form-control" rows="2"
-                  placeholder="e.g. clean white background with subtle HVAC blueprint pattern, professional, minimal"></textarea>
-      </div>
-      <div style="display:flex; gap:8px; align-items:center;">
-        <button onclick="generateBackImage()"
-                style="flex:1; padding:9px; border:none; border-radius:7px; font-weight:600; font-size:14px;
-                       background:#1a1a2e; color:white; cursor:pointer;">
-          ✨ Generate Image
+      <div class="step-body" id="step-body-2">
+        <div class="form-group">
+          <label class="form-label">Offer Description</label>
+          <textarea id="offer-desc" class="form-control" rows="3"
+            placeholder="Describe what you're offering. E.g. 20% off first visit, free consultation, BOGO deal..."></textarea>
+        </div>
+        <button onclick="generateCopy()" class="btn btn-primary" style="width:100%; margin-bottom:16px; font-size:15px; padding:11px;">
+          ✨ Generate Copy with AI
         </button>
-        <button onclick="clearBackImage()"
-                style="padding:9px 14px; border:1px solid #ccc; border-radius:7px; font-size:13px;
-                       background:#fff; color:#555; cursor:pointer;">
-          ✕ Clear
-        </button>
+
+        <!-- Copy options cards (shown after AI generation) -->
+        <div id="copy-options-area" style="display:none; margin-bottom:16px;">
+          <div style="font-size:12px;color:#888;margin-bottom:8px;">Click an option to use it:</div>
+          <div id="copy-option-a" class="copy-option-card" onclick="selectCopyOption('a')"></div>
+          <div id="copy-option-b" class="copy-option-card" onclick="selectCopyOption('b')"></div>
+        </div>
+
+        <!-- Manual / populated fields -->
+        <div style="border-top:1px solid #f0f0f0; padding-top:14px;">
+          <div class="form-group">
+            <label class="form-label">Headline</label>
+            <input type="text" id="front-headline" class="form-control" placeholder="Bold attention-grabbing line"
+                   oninput="updatePreview()" data-mergeable="true">
+            <div class="form-hint">Merge tags: {{first_name}} {{company}}</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Subheadline</label>
+            <input type="text" id="front-subheadline" class="form-control" placeholder="Supporting detail line"
+                   oninput="updatePreview()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Body Copy</label>
+            <textarea id="front-body" class="form-control" rows="3"
+                      placeholder="Your offer or message..." oninput="updatePreview()" data-mergeable="true"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">CTA Button Text</label>
+            <input type="text" id="front-cta" class="form-control" placeholder="e.g. Call Today, Visit Us"
+                   oninput="updatePreview()" data-mergeable="true">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Back Copy / P.S. Message</label>
+            <textarea id="back-body" class="form-control" rows="2"
+                      placeholder="Additional offer details, P.S. line, terms..." oninput="updatePreview()" data-mergeable="true"></textarea>
+          </div>
+        </div>
       </div>
-      <div id="back-image-status" style="margin-top:6px; font-size:12px; color:#888; display:none;"></div>
     </div>
 
-    <!-- Staff notes -->
-    <div class="card">
-      <div class="card-title">Staff Notes</div>
-      <textarea id="staff-notes" class="form-control" rows="2"
-                placeholder="Internal notes about this design..."></textarea>
+    <!-- ── STEP 3: Upload Assets ── -->
+    <div class="step-card">
+      <div class="step-header" onclick="toggleStep(3)">
+        <div class="step-num">3</div>
+        <div class="step-title">Assets &amp; Style</div>
+        <div class="step-chevron" id="chevron-3">▶</div>
+      </div>
+      <div class="step-body" id="step-body-3">
+
+        <!-- Logo upload -->
+        <div class="form-group">
+          <label class="form-label">Logo</label>
+          <div class="logo-drop-area" id="logo-drop" onclick="document.getElementById('logo-input').click()"
+               ondragover="onDragOver(event,'logo-drop')" ondragleave="onDragLeave('logo-drop')"
+               ondrop="onLogoDrop(event)">
+            <div id="logo-placeholder">
+              <div style="font-size:24px;">🖼️</div>
+              <div style="font-size:13px;color:#888;margin-top:4px;">Drag & drop or click to upload logo</div>
+              <div style="font-size:11px;color:#bbb;">PNG, JPG, SVG, WEBP</div>
+            </div>
+            <img id="logo-preview" style="max-height:80px; max-width:100%; display:none; border-radius:4px;">
+          </div>
+          <input type="file" id="logo-input" accept="image/*" style="display:none" onchange="uploadLogo(this.files[0])">
+        </div>
+
+        <!-- Reference images -->
+        <div class="form-group">
+          <label class="form-label">Reference Images (optional, up to 2)</label>
+          <input type="file" id="ref-input" accept="image/*" multiple class="form-control" style="font-size:13px;padding:6px;" onchange="uploadRefImages(this.files)">
+          <div class="ref-thumbs" id="ref-thumbs"></div>
+        </div>
+
+        <!-- Style -->
+        <div class="form-group">
+          <label class="form-label">Image Style</label>
+          <select id="style-type" class="form-control">
+            <option value="REALISTIC">Realistic Photo</option>
+            <option value="DESIGN">Bold Graphic</option>
+            <option value="GENERAL">Minimalist</option>
+            <option value="RENDER_3D">Modern Professional</option>
+            <option value="ANIME">Vintage/Retro</option>
+          </select>
+        </div>
+
+        <!-- Colors -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Primary Color</label>
+            <input type="color" id="color-primary" value="#e63946" oninput="updatePreview()"
+                   style="width:100%;height:38px;border-radius:7px;border:1.5px solid #e0e0e0;cursor:pointer;">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Accent Color</label>
+            <input type="color" id="color-accent" value="#1a1a2e" oninput="updatePreview()"
+                   style="width:100%;height:38px;border-radius:7px;border:1.5px solid #e0e0e0;cursor:pointer;">
+          </div>
+        </div>
+      </div>
     </div>
 
-  </div><!-- end left panel -->
+    <!-- ── STEP 4: Generate ── -->
+    <div class="step-card">
+      <div class="step-header" onclick="toggleStep(4)">
+        <div class="step-num">4</div>
+        <div class="step-title">Generate &amp; Export</div>
+        <div class="step-chevron" id="chevron-4">▶</div>
+      </div>
+      <div class="step-body" id="step-body-4">
 
-  <!-- ── RIGHT PANEL: PREVIEW ── -->
-  <div>
-    <div class="card" style="padding: 24px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <div class="card-title" style="margin:0;">Preview</div>
-        <div style="display: flex; gap: 8px;">
-          <button onclick="showPreviewSide('front')" id="preview-front-btn"
-                  class="btn btn-primary" style="font-size: 12px; padding: 5px 14px;">Front</button>
-          <button onclick="showPreviewSide('back')" id="preview-back-btn"
-                  class="btn btn-secondary" style="font-size: 12px; padding: 5px 14px;">Back</button>
+        <button onclick="generateImages()" class="btn btn-primary"
+                style="width:100%; font-size:16px; padding:13px; margin-bottom:16px;">
+          🎨 Generate 2 Postcard Options
+        </button>
+
+        <!-- Generated previews area -->
+        <div class="generated-previews" id="generated-previews">
+
+          <!-- Option A -->
+          <div class="gen-option-wrap" id="gen-option-a">
+            <div class="gen-option-label">Option A</div>
+            <div class="gen-previews-row">
+              <div>
+                <div style="font-size:11px;color:#888;text-align:center;margin-bottom:4px;">Front</div>
+                <canvas id="canvas-a-front" class="gen-preview-img"></canvas>
+              </div>
+              <div>
+                <div style="font-size:11px;color:#888;text-align:center;margin-bottom:4px;">Back</div>
+                <canvas id="canvas-a-back" class="gen-preview-img"></canvas>
+              </div>
+            </div>
+            <div class="gen-option-actions">
+              <button onclick="useOption('a')" class="btn btn-primary" style="flex:1;">✅ Use Option A</button>
+              <button onclick="downloadOption('a')" class="btn btn-secondary" style="flex:1;">⬇ Download A</button>
+            </div>
+          </div>
+
+          <!-- Option B -->
+          <div class="gen-option-wrap" id="gen-option-b">
+            <div class="gen-option-label">Option B</div>
+            <div class="gen-previews-row">
+              <div>
+                <div style="font-size:11px;color:#888;text-align:center;margin-bottom:4px;">Front</div>
+                <canvas id="canvas-b-front" class="gen-preview-img"></canvas>
+              </div>
+              <div>
+                <div style="font-size:11px;color:#888;text-align:center;margin-bottom:4px;">Back</div>
+                <canvas id="canvas-b-back" class="gen-preview-img"></canvas>
+              </div>
+            </div>
+            <div class="gen-option-actions">
+              <button onclick="useOption('b')" class="btn btn-primary" style="flex:1;">✅ Use Option B</button>
+              <button onclick="downloadOption('b')" class="btn btn-secondary" style="flex:1;">⬇ Download B</button>
+            </div>
+          </div>
+
+        </div><!-- /generated-previews -->
+
+        <!-- Staff notes -->
+        <div style="border-top:1px solid #f0f0f0;padding-top:14px;margin-top:6px;">
+          <label class="form-label">Staff Notes</label>
+          <textarea id="staff-notes" class="form-control" rows="2" placeholder="Internal notes about this design..."></textarea>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /left panel -->
+
+  <!-- ═══════════════════════════════════════════════════════════
+       RIGHT PANEL — Live Preview
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="right-panel">
+    <div class="card" style="padding:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+        <div class="card-title" style="margin:0;">Live Preview</div>
+        <div class="preview-toggle">
+          <button id="ptoggle-front" class="active" onclick="switchPreviewFace('front')">Front</button>
+          <button id="ptoggle-back" onclick="switchPreviewFace('back')">Back</button>
         </div>
       </div>
 
-      <!-- Front preview -->
-      <div id="preview-front" style="position: relative; width: 100%; border-radius: 10px; overflow: hidden;
-           box-shadow: 0 4px 24px rgba(0,0,0,0.15); background: #fff;">
-        <div id="front-bg" style="position:absolute; inset:0; background-size:cover; background-position:center;
-             background-color: #1a1a2e; transition: background 0.3s;"></div>
-        <div id="front-overlay" style="position:absolute; inset:0;
-             background: linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.1) 55%, transparent 100%);"></div>
-        <div id="preview-front-canvas" style="position:relative; padding-bottom: 66.67%; min-height: 300px;">
-          <div style="position:absolute; inset:0; display:flex; flex-direction:column;
-                      justify-content:flex-end; padding: 32px; z-index:2;">
-            <div id="pf-headline" style="font-size: clamp(18px, 3vw, 36px); font-weight: 800;
-                 color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,0.4); margin-bottom: 10px; line-height: 1.1;"></div>
-            <div id="pf-body" style="font-size: clamp(11px, 1.4vw, 15px); color: rgba(255,255,255,0.9);
-                 margin-bottom: 16px; line-height: 1.5; text-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>
-            <div id="pf-cta" style="display:inline-block; background: #e63946; color: white;
-                 padding: 10px 22px; border-radius: 5px; font-size: 14px; font-weight: 700;
-                 width: fit-content; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>
+      <!-- ── FRONT PREVIEW ── -->
+      <div id="preview-front" style="position:relative;width:100%;border-radius:10px;overflow:hidden;
+           box-shadow:0 4px 24px rgba(0,0,0,0.15);">
+        <div id="front-bg" style="position:absolute;inset:0;background-size:cover;background-position:center;
+             background-color:#1a1a2e;transition:background 0.3s;"></div>
+        <div style="position:absolute;inset:0;
+             background:linear-gradient(to top,rgba(0,0,0,0.68) 0%,rgba(0,0,0,0.12) 55%,transparent 100%);"></div>
+        <div style="position:relative;padding-bottom:66.67%;min-height:300px;">
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;padding:24px 28px;z-index:2;">
+            <!-- Logo top-left -->
+            <div style="margin-bottom:auto;">
+              <img id="pv-logo" style="max-height:44px;max-width:120px;display:none;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.5));">
+            </div>
+            <!-- Text bottom -->
+            <div>
+              <div id="pf-headline" style="font-size:clamp(18px,3vw,36px);font-weight:800;
+                   color:#fff;text-shadow:0 2px 6px rgba(0,0,0,0.4);margin-bottom:6px;line-height:1.1;"></div>
+              <div id="pf-subheadline" style="font-size:clamp(12px,1.6vw,17px);font-weight:600;
+                   color:rgba(255,255,255,0.9);margin-bottom:8px;text-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>
+              <div id="pf-body" style="font-size:clamp(11px,1.3vw,14px);color:rgba(255,255,255,0.85);
+                   margin-bottom:14px;line-height:1.5;text-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>
+              <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+                <div id="pf-cta" style="display:none;background:#e63946;color:white;
+                     padding:9px 20px;border-radius:5px;font-size:13px;font-weight:700;
+                     box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>
+                <div id="pf-phone" style="font-size:13px;color:rgba(255,255,255,0.85);font-weight:600;"></div>
+                <div id="pf-website" style="font-size:12px;color:rgba(255,255,255,0.7);"></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Back preview -->
-      <!-- Back preview — USPS-accurate layout -->
-      <div id="preview-back" style="display:none; position:relative; width:100%; border-radius:10px; overflow:hidden;
-           box-shadow: 0 4px 24px rgba(0,0,0,0.15);">
-        <!-- Aspect ratio wrapper: 6x9 = 3:2, height = 66.67% of width -->
-        <div style="padding-bottom: 66.67%; position:relative; width:100%;">
-        <div id="back-canvas" style="position:absolute; inset:0; background:#fff;
-             background-size:cover; background-position:center;">
+      <!-- ── BACK PREVIEW ── -->
+      <div id="preview-back" style="display:none;position:relative;width:100%;border-radius:10px;overflow:hidden;
+           box-shadow:0 4px 24px rgba(0,0,0,0.15);">
+        <div style="padding-bottom:66.67%;position:relative;width:100%;">
+          <div style="position:absolute;inset:0;background:#fff;">
+            <div style="position:absolute;inset:0;z-index:2;display:flex;">
 
-          <!-- Background image tint — only shows on left side via clip -->
-          <div id="back-bg-tint" style="position:absolute; inset:0; background:rgba(255,255,255,0.0); z-index:0;"></div>
-
-          <!-- Full postcard back layout -->
-          <div style="position:absolute; inset:0; z-index:2; display:flex;">
-
-            <!-- ── LEFT 60%: Message area ── -->
-            <div style="flex:0 0 60%; display:flex; flex-direction:column; padding:20px 18px 16px 20px;
-                        border-right: 1.5px solid #ccc; background:rgba(255,255,255,0.82);">
-
-              <!-- Return address — top left -->
-              <div id="pb-return-wrap" style="font-size:10px; color:#666; line-height:1.6; margin-bottom:14px;
-                                         border-bottom:1px solid #eee; padding-bottom:10px;">
-                <div id="pb-return"></div>
-                <div id="pb-return-placeholder" style="color:#ccc; font-style:italic;">
-                  Your return address will appear here
+              <!-- Left 60% — Message zone -->
+              <div style="flex:0 0 60%;display:flex;flex-direction:column;padding:18px 16px 14px 18px;
+                          border-right:1.5px solid #ccc;background:#fff;">
+                <!-- Return address -->
+                <div style="font-size:10px;color:#555;line-height:1.7;margin-bottom:12px;
+                            border-bottom:1px solid #eee;padding-bottom:10px;">
+                  <img id="pb-logo" style="max-height:28px;max-width:80px;display:none;margin-bottom:6px;">
+                  <div id="pb-biz-name" style="font-weight:700;color:#1a1a2e;font-size:11px;"></div>
+                  <div id="pb-address" style="color:#666;"></div>
+                  <div id="pb-phone-back" style="color:#666;"></div>
+                  <div id="pb-website-back" style="color:#e63946;font-weight:600;"></div>
+                </div>
+                <!-- Back copy -->
+                <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+                  <div id="pb-body" style="font-size:12px;color:#333;line-height:1.7;margin-bottom:6px;"></div>
+                </div>
+                <!-- USPS footer -->
+                <div style="font-size:8px;color:#bbb;border-top:1px solid #eee;padding-top:5px;margin-top:10px;">
+                  USPS MARKETING MAIL · POSTCARD
                 </div>
               </div>
 
-              <!-- Offer / back copy — center -->
-              <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
-                <div id="pb-body" style="font-size:13px; color:#222; line-height:1.7; margin-bottom:10px;"></div>
-                <div id="pb-url"   style="font-size:13px; font-weight:700; color:#e63946;"></div>
-                <div id="pb-phone" style="font-size:14px; font-weight:700; color:#1a1a2e; margin-top:4px;"></div>
-              </div>
-
-              <!-- USPS compliance bar (bottom) -->
-              <div style="margin-top:12px; font-size:9px; color:#bbb; border-top:1px solid #eee; padding-top:6px;">
-                USPS MARKETING MAIL · POSTCARD
-              </div>
-            </div>
-
-            <!-- ── RIGHT 40%: Address zone (always white per USPS rules) ── -->
-            <div style="flex:0 0 40%; display:flex; flex-direction:column; justify-content:space-between;
-                        padding:16px; background:#fff;">
-
-              <!-- Indicia — top right corner -->
-              <div style="display:flex; justify-content:flex-end;">
-                <div style="border:1.5px solid #888; border-radius:3px; padding:6px 10px; width:88px;
-                            text-align:center; font-size:7.5px; color:#444; line-height:1.6; background:#fff;">
-                  PRESORTED<br>STANDARD<br>U.S. POSTAGE<br>PAID<br>
-                  <strong style="font-size:8px;">PERMIT #000</strong>
+              <!-- Right 40% — Address zone (always white per USPS) -->
+              <div style="flex:0 0 40%;display:flex;flex-direction:column;padding:14px;background:#fff;">
+                <!-- Indicia top-right -->
+                <div style="display:flex;justify-content:flex-end;margin-bottom:auto;">
+                  <div style="border:1.5px dashed #999;border-radius:3px;padding:6px 8px;width:84px;
+                              text-align:center;font-size:7px;color:#555;line-height:1.7;background:#fff;">
+                    PRSRT STD<br>U.S. POSTAGE<br>PAID<br><span id="pb-indicia-city">CITY, ST</span><br>
+                    <strong style="font-size:7.5px;">PERMIT NO. XXX</strong>
+                  </div>
+                </div>
+                <!-- TO: address block -->
+                <div style="margin-top:auto;">
+                  <div style="font-size:9px;color:#aaa;margin-bottom:4px;font-weight:600;">TO:</div>
+                  <!-- IMB barcode placeholder -->
+                  <div style="height:12px;background:repeating-linear-gradient(90deg,#333 0,#333 2px,transparent 2px,transparent 5px);
+                              margin-bottom:7px;border-radius:1px;opacity:0.35;"></div>
+                  <div style="font-size:12px;line-height:1.9;color:#222;font-family:'Courier New',monospace;
+                              padding:9px 11px;background:#f8f8f8;border:1px solid #e0e0e0;border-radius:4px;">
+                    <div style="font-weight:700;">JOHN Q. SAMPLE</div>
+                    <div style="font-size:10px;color:#666;">SAMPLE COMPANY</div>
+                    <div>123 MAIN STREET</div>
+                    <div>ANYTOWN, ST 00000-0000</div>
+                  </div>
+                  <div style="text-align:center;font-size:9px;color:#bbb;margin-top:6px;">POSTAL CUSTOMER</div>
                 </div>
               </div>
 
-              <!-- Recipient address — bottom right -->
-              <div style="margin-top:auto;">
-                <!-- IMB barcode placeholder -->
-                <div style="height:14px; background:repeating-linear-gradient(90deg,#333 0,#333 2px,transparent 2px,transparent 5px);
-                            margin-bottom:8px; border-radius:1px; opacity:0.4;"></div>
-                <div style="font-size:13px; line-height:1.8; color:#222; font-family:'Courier New',monospace; padding:10px 12px;
-                            background:#f8f8f8; border:1px solid #e0e0e0; border-radius:4px;">
-                  <div id="addr-name"        style="font-weight:700;"></div>
-                  <div id="addr-company"     style="font-size:11px; color:#666;"></div>
-                  <div id="addr-street"      ></div>
-                  <div id="addr-citystatezip"></div>
-                </div>
-              </div>
-            </div>
-
+            </div><!-- /flex row -->
           </div>
         </div>
-        </div><!-- end aspect ratio wrapper -->
       </div>
 
-      <!-- Size indicator -->
-      <div style="text-align:center; margin-top:12px; font-size:12px; color:#aaa;">
-        Preview — <span id="size-label">6x9</span> postcard
+      <div style="text-align:center;margin-top:10px;font-size:12px;color:#aaa;">
+        Preview — 6×9 postcard
       </div>
     </div>
 
-    <!-- Merge tag reference -->
-    <div class="card" style="margin-top: 16px;">
+    <!-- Merge tags -->
+    <div class="card" style="margin-top:14px;">
       <div class="card-title">🏷️ Merge Tags</div>
-      <div style="font-size:12px; color:#888; margin-bottom:10px;">
-        Drag a tag into any text field, or click to insert into the last active field.
-      </div>
-      <div style="display: flex; flex-wrap: wrap; gap: 8px;" id="merge-tag-list">
+      <div style="font-size:12px;color:#888;margin-bottom:10px;">Click to insert into last focused field.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;" id="merge-tag-list">
         {% for tag, label in [('{{first_name}}','First Name'),('{{last_name}}','Last Name'),('{{full_name}}','Full Name'),('{{address}}','Address'),('{{city}}','City'),('{{state}}','State'),('{{zip}}','ZIP'),('{{company}}','Company'),('{{offer_code}}','Offer Code')] %}
-        <div draggable="true"
-             data-tag="{{ tag }}"
-             onclick="insertMergeTag('{{ tag }}')"
+        <div draggable="true" data-tag="{{ tag }}" onclick="insertMergeTag('{{ tag }}')"
              ondragstart="onMergeTagDragStart(event)"
-             title="Drag into a text field or click to insert"
-             style="background:#f0f4ff; padding:5px 12px; border-radius:20px; font-size:12px;
-                    cursor:grab; border:1.5px solid #c5d0f5; user-select:none;
-                    display:flex; align-items:center; gap:5px; transition: all 0.15s;"
-             onmouseover="this.style.background='#fff0f0'; this.style.borderColor='#e63946';"
-             onmouseout="this.style.background='#f0f4ff'; this.style.borderColor='#c5d0f5';">
-          <span style="font-size:10px; color:#888;">⠿</span>
-          <code style="background:none; color:#1a1a2e; font-size:12px;">{{ tag }}</code>
-          <span style="color:#aaa; font-size:10px;">{{ label }}</span>
+             style="background:#f0f4ff;padding:5px 12px;border-radius:20px;font-size:12px;
+                    cursor:grab;border:1.5px solid #c5d0f5;user-select:none;display:flex;align-items:center;gap:5px;"
+             onmouseover="this.style.background='#fff0f0';this.style.borderColor='#e63946';"
+             onmouseout="this.style.background='#f0f4ff';this.style.borderColor='#c5d0f5';">
+          <span style="font-size:10px;color:#888;">⠿</span>
+          <code style="background:none;color:#1a1a2e;font-size:12px;">{{ tag }}</code>
+          <span style="color:#aaa;font-size:10px;">{{ label }}</span>
         </div>
         {% endfor %}
       </div>
     </div>
-  </div>
 
-</div><!-- end grid -->
+  </div><!-- /right panel -->
+</div><!-- /grid -->
 
 <script>
+  // ═══════════════════════════════════════════════════════════
+  // State
+  // ═══════════════════════════════════════════════════════════
   let currentBgB64 = '';
-  let currentBackBgB64 = '';
-  let currentTab = 'front';
-  let currentPreviewSide = 'front';
-
-  // ── Size buttons ──
-  document.querySelectorAll('input[name="size"]').forEach(radio => {
-    radio.addEventListener('change', () => {
-      document.querySelectorAll('.size-btn').forEach(btn => {
-        const active = btn.dataset.size === radio.value;
-        btn.style.borderColor = active ? '#e63946' : '#e0e0e0';
-        btn.style.color = active ? '#e63946' : '#888';
-      });
-      document.getElementById('size-label').textContent = radio.value;
-      updatePreview();
-    });
-  });
-
-  // ── Tab switching ──
-  function switchTab(tab) {
-    currentTab = tab;
-    document.getElementById('panel-front').style.display = tab === 'front' ? 'block' : 'none';
-    document.getElementById('panel-back').style.display  = tab === 'back'  ? 'block' : 'none';
-    const frontBtn = document.getElementById('tab-front');
-    const backBtn  = document.getElementById('tab-back');
-    frontBtn.style.background = tab === 'front' ? '#e63946' : '#f0f0f0';
-    frontBtn.style.color      = tab === 'front' ? 'white'   : '#888';
-    backBtn.style.background  = tab === 'back'  ? '#e63946' : '#f0f0f0';
-    backBtn.style.color       = tab === 'back'  ? 'white'   : '#888';
-    showPreviewSide(tab);
-  }
-
-  function showPreviewSide(side) {
-    currentPreviewSide = side;
-    document.getElementById('preview-front').style.display = side === 'front' ? 'block' : 'none';
-    document.getElementById('preview-back').style.display  = side === 'back'  ? 'block' : 'none';
-    document.getElementById('preview-front-btn').className = 'btn ' + (side === 'front' ? 'btn-primary' : 'btn-secondary');
-    document.getElementById('preview-back-btn').className  = 'btn ' + (side === 'back'  ? 'btn-primary' : 'btn-secondary');
-  }
-
-  // ── Campaign change ──
-  function onCampaignChange() {
-    const sel = document.getElementById('campaignSelect');
-    const opt = sel.options[sel.selectedIndex];
-    if (opt && opt.value) {
-      const size = opt.dataset.size || '6x9';
-      document.querySelectorAll('input[name="size"]').forEach(r => {
-        if (r.value === size) { r.checked = true; r.dispatchEvent(new Event('change')); }
-      });
-    }
-  }
-
-  // ── Live preview update ──
-  function updatePreview() {
-    // Front
-    const headline      = document.getElementById('front-headline').value;
-    const body          = document.getElementById('front-body').value;
-    const cta           = document.getElementById('front-cta').value;
-    const headlineColor = document.getElementById('front-headline-color').value;
-    const ctaBg         = document.getElementById('front-cta-bg').value;
-
-    document.getElementById('pf-headline').innerHTML = applyMergeTags(headline);
-    document.getElementById('pf-headline').style.color = headlineColor;
-    document.getElementById('pf-body').innerHTML     = applyMergeTags(body);
-    document.getElementById('pf-cta').innerHTML      = applyMergeTags(cta);
-    document.getElementById('pf-cta').style.background = ctaBg;
-    document.getElementById('pf-cta').style.display    = cta ? 'inline-block' : 'none';
-
-    // Background
-    const bgEl = document.getElementById('front-bg');
-    if (currentBgB64) {
-      bgEl.style.backgroundImage = `url('data:image/png;base64,${currentBgB64}')`;
-      bgEl.style.backgroundColor = '';
-    } else {
-      bgEl.style.backgroundImage = '';
-      bgEl.style.backgroundColor = '#1a1a2e';
-    }
-
-    // Back
-    const returnAddr = document.getElementById('back-return-address').value;
-    const backBody   = document.getElementById('back-body').value;
-    const backUrl    = document.getElementById('back-url').value;
-    const backPhone  = document.getElementById('back-phone').value;
-    const backBg     = document.getElementById('back-bg-color').value;
-
-    const pbReturn = document.getElementById('pb-return');
-    const pbReturnPH = document.getElementById('pb-return-placeholder');
-    pbReturn.innerHTML = applyMergeTags(returnAddr).replace(/\n/g,'<br>');
-    if (pbReturnPH) pbReturnPH.style.display = returnAddr.trim() ? 'none' : 'block';
-    if (pbReturn) pbReturn.style.display = returnAddr.trim() ? 'block' : 'none';
-    document.getElementById('pb-body').innerHTML   = applyMergeTags(backBody);
-    document.getElementById('pb-url').textContent  = backUrl;
-    document.getElementById('pb-phone').textContent= backPhone;
-
-    // Address block — always shows sample recipient data
-    document.getElementById('addr-name').innerHTML       = applyMergeTags(T('full_name'));
-    document.getElementById('addr-company').innerHTML    = applyMergeTags(T('company'));
-    document.getElementById('addr-street').innerHTML     = applyMergeTags(T('address'));
-    document.getElementById('addr-citystatezip').innerHTML = applyMergeTags(T('city')) + ', ' +
-                                                             applyMergeTags(T('state')) + ' ' +
-                                                             applyMergeTags(T('zip'));
-    const backCanvas = document.getElementById('back-canvas');
-    if (currentBackBgB64) {
-      backCanvas.style.backgroundImage    = `url('data:image/png;base64,${currentBackBgB64}')`;
-      backCanvas.style.backgroundSize     = 'cover';
-      backCanvas.style.backgroundPosition = 'center';
-      backCanvas.style.backgroundColor    = '';
-    } else {
-      backCanvas.style.backgroundImage = '';
-      backCanvas.style.backgroundColor = backBg || '#ffffff';
-    }
-  }
-
-  // ── AI Image generation ──
-  async function generateImage() {
-    const prompt = document.getElementById('image-prompt').value.trim();
-    if (!prompt) { alert('Please enter an image description first.'); return; }
-
-    const btn = document.getElementById('gen-btn');
-    const status = document.getElementById('gen-status');
-    btn.disabled = true;
-    btn.textContent = '⏳ Generating...';
-    status.style.display = 'block';
-
-    try {
-      const res = await fetch('/admin/postcard-builder/generate-image', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ prompt, aspect_ratio: 'LANDSCAPE' })
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-
-      currentBgB64 = data.image;
-      document.getElementById('gen-thumb').src = `data:image/png;base64,${data.image}`;
-      document.getElementById('image-preview-thumb').style.display = 'block';
-      updatePreview();
-    } catch (e) {
-      alert('Image generation failed: ' + e.message);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = '✨ Generate Image';
-      status.style.display = 'none';
-    }
-  }
-
-  function clearImage() {
-    currentBgB64 = '';
-    document.getElementById('image-preview-thumb').style.display = 'none';
-    document.getElementById('gen-thumb').src = '';
-    document.getElementById('image-upload').value = '';
-    updatePreview();
-  }
-
-  async function generateBackImage() {
-    const prompt = document.getElementById('back-image-prompt').value.trim();
-    if (!prompt) { alert('Please enter an image description first.'); return; }
-
-    const status = document.getElementById('back-image-status');
-    const btn = event.target;
-    btn.disabled = true;
-    btn.textContent = '⏳ Generating...';
-    status.style.display = 'block';
-    status.textContent = 'Generating image, please wait...';
-
-    try {
-      const res = await fetch('/admin/postcard-builder/generate-image', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ prompt, aspect_ratio: 'LANDSCAPE' })
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-
-      currentBackBgB64 = data.image;
-      status.textContent = '✅ Image applied to back!';
-      updatePreview();
-      // Auto-switch to back preview
-      showPreviewSide('back');
-    } catch (e) {
-      status.textContent = '❌ ' + e.message;
-    } finally {
-      btn.disabled = false;
-      btn.textContent = '✨ Generate Image';
-    }
-  }
-
-  function clearBackImage() {
-    currentBackBgB64 = '';
-    document.getElementById('back-image-prompt').value = '';
-    const status = document.getElementById('back-image-status');
-    status.style.display = 'none';
-    updatePreview();
-  }
-
-  function handleImageUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-      const b64 = e.target.result.split(',')[1];
-      currentBgB64 = b64;
-      document.getElementById('gen-thumb').src = e.target.result;
-      document.getElementById('image-preview-thumb').style.display = 'block';
-      updatePreview();
-    };
-    reader.readAsDataURL(file);
-  }
-
-  // ── Save artwork ──
-  async function saveArtwork() {
-    const sel = document.getElementById('campaignSelect');
-    const opt = sel.options[sel.selectedIndex];
-    if (!opt || !opt.value) { alert('Please select a campaign first.'); return; }
-
-    const payload = {
-      campaign_id:   opt.value,
-      campaign_name: opt.dataset.name,
-      client:        opt.dataset.client,
-      staff_notes:   document.getElementById('staff-notes').value,
-    };
-
-    try {
-      const res = await fetch('/admin/postcard-builder/save', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast(`✅ Artwork saved as v${data.version}!`);
-      } else {
-        alert('Save failed: ' + (data.error || 'Unknown error'));
-      }
-    } catch (e) {
-      alert('Save failed: ' + e.message);
-    }
-  }
-
-  // ── Export PDF ──
-  async function exportPDF() {
-    const sel = document.getElementById('campaignSelect');
-    const opt = sel.options[sel.selectedIndex];
-    const size = document.querySelector('input[name="size"]:checked').value;
-
-    const payload = {
-      size,
-      front: {
-        headline:       document.getElementById('front-headline').value,
-        body:           document.getElementById('front-body').value,
-        cta:            document.getElementById('front-cta').value,
-        headline_color: document.getElementById('front-headline-color').value,
-        cta_bg:         document.getElementById('front-cta-bg').value,
-        bg_image_b64:   currentBgB64,
-      },
-      back: {
-        body:      document.getElementById('back-body').value,
-        url:       document.getElementById('back-url').value,
-        phone:     document.getElementById('back-phone').value,
-        bg_color:  document.getElementById('back-bg-color').value,
-      }
-    };
-
-    showToast('⏳ Generating PDF...');
-    try {
-      const res = await fetch('/admin/postcard-builder/export-pdf', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        alert('PDF error: ' + err.error);
-        return;
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url;
-      a.download = `postcard_${size}.pdf`; a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      alert('PDF export failed: ' + e.message);
-    }
-  }
-
-  // ── Merge tags — drag & drop + click to insert ──
+  let logoB64 = '';
+  let logoMime = 'image/png';
+  let refImages = [];
+  let copyOptions = null;       // {option_a, option_b} from AI
+  let generatedImages = null;   // {image_a, image_b} from Ideogram
+  let selectedCopyOption = null; // 'a' or 'b'
   let lastActiveField = null;
-  let draggedTag = null;
 
-  // ── Sample data for merge tag preview ──
-  // Note: curly braces escaped to avoid Jinja2 template parsing
+  // Merge tag sample data
   const T = s => '{' + '{' + s + '}' + '}';
   const SAMPLE = {
     [T('first_name')]:  'Joe',
@@ -641,38 +542,460 @@
   };
 
   function applyMergeTags(text) {
-    let out = text;
+    let out = (text || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     for (const [tag, val] of Object.entries(SAMPLE)) {
-      out = out.split(tag).join(`<span style="background:#fff3cd;color:#856404;border-radius:3px;padding:0 2px;font-weight:600;">${val}</span>`);
+      out = out.split(tag).join(
+        `<span style="background:#fff3cd;color:#856404;border-radius:3px;padding:0 2px;font-weight:600;">${val}</span>`
+      );
     }
     return out;
   }
 
-  // Track last focused mergeable field
+  // ═══════════════════════════════════════════════════════════
+  // Step collapsible logic
+  // ═══════════════════════════════════════════════════════════
+  function toggleStep(n) {
+    const body = document.getElementById('step-body-' + n);
+    const chev = document.getElementById('chevron-' + n);
+    const header = chev.closest('.step-header');
+    const isOpen = body.classList.contains('open');
+    body.classList.toggle('open', !isOpen);
+    chev.classList.toggle('open', !isOpen);
+    header.classList.toggle('active', !isOpen);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // Preview face toggle
+  // ═══════════════════════════════════════════════════════════
+  function switchPreviewFace(face) {
+    document.getElementById('preview-front').style.display = face === 'front' ? 'block' : 'none';
+    document.getElementById('preview-back').style.display  = face === 'back'  ? 'block' : 'none';
+    document.getElementById('ptoggle-front').className = face === 'front' ? 'active' : '';
+    document.getElementById('ptoggle-back').className  = face === 'back'  ? 'active' : '';
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // Live preview update
+  // ═══════════════════════════════════════════════════════════
+  function updatePreview() {
+    const headline    = document.getElementById('front-headline').value;
+    const subheadline = document.getElementById('front-subheadline').value;
+    const body        = document.getElementById('front-body').value;
+    const cta         = document.getElementById('front-cta').value;
+    const phone       = document.getElementById('biz-phone').value;
+    const website     = document.getElementById('biz-website').value;
+    const primaryColor = document.getElementById('color-primary').value;
+
+    document.getElementById('pf-headline').innerHTML = applyMergeTags(headline);
+    document.getElementById('pf-subheadline').innerHTML = applyMergeTags(subheadline);
+    document.getElementById('pf-body').innerHTML = applyMergeTags(body);
+
+    const ctaEl = document.getElementById('pf-cta');
+    ctaEl.innerHTML = applyMergeTags(cta);
+    ctaEl.style.display = cta ? 'inline-block' : 'none';
+    ctaEl.style.background = primaryColor;
+
+    document.getElementById('pf-phone').textContent = phone;
+    document.getElementById('pf-website').textContent = website;
+
+    // Front background
+    const bgEl = document.getElementById('front-bg');
+    if (currentBgB64) {
+      bgEl.style.backgroundImage = `url('data:image/jpeg;base64,${currentBgB64}')`;
+      bgEl.style.backgroundColor = '';
+    } else {
+      bgEl.style.backgroundImage = '';
+      bgEl.style.backgroundColor = document.getElementById('color-accent').value || '#1a1a2e';
+    }
+
+    // Logo in front preview
+    const pvLogo = document.getElementById('pv-logo');
+    if (logoB64) {
+      pvLogo.src = `data:${logoMime};base64,${logoB64}`;
+      pvLogo.style.display = 'block';
+    } else {
+      pvLogo.style.display = 'none';
+    }
+
+    // Back preview
+    const bizName    = document.getElementById('biz-name').value;
+    const bizAddress = document.getElementById('biz-address').value;
+    const backBody   = document.getElementById('back-body').value;
+
+    document.getElementById('pb-biz-name').textContent   = bizName;
+    document.getElementById('pb-address').textContent    = bizAddress;
+    document.getElementById('pb-phone-back').textContent = phone;
+    document.getElementById('pb-website-back').textContent = website;
+    document.getElementById('pb-body').innerHTML = applyMergeTags(backBody);
+
+    const pbLogo = document.getElementById('pb-logo');
+    if (logoB64) {
+      pbLogo.src = `data:${logoMime};base64,${logoB64}`;
+      pbLogo.style.display = 'block';
+    } else {
+      pbLogo.style.display = 'none';
+    }
+
+    // Indicia city from address (best effort)
+    const addrParts = bizAddress.split(',');
+    const cityState = addrParts.length > 1 ? addrParts.slice(-2).join(',').trim() : 'CITY, ST';
+    document.getElementById('pb-indicia-city').textContent = cityState.substring(0, 16);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // AI Copy Generation
+  // ═══════════════════════════════════════════════════════════
+  async function generateCopy() {
+    const bizName    = document.getElementById('biz-name').value.trim();
+    const bizType    = document.getElementById('biz-type').value;
+    const offerDesc  = document.getElementById('offer-desc').value.trim();
+    const audience   = document.getElementById('biz-audience').value.trim();
+
+    if (!offerDesc) { alert('Please describe your offer first.'); return; }
+
+    showSpinner('Generating copy with AI...');
+    try {
+      const res = await fetch('/admin/postcard-builder/generate-copy', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          business_name: bizName || 'Your Business',
+          business_type: bizType,
+          offer_description: offerDesc,
+          target_audience: audience || 'local customers'
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      copyOptions = data;
+      renderCopyOptions(data);
+      showToast('✅ Copy options generated! Click one to use it.');
+    } catch (e) {
+      alert('Copy generation failed: ' + e.message);
+    } finally {
+      hideSpinner();
+    }
+  }
+
+  function renderCopyOptions(data) {
+    ['a', 'b'].forEach(letter => {
+      const opt = data['option_' + letter];
+      const el = document.getElementById('copy-option-' + letter);
+      el.innerHTML = `
+        <div class="copy-option-letter">Option ${letter.toUpperCase()}</div>
+        <div class="copy-headline">${escHtml(opt.headline)}</div>
+        <div class="copy-sub">${escHtml(opt.subheadline || '')}</div>
+        <div class="copy-body">${escHtml(opt.body)}</div>
+        <div><span class="copy-cta">${escHtml(opt.cta)}</span></div>
+      `;
+    });
+    document.getElementById('copy-options-area').style.display = 'block';
+  }
+
+  function selectCopyOption(letter) {
+    selectedCopyOption = letter;
+    document.getElementById('copy-option-a').classList.toggle('selected', letter === 'a');
+    document.getElementById('copy-option-b').classList.toggle('selected', letter === 'b');
+
+    const opt = copyOptions['option_' + letter];
+    document.getElementById('front-headline').value    = opt.headline || '';
+    document.getElementById('front-subheadline').value = opt.subheadline || '';
+    document.getElementById('front-body').value        = opt.body || '';
+    document.getElementById('front-cta').value         = opt.cta || '';
+    updatePreview();
+    showToast(`Option ${letter.toUpperCase()} selected!`);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // Image Generation
+  // ═══════════════════════════════════════════════════════════
+  async function generateImages() {
+    let promptA = '', promptB = '';
+
+    if (copyOptions) {
+      promptA = copyOptions.option_a?.image_prompt || '';
+      promptB = copyOptions.option_b?.image_prompt || promptA;
+    }
+
+    // Fallback: build prompt from fields
+    if (!promptA) {
+      const bizType = document.getElementById('biz-type').value;
+      const headline = document.getElementById('front-headline').value;
+      promptA = `Professional ${bizType} marketing photo. ${headline}. Photorealistic, commercial quality, no text.`;
+      promptB = `Alternative angle for ${bizType}. ${headline}. Different mood, photorealistic, no text.`;
+    }
+
+    const styleType = document.getElementById('style-type').value;
+
+    showSpinner('Generating 2 postcard images with Ideogram AI...\nThis takes about 15–30 seconds.');
+    try {
+      const res = await fetch('/admin/postcard-builder/generate-image', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ prompt_a: promptA, prompt_b: promptB, style_type: styleType })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      generatedImages = data;
+      renderGeneratedPreviews(data);
+      document.getElementById('generated-previews').style.display = 'block';
+      showToast('✅ 2 options generated! Choose Option A or B.');
+    } catch (e) {
+      alert('Image generation failed: ' + e.message);
+    } finally {
+      hideSpinner();
+    }
+  }
+
+  function renderGeneratedPreviews(data) {
+    // Draw front canvases for A and B
+    ['a', 'b'].forEach(letter => {
+      const b64 = letter === 'a' ? data.image_a : data.image_b;
+      drawPostcardFrontCanvas(`canvas-${letter}-front`, b64);
+      drawPostcardBackCanvas(`canvas-${letter}-back`);
+    });
+  }
+
+  function drawPostcardFrontCanvas(canvasId, bgB64) {
+    const canvas = document.getElementById(canvasId);
+    canvas.width  = 900;
+    canvas.height = 600;
+    canvas.style.width  = '100%';
+    canvas.style.height = 'auto';
+    const ctx = canvas.getContext('2d');
+
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, 900, 600);
+      // Dark gradient overlay
+      const grad = ctx.createLinearGradient(0, 600, 0, 0);
+      grad.addColorStop(0, 'rgba(0,0,0,0.65)');
+      grad.addColorStop(0.5, 'rgba(0,0,0,0.12)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 900, 600);
+      // Text
+      const headline = document.getElementById('front-headline').value || '';
+      const sub      = document.getElementById('front-subheadline').value || '';
+      const body     = document.getElementById('front-body').value || '';
+      const cta      = document.getElementById('front-cta').value || '';
+      const primary  = document.getElementById('color-primary').value;
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 52px sans-serif';
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 8;
+      wrapText(ctx, headline, 48, 480, 800, 60);
+
+      ctx.font = '600 28px sans-serif';
+      ctx.shadowBlur = 4;
+      wrapText(ctx, sub, 48, 548, 800, 32);
+
+      if (cta) {
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = primary;
+        ctx.fillRect(48, 560, 180, 42);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(cta, 58, 581);
+        ctx.textBaseline = 'alphabetic';
+      }
+    };
+    img.src = `data:image/jpeg;base64,${bgB64}`;
+  }
+
+  function drawPostcardBackCanvas(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    canvas.width  = 900;
+    canvas.height = 600;
+    canvas.style.width  = '100%';
+    canvas.style.height = 'auto';
+    const ctx = canvas.getContext('2d');
+
+    // White background
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, 900, 600);
+
+    // Dividing line
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(540, 0); ctx.lineTo(540, 600); ctx.stroke();
+
+    // Left section
+    const bizName  = document.getElementById('biz-name').value || 'Your Business';
+    const address  = document.getElementById('biz-address').value || '';
+    const phone    = document.getElementById('biz-phone').value || '';
+    const website  = document.getElementById('biz-website').value || '';
+    const backBody = document.getElementById('back-body').value || '';
+
+    ctx.fillStyle = '#1a1a2e';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(bizName, 32, 52);
+
+    ctx.fillStyle = '#666';
+    ctx.font = '16px sans-serif';
+    let ly = 80;
+    if (address) { ctx.fillText(address, 32, ly); ly += 22; }
+    if (phone)   { ctx.fillText(phone, 32, ly);   ly += 22; }
+    if (website) { ctx.fillStyle = '#e63946'; ctx.fillText(website, 32, ly); ly += 22; ctx.fillStyle = '#666'; }
+
+    if (backBody) {
+      ctx.fillStyle = '#333';
+      ctx.font = '15px sans-serif';
+      wrapText(ctx, backBody, 32, 300, 480, 22);
+    }
+
+    // Indicia (right top)
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4,3]);
+    ctx.strokeRect(660, 20, 210, 90);
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#555';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('PRSRT STD', 765, 45);
+    ctx.fillText('U.S. POSTAGE PAID', 765, 63);
+    ctx.fillText('PERMIT NO. XXX', 765, 81);
+    ctx.textAlign = 'left';
+
+    // Address lines (right bottom)
+    ctx.fillStyle = '#ddd';
+    ctx.fillRect(555, 380, 320, 14);
+    ctx.fillRect(555, 402, 280, 14);
+    ctx.fillRect(555, 424, 300, 14);
+    ctx.fillRect(555, 446, 260, 14);
+
+    ctx.fillStyle = '#bbb';
+    ctx.font = '11px sans-serif';
+    ctx.fillText('POSTAL CUSTOMER', 555, 580);
+  }
+
+  function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+    if (!text) return;
+    const words = text.split(' ');
+    let line = '';
+    for (const word of words) {
+      const testLine = line + word + ' ';
+      if (ctx.measureText(testLine).width > maxWidth && line) {
+        ctx.fillText(line.trim(), x, y);
+        y += lineHeight;
+        line = word + ' ';
+      } else {
+        line = testLine;
+      }
+    }
+    ctx.fillText(line.trim(), x, y);
+  }
+
+  function useOption(letter) {
+    if (!generatedImages) return;
+    const b64 = letter === 'a' ? generatedImages.image_a : generatedImages.image_b;
+    currentBgB64 = b64;
+    updatePreview();
+    showToast(`Option ${letter.toUpperCase()} applied to preview!`);
+    switchPreviewFace('front');
+  }
+
+  function downloadOption(letter) {
+    const canvasId = `canvas-${letter}-front`;
+    const canvas = document.getElementById(canvasId);
+    const link = document.createElement('a');
+    link.download = `postcard_option_${letter.toUpperCase()}_front.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // Logo upload
+  // ═══════════════════════════════════════════════════════════
+  function onDragOver(e, dropId) {
+    e.preventDefault();
+    document.getElementById(dropId).classList.add('drag-over');
+  }
+  function onDragLeave(dropId) {
+    document.getElementById(dropId).classList.remove('drag-over');
+  }
+  function onLogoDrop(e) {
+    e.preventDefault();
+    document.getElementById('logo-drop').classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) uploadLogo(file);
+  }
+
+  async function uploadLogo(file) {
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch('/admin/postcard-builder/upload-asset', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      logoB64  = data.base64;
+      logoMime = file.type || 'image/png';
+      document.getElementById('logo-preview').src = `data:${logoMime};base64,${logoB64}`;
+      document.getElementById('logo-preview').style.display = 'block';
+      document.getElementById('logo-placeholder').style.display = 'none';
+      updatePreview();
+      showToast('✅ Logo uploaded!');
+    } catch (e) {
+      alert('Logo upload failed: ' + e.message);
+    }
+  }
+
+  async function uploadRefImages(files) {
+    refImages = [];
+    const thumbsEl = document.getElementById('ref-thumbs');
+    thumbsEl.innerHTML = '';
+    for (const file of Array.from(files).slice(0, 2)) {
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        const res = await fetch('/admin/postcard-builder/upload-asset', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.base64) {
+          refImages.push(data.base64);
+          const img = document.createElement('img');
+          img.src = `data:${file.type};base64,${data.base64}`;
+          img.className = 'ref-thumb';
+          thumbsEl.appendChild(img);
+        }
+      } catch (e) { /* silent */ }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // Campaign change
+  // ═══════════════════════════════════════════════════════════
+  function onCampaignChange() {
+    const sel = document.getElementById('campaignSelect');
+    const opt = sel.options[sel.selectedIndex];
+    if (opt && opt.value) {
+      const name = opt.dataset.name || '';
+      if (name) document.getElementById('biz-name').value = name;
+      updatePreview();
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // Merge tags
+  // ═══════════════════════════════════════════════════════════
   document.querySelectorAll('[data-mergeable]').forEach(el => {
     el.addEventListener('focus', () => { lastActiveField = el; });
-    // Drop target styling
-    el.addEventListener('dragover', e => {
-      e.preventDefault();
-      el.style.borderColor = '#e63946';
-      el.style.boxShadow = '0 0 0 2px rgba(230,57,70,0.2)';
-    });
-    el.addEventListener('dragleave', () => {
-      el.style.borderColor = '';
-      el.style.boxShadow = '';
-    });
+    el.addEventListener('dragover', e => { e.preventDefault(); el.style.borderColor = '#e63946'; });
+    el.addEventListener('dragleave', () => { el.style.borderColor = ''; });
     el.addEventListener('drop', e => {
-      e.preventDefault();
-      el.style.borderColor = '';
-      el.style.boxShadow = '';
+      e.preventDefault(); el.style.borderColor = '';
       const tag = e.dataTransfer.getData('text/plain');
       if (tag) insertTagIntoField(el, tag);
     });
   });
 
   function onMergeTagDragStart(e) {
-    draggedTag = e.currentTarget.dataset.tag;
-    e.dataTransfer.setData('text/plain', draggedTag);
+    e.dataTransfer.setData('text/plain', e.currentTarget.dataset.tag);
     e.dataTransfer.effectAllowed = 'copy';
   }
 
@@ -691,22 +1014,93 @@
     insertTagIntoField(target, tag);
   }
 
-  function copyTag(tag) {
-    navigator.clipboard.writeText(tag).then(() => showToast(`Copied ${tag}`));
+  // ═══════════════════════════════════════════════════════════
+  // Save / Export
+  // ═══════════════════════════════════════════════════════════
+  async function saveArtwork() {
+    const sel = document.getElementById('campaignSelect');
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.value) { alert('Please select a campaign first.'); return; }
+    const payload = {
+      campaign_id:   opt.value,
+      campaign_name: opt.dataset.name,
+      client:        opt.dataset.client,
+      staff_notes:   document.getElementById('staff-notes').value,
+    };
+    try {
+      const res = await fetch('/admin/postcard-builder/save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) showToast(`✅ Artwork saved as v${data.version}!`);
+      else alert('Save failed: ' + (data.error || 'Unknown error'));
+    } catch (e) { alert('Save failed: ' + e.message); }
   }
 
-  // ── Toast notification ──
+  async function exportPDF() {
+    const sel = document.getElementById('campaignSelect');
+    const payload = {
+      size: '6x9',
+      front: {
+        headline:       document.getElementById('front-headline').value,
+        body:           document.getElementById('front-body').value,
+        cta:            document.getElementById('front-cta').value,
+        headline_color: '#ffffff',
+        cta_bg:         document.getElementById('color-primary').value,
+        bg_image_b64:   currentBgB64,
+      },
+      back: {
+        body:      document.getElementById('back-body').value,
+        url:       document.getElementById('biz-website').value,
+        phone:     document.getElementById('biz-phone').value,
+        bg_color:  '#ffffff',
+      }
+    };
+    showToast('⏳ Generating PDF...');
+    try {
+      const res = await fetch('/admin/postcard-builder/export-pdf', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) { const err = await res.json(); alert('PDF error: ' + err.error); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'postcard_6x9.pdf'; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { alert('PDF export failed: ' + e.message); }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // Spinner & Toast helpers
+  // ═══════════════════════════════════════════════════════════
+  function showSpinner(msg) {
+    document.getElementById('spinnerMsg').textContent = msg || 'Working...';
+    document.getElementById('spinnerOverlay').classList.add('show');
+  }
+  function hideSpinner() {
+    document.getElementById('spinnerOverlay').classList.remove('show');
+  }
+
   function showToast(msg) {
     let t = document.getElementById('toast');
     if (!t) {
       t = document.createElement('div');
       t.id = 'toast';
-      t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1a1a2e;color:white;padding:12px 20px;' +
-                        'border-radius:8px;font-size:14px;font-weight:600;z-index:9999;transition:opacity 0.3s;';
+      t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1a1a2e;color:white;' +
+                        'padding:12px 20px;border-radius:8px;font-size:14px;font-weight:600;' +
+                        'z-index:9999;transition:opacity 0.3s;pointer-events:none;';
       document.body.appendChild(t);
     }
     t.textContent = msg; t.style.opacity = '1';
-    setTimeout(() => t.style.opacity = '0', 2500);
+    clearTimeout(t._timeout);
+    t._timeout = setTimeout(() => { t.style.opacity = '0'; }, 2800);
+  }
+
+  function escHtml(str) {
+    return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   // Init
