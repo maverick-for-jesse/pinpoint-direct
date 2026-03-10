@@ -10,3 +10,5 @@ openpyxl
 werkzeug
 gunicorn
 psycopg2-binary
+beautifulsoup4
+lxml
