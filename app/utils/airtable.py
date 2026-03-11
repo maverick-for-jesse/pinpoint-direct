@@ -43,17 +43,32 @@ def _get_tables():
     return tables
 
 
-def get_records(table_key, filter_formula=None, fields=None):
+def get_records(table_key, filter_formula=None, fields=None, max_records=None):
     url = f"{_get_base_url()}/{_get_tables()[table_key]}"
-    params = {}
-    if filter_formula:
-        params['filterByFormula'] = filter_formula
-    if fields:
-        for f in fields:
-            params.setdefault('fields[]', []).append(f)
-    resp = requests.get(url, headers=_get_headers(), params=params)
-    resp.raise_for_status()
-    return resp.json().get('records', [])
+    all_records = []
+    offset = None
+
+    while True:
+        params = {}
+        if filter_formula:
+            params['filterByFormula'] = filter_formula
+        if fields:
+            params['fields[]'] = fields
+        if offset:
+            params['offset'] = offset
+
+        resp = requests.get(url, headers=_get_headers(), params=params)
+        resp.raise_for_status()
+        data = resp.json()
+        all_records.extend(data.get('records', []))
+        offset = data.get('offset')
+
+        if not offset:
+            break
+        if max_records and len(all_records) >= max_records:
+            break
+
+    return all_records
 
 
 def get_record(table_key, record_id):
