@@ -67,8 +67,12 @@ def parse_county_csv(file_obj, county='Coweta County GA', batch_label=None):
     seen = set()  # deduplicate by (address, sale_date)
 
     for row in reader:
-        # Normalize field names (strip whitespace)
-        row = {k.strip(): v.strip() for k, v in row.items()}
+        # Normalize field names: collapse multiple spaces, strip edges
+        # e.g. "Parcel  Class " → "Parcel Class", "Year  Built " → "Year Built"
+        def norm_key(k):
+            import re
+            return re.sub(r'\s+', ' ', k).strip()
+        row = {norm_key(k): v.strip() for k, v in row.items()}
 
         # Only want: Qualified = "Qualified", Reason = "FM", Parcel Class = "Residential"
         if row.get('Qualified Sales') != 'Qualified':
@@ -77,8 +81,7 @@ def parse_county_csv(file_obj, county='Coweta County GA', batch_label=None):
         if row.get('Reason') != 'FM':
             skipped += 1
             continue
-        # Normalize parcel class (may have trailing spaces)
-        parcel_class = row.get('Parcel  Class ', row.get('Parcel Class', '')).strip()
+        parcel_class = row.get('Parcel Class', '').strip()
         if parcel_class != 'Residential':
             skipped += 1
             continue
@@ -105,13 +108,13 @@ def parse_county_csv(file_obj, county='Coweta County GA', batch_label=None):
         price = _parse_price(row.get('Sale Price', ''))
         tier = _get_tier(price)
 
-        year_built_raw = row.get('Year  Built ', row.get('Year Built', '')).strip()
+        year_built_raw = row.get('Year Built', '').strip()
         try:
             year_built = int(year_built_raw) if year_built_raw else None
         except ValueError:
             year_built = None
 
-        sqft_raw = row.get('Square Ft ', row.get('Square Ft', '')).strip()
+        sqft_raw = row.get('Square Ft', '').strip()
         try:
             sqft = int(sqft_raw.replace(',', '')) if sqft_raw else None
         except ValueError:
