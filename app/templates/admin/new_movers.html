@@ -1,0 +1,144 @@
+{% extends "admin/base.html" %}
+{% block title %}New Movers{% endblock %}
+{% block page_title %}New Movers{% endblock %}
+
+{% block topbar_actions %}
+  <button class="btn btn-primary" onclick="document.getElementById('upload-modal').style.display='flex'">
+    + Upload County CSV
+  </button>
+{% endblock %}
+
+{% block content %}
+
+<!-- Stats bar -->
+<div style="display:flex; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
+  <div class="stat-card" style="flex:1; min-width:160px;">
+    <div class="stat-value">{{ total_records | default(0) | int | format_number }}</div>
+    <div class="stat-label">Total Records</div>
+  </div>
+  <div class="stat-card" style="flex:1; min-width:160px;">
+    <div class="stat-value">{{ batches | length }}</div>
+    <div class="stat-label">Upload Batches</div>
+  </div>
+  <div class="stat-card" style="flex:1; min-width:160px;">
+    <div class="stat-value">{{ counties | length }}</div>
+    <div class="stat-label">Counties</div>
+  </div>
+</div>
+
+<!-- Export bar -->
+<div class="card" style="margin-bottom:24px; padding:16px 20px;">
+  <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+    <strong>Export:</strong>
+    <select id="export-county" style="padding:6px 10px; border:1px solid #ddd; border-radius:6px;">
+      <option value="">All Counties</option>
+      {% for county in counties %}
+        <option>{{ county }}</option>
+      {% endfor %}
+    </select>
+    <select id="export-tier" style="padding:6px 10px; border:1px solid #ddd; border-radius:6px;">
+      <option value="">All Tiers</option>
+      <option value="Standard">Standard (under $500k)</option>
+      <option value="Premium">Premium ($500k–$749k)</option>
+      <option value="Ultra-Premium">Ultra-Premium ($750k+)</option>
+    </select>
+    <button class="btn btn-secondary" onclick="doExport()">⬇ Download CSV</button>
+  </div>
+</div>
+
+<!-- Batches table -->
+{% if batches %}
+<div class="card" style="padding:0;">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Batch</th>
+          <th>County</th>
+          <th>Records</th>
+          <th>Standard</th>
+          <th>Premium</th>
+          <th>Ultra-Premium</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for batch_name, info in batches %}
+        <tr>
+          <td><strong>{{ batch_name }}</strong></td>
+          <td>{{ info.county }}</td>
+          <td>{{ info.count }}</td>
+          <td>{{ info.tiers.get('Standard', 0) }}</td>
+          <td>{{ info.tiers.get('Premium', 0) }}</td>
+          <td>{{ info.tiers.get('Ultra-Premium', 0) }}</td>
+          <td>
+            <a href="{{ url_for('admin.new_movers_export', batch=batch_name) }}" class="btn btn-sm btn-secondary">Export Batch</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card" style="text-align:center; padding:48px; color:#999;">
+  <div style="font-size:48px; margin-bottom:12px;">📬</div>
+  <h3 style="margin-bottom:8px; color:#666;">No new mover data yet</h3>
+  <p>Upload a county property transfer CSV to get started.</p>
+  <button class="btn btn-primary" style="margin-top:16px;" onclick="document.getElementById('upload-modal').style.display='flex'">
+    + Upload County CSV
+  </button>
+</div>
+{% endif %}
+
+<!-- Upload Modal -->
+<div id="upload-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:12px; padding:32px; width:480px; max-width:95vw;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+      <h3 style="margin:0;">Upload County CSV</h3>
+      <button onclick="document.getElementById('upload-modal').style.display='none'" style="background:none; border:none; font-size:20px; cursor:pointer; color:#999;">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('admin.new_movers_upload') }}" enctype="multipart/form-data">
+      <div class="form-group">
+        <label>County</label>
+        <select name="county" required style="width:100%; padding:8px 12px; border:1px solid #ddd; border-radius:6px;">
+          {% for county in counties %}
+            <option value="{{ county }}">{{ county }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>CSV File <span style="color:#999; font-size:12px;">(from qPublic / Schneider Corp)</span></label>
+        <input type="file" name="file" accept=".csv" required style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+      </div>
+      <div class="form-group">
+        <label>Batch Label <span style="color:#999; font-size:12px;">(optional — e.g. "Dec 2025")</span></label>
+        <input type="text" name="batch_label" placeholder="e.g. Coweta Dec 2025" style="width:100%; padding:8px 12px; border:1px solid #ddd; border-radius:6px;">
+      </div>
+      <div style="background:#f8f9fa; border-radius:8px; padding:12px; margin-bottom:20px; font-size:13px; color:#666;">
+        <strong>Filters applied automatically:</strong><br>
+        ✓ Qualified FM (arm's-length) sales only<br>
+        ✓ Residential properties only<br>
+        ✓ Must have a street address<br>
+        ✓ Deduplicated by address + sale date<br>
+        ✓ Tiered: Standard (&lt;$500k) · Premium ($500k–$749k) · Ultra-Premium ($750k+)
+      </div>
+      <div style="display:flex; gap:12px; justify-content:flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('upload-modal').style.display='none'">Cancel</button>
+        <button type="submit" class="btn btn-primary">Upload & Import</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function doExport() {
+  const county = document.getElementById('export-county').value;
+  const tier = document.getElementById('export-tier').value;
+  const params = new URLSearchParams();
+  if (county) params.set('county', county);
+  if (tier) params.set('tier', tier);
+  window.location = '{{ url_for("admin.new_movers_export") }}?' + params.toString();
+}
+</script>
+{% endblock %}

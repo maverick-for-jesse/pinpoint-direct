@@ -32,6 +32,13 @@ def create_app():
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(client_bp, url_prefix='/portal')
 
+    @app.template_filter('format_number')
+    def format_number(value):
+        try:
+            return f"{int(value):,}"
+        except (TypeError, ValueError):
+            return value
+
     import traceback
     from flask import jsonify
 

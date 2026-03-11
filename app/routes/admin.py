@@ -820,6 +820,138 @@ def invoice_edit(record_id):
                            clients=clients, campaigns=campaigns, next_number='')
 
 
+# ── New Movers ────────────────────────────────────────────────────────────────
+
+SUPPORTED_COUNTIES = [
+    'Coweta County GA',
+    # Add more here as data becomes available
+]
+
+@admin_bp.route('/new-movers')
+@login_required
+@admin_required
+def new_movers():
+    from app.utils.airtable import get_records
+    # Get recent batches (unique Upload Batch values)
+    try:
+        records = get_records('new_movers', fields=['Upload Batch', 'County', 'Tier', 'Sale Date'])
+    except Exception:
+        records = []
+
+    # Summarize by batch
+    batches = {}
+    for r in records:
+        f = r['fields']
+        batch = f.get('Upload Batch', 'Unknown')
+        if batch not in batches:
+            batches[batch] = {'county': f.get('County', ''), 'count': 0, 'tiers': {}}
+        batches[batch]['count'] += 1
+        tier = f.get('Tier', 'Standard')
+        batches[batch]['tiers'][tier] = batches[batch]['tiers'].get(tier, 0) + 1
+
+    batch_list = sorted(batches.items(), reverse=True)
+
+    return render_template('admin/new_movers.html',
+                           batches=batch_list,
+                           counties=SUPPORTED_COUNTIES,
+                           total_records=len(records))
+
+
+@admin_bp.route('/new-movers/upload', methods=['POST'])
+@login_required
+@admin_required
+def new_movers_upload():
+    from app.utils.county_csv_parser import parse_county_csv
+    from app.utils.airtable import create_record
+    import time
+
+    file = request.files.get('file')
+    if not file or file.filename == '':
+        flash('No file selected.', 'error')
+        return redirect(url_for('admin.new_movers'))
+
+    county = request.form.get('county', 'Coweta County GA')
+    batch_label = request.form.get('batch_label', '').strip() or None
+
+    try:
+        records, stats, warnings = parse_county_csv(file, county=county, batch_label=batch_label)
+    except Exception as e:
+        flash(f'Error parsing CSV: {str(e)}', 'error')
+        return redirect(url_for('admin.new_movers'))
+
+    if not records:
+        flash('No qualifying records found in that file (need Qualified FM Residential sales with addresses).', 'warning')
+        return redirect(url_for('admin.new_movers'))
+
+    # Batch upload to Airtable (10 at a time — Airtable limit)
+    uploaded = 0
+    errors = 0
+    BATCH_SIZE = 10
+
+    for i in range(0, len(records), BATCH_SIZE):
+        batch = records[i:i + BATCH_SIZE]
+        for rec in batch:
+            try:
+                create_record('new_movers', rec)
+                uploaded += 1
+            except Exception as e:
+                errors += 1
+        time.sleep(0.2)  # stay under Airtable rate limits
+
+    for w in warnings:
+        flash(w, 'info')
+
+    tier_summary = ', '.join(f"{v} {k}" for k, v in stats['by_tier'].items())
+    flash(
+        f"✅ Imported {uploaded:,} records from {county} — {tier_summary}. "
+        f"({stats['skipped']:,} rows skipped, {errors} errors)",
+        'success'
+    )
+    return redirect(url_for('admin.new_movers'))
+
+
+@admin_bp.route('/new-movers/export')
+@login_required
+@admin_required
+def new_movers_export():
+    from app.utils.airtable import get_records
+    import csv, io
+    from flask import Response
+
+    county = request.args.get('county', '')
+    tier = request.args.get('tier', '')
+    batch = request.args.get('batch', '')
+
+    formula_parts = []
+    if county:
+        formula_parts.append(f"{{County}}='{county}'")
+    if tier:
+        formula_parts.append(f"{{Tier}}='{tier}'")
+    if batch:
+        formula_parts.append(f"{{Upload Batch}}='{batch}'")
+
+    formula = None
+    if formula_parts:
+        formula = 'AND(' + ','.join(formula_parts) + ')' if len(formula_parts) > 1 else formula_parts[0]
+
+    records = get_records('new_movers', filter_formula=formula)
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=[
+        'Address', 'City', 'State', 'County', 'Sale Date', 'Sale Price',
+        'Tier', 'Year Built', 'Square Ft', 'Neighborhood', 'Upload Batch'
+    ])
+    writer.writeheader()
+    for r in records:
+        f = r['fields']
+        writer.writerow({col: f.get(col, '') for col in writer.fieldnames})
+
+    parts = [county or 'All', tier or 'All-Tiers']
+    filename = f"NewMovers_{'_'.join(p.replace(' ','') for p in parts)}.csv"
+    return Response(output.getvalue(), mimetype='text/csv',
+                    headers={'Content-Disposition': f'attachment; filename="{filename}"'})
+
+
 @admin_bp.route('/invoices/<record_id>/action', methods=['POST'])
 @login_required
 @admin_required
