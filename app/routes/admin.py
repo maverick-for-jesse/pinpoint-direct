@@ -867,8 +867,7 @@ def new_movers_upload():
 
     file = request.files.get('file')
     if not file or file.filename == '':
-        flash('No file selected.', 'error')
-        return redirect(url_for('admin.new_movers'))
+        return jsonify({'success': False, 'error': 'No file selected.'})
 
     county = request.form.get('county', 'Coweta County GA')
     batch_label = request.form.get('batch_label', '').strip() or None
@@ -876,12 +875,10 @@ def new_movers_upload():
     try:
         records, stats, warnings = parse_county_csv(file, county=county, batch_label=batch_label)
     except Exception as e:
-        flash(f'Error parsing CSV: {str(e)}', 'error')
-        return redirect(url_for('admin.new_movers'))
+        return jsonify({'success': False, 'error': f'Error parsing CSV: {str(e)}'})
 
     if not records:
-        flash('No qualifying records found in that file (need Qualified FM Residential sales with addresses).', 'warning')
-        return redirect(url_for('admin.new_movers'))
+        return jsonify({'success': False, 'error': 'No qualifying records found (need Qualified FM Residential sales with addresses).'})
 
     # Batch upload to Airtable (10 records per API call)
     from app.utils.airtable import create_records_batch
@@ -898,16 +895,15 @@ def new_movers_upload():
             errors += len(batch)
         time.sleep(0.25)  # ~4 requests/sec, safely under Airtable's 5/sec limit
 
-    for w in warnings:
-        flash(w, 'info')
-
     tier_summary = ', '.join(f"{v} {k}" for k, v in stats['by_tier'].items())
-    flash(
-        f"✅ Imported {uploaded:,} records from {county} — {tier_summary}. "
-        f"({stats['skipped']:,} rows skipped, {errors} errors)",
-        'success'
-    )
-    return redirect(url_for('admin.new_movers'))
+    return jsonify({
+        'success': True,
+        'imported': uploaded,
+        'skipped': stats.get('skipped', 0),
+        'errors': errors,
+        'tier_summary': tier_summary,
+        'warnings': warnings,
+    })
 
 
 COUNTY_CITIES = {

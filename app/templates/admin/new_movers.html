@@ -102,7 +102,7 @@
   <div style="background:#fff; border-radius:12px; padding:32px; width:480px; max-width:95vw;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
       <h3 style="margin:0;">Upload County CSV</h3>
-      <button onclick="document.getElementById('upload-modal').style.display='none'" style="background:none; border:none; font-size:20px; cursor:pointer; color:#999;">×</button>
+      <button type="button" onclick="closeUploadModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#999;">×</button>
     </div>
     <form method="POST" action="{{ url_for('admin.new_movers_upload') }}" enctype="multipart/form-data">
       <div class="form-group">
@@ -129,15 +129,116 @@
         ✓ Deduplicated by address + sale date<br>
         ✓ Tiered: Standard (&lt;$500k) · Premium ($500k–$749k) · Ultra-Premium ($750k+)
       </div>
+      <!-- Progress bar (hidden until upload starts) -->
+      <div id="upload-progress-wrap" style="display:none; margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span id="upload-status-text" style="font-size:13px; color:#555;">Uploading…</span>
+          <span id="upload-pct-text" style="font-size:13px; font-weight:600; color:#1B3A6B;"></span>
+        </div>
+        <div style="background:#e9ecef; border-radius:99px; height:8px; overflow:hidden;">
+          <div id="upload-bar" style="height:100%; background:#1B3A6B; border-radius:99px; width:0%; transition:width 0.3s ease;"></div>
+        </div>
+      </div>
+
       <div style="display:flex; gap:12px; justify-content:flex-end;">
-        <button type="button" class="btn btn-secondary" onclick="document.getElementById('upload-modal').style.display='none'">Cancel</button>
-        <button type="submit" class="btn btn-primary">Upload & Import</button>
+        <button type="button" id="upload-cancel-btn" class="btn btn-secondary" onclick="document.getElementById('upload-modal').style.display='none'">Cancel</button>
+        <button type="button" id="upload-submit-btn" class="btn btn-primary" onclick="submitUpload()">Upload & Import</button>
       </div>
     </form>
   </div>
 </div>
 
 <script>
+let progressTimer = null;
+
+function submitUpload() {
+  const form     = document.querySelector('#upload-modal form');
+  const fileInput = form.querySelector('input[name="file"]');
+  if (!fileInput.files.length) { alert('Please select a CSV file.'); return; }
+
+  const submitBtn  = document.getElementById('upload-submit-btn');
+  const cancelBtn  = document.getElementById('upload-cancel-btn');
+  const progressWrap = document.getElementById('upload-progress-wrap');
+  const bar        = document.getElementById('upload-bar');
+  const statusText = document.getElementById('upload-status-text');
+  const pctText    = document.getElementById('upload-pct-text');
+
+  // Show progress UI
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Importing…';
+  cancelBtn.disabled = true;
+  progressWrap.style.display = 'block';
+
+  // Animate bar to ~85% while we wait (indeterminate phase)
+  let pct = 0;
+  bar.style.width = '0%';
+  pctText.textContent = '';
+  statusText.textContent = 'Parsing CSV and importing records…';
+
+  const steps = [
+    {target: 15, delay: 300},
+    {target: 35, delay: 600},
+    {target: 55, delay: 1000},
+    {target: 70, delay: 800},
+    {target: 80, delay: 1200},
+    {target: 85, delay: 2000},
+  ];
+  let si = 0;
+  function animateStep() {
+    if (si >= steps.length) return;
+    const {target, delay} = steps[si++];
+    setTimeout(() => {
+      pct = target;
+      bar.style.width = pct + '%';
+      pctText.textContent = pct + '%';
+      animateStep();
+    }, delay);
+  }
+  animateStep();
+
+  // Actual upload via fetch
+  const formData = new FormData(form);
+  fetch('{{ url_for("admin.new_movers_upload") }}', {method: 'POST', body: formData})
+    .then(r => r.json())
+    .then(data => {
+      clearTimeout(progressTimer);
+      bar.style.width = '100%';
+      pctText.textContent = '100%';
+      if (data.success || data.imported !== undefined) {
+        statusText.textContent = `✅ Imported ${data.imported} records (${data.skipped || 0} skipped as duplicates/non-qualifying)`;
+        bar.style.background = '#38a169';
+        submitBtn.textContent = 'Done!';
+        setTimeout(() => { window.location.reload(); }, 1500);
+      } else {
+        statusText.textContent = '❌ ' + (data.error || 'Import failed. Check server logs.');
+        bar.style.background = '#e53e3e';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Upload & Import';
+        cancelBtn.disabled = false;
+      }
+    })
+    .catch(err => {
+      bar.style.width = '100%';
+      bar.style.background = '#e53e3e';
+      pctText.textContent = '';
+      statusText.textContent = '❌ Network error: ' + err.message;
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Upload & Import';
+      cancelBtn.disabled = false;
+    });
+}
+
+// Reset progress bar when modal is closed
+function closeUploadModal() {
+  document.getElementById('upload-modal').style.display = 'none';
+  document.getElementById('upload-progress-wrap').style.display = 'none';
+  document.getElementById('upload-bar').style.width = '0%';
+  document.getElementById('upload-bar').style.background = '#1B3A6B';
+  document.getElementById('upload-submit-btn').disabled = false;
+  document.getElementById('upload-submit-btn').textContent = 'Upload & Import';
+  document.getElementById('upload-cancel-btn').disabled = false;
+}
+
 function doExport() {
   const county = document.getElementById('export-county').value;
   const tier = document.getElementById('export-tier').value;
