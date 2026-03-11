@@ -925,7 +925,7 @@ def new_movers_enrich_zips():
     from app.utils.airtable import get_records, update_record
     import requests as req_lib
 
-    # Only fetch records where Zip is blank — much faster than fetching all
+    # Only fetch records where Zip is blank
     missing = get_records('new_movers',
                           filter_formula="Zip=''",
                           fields=['Address', 'County', 'State', 'City'],
@@ -934,7 +934,7 @@ def new_movers_enrich_zips():
     if not missing:
         return jsonify({'done': True, 'message': 'All records have ZIP codes!', 'updated': 0, 'remaining': 0})
 
-    batch = missing[:40]
+    batch = missing[:10]   # small batch — fast enough to finish before timeout
     session = req_lib.Session()
     session.headers.update({'User-Agent': 'PinpointDirect/1.0'})
 
@@ -952,13 +952,15 @@ def new_movers_enrich_zips():
             continue
 
         zip_code, city = None, f.get('City', '')
-        for try_city in COUNTY_CITIES.get(county, ['Newnan']):
+        # Try primary city first, then one fallback — keep it fast
+        cities_to_try = COUNTY_CITIES.get(county, ['Newnan'])[:2]
+        for try_city in cities_to_try:
             try:
                 resp = session.get(
                     'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress',
                     params={'address': f"{address}, {try_city}, {state}",
                             'benchmark': 'Public_AR_Current', 'format': 'json'},
-                    timeout=8
+                    timeout=5
                 )
                 matches = resp.json().get('result', {}).get('addressMatches', [])
                 if matches:
@@ -976,9 +978,8 @@ def new_movers_enrich_zips():
         else:
             failed += 1
 
-    # remaining = however many were still missing BEFORE this batch minus what we processed
     remaining = max(0, len(missing) - len(batch))
-    done      = remaining <= 0 and len(missing) <= 40
+    done      = remaining == 0
 
     return jsonify({
         'done':      done,
