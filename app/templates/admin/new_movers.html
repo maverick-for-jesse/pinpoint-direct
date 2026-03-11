@@ -104,7 +104,7 @@
       <h3 style="margin:0;">Upload County CSV</h3>
       <button type="button" onclick="closeUploadModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#999;">×</button>
     </div>
-    <form method="POST" action="{{ url_for('admin.new_movers_upload') }}" enctype="multipart/form-data">
+    <form method="POST" action="{{ url_for('admin.new_movers_upload') }}" enctype="multipart/form-data" onsubmit="event.preventDefault(); submitUpload();">
       <div class="form-group">
         <label>County</label>
         <select name="county" required style="width:100%; padding:8px 12px; border:1px solid #ddd; border-radius:6px;">
