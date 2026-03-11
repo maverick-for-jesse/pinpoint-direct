@@ -915,6 +915,239 @@ COUNTY_CITIES = {
     'Fayette County GA': ['Fayetteville', 'Peachtree City', 'Tyrone', 'Brooks', 'Woolsey'],
 }
 
+# Coweta County subdivision → zip code map (for new construction Census can't find)
+# Derived from known data + school district geography
+COWETA_SUBDIVISION_ZIPS = {
+    # Northgate HS area → mostly 30265
+    'UL-Northgate HS-Arbor Springs': '30265',
+    'UL-Northgate HS-Highgate': '30265',
+    'UL-Northgate HS-Beaumont Farms': '30265',
+    'UL-Northgate HS-Dappers Landing': '30265',
+    'UL-Northgate HS-Creekrise': '30265',
+    'UL-Northgate HS-Oconee Woods': '30265',
+    'UL-Northgate HS-Kentucky Downs': '30263',
+    'UL-Northgate HS-Genesee': '30268',
+    'UL-Northgate HS-Wellborn': '30265',
+    'UL-Northgate HS-Ashland Hills': '30265',
+    'UL-Northgate HS-Barrington Farms': '30265',
+    'UL-Northgate HS-Indian Bluff': '30265',
+    'UL-Northgate HS-Britain Woods': '30265',
+    'UL-Northgate HS-Oak Hill Reserve': '30265',
+    'UL-Northgate HS-Mill Creek': '30265',
+    'UL-Northgate HS-Platinum Ridge': '30265',
+    'UL-Northgate HS-Spring Forest': '30265',
+    'UL-Northgate HS-Strathmore': '30265',
+    'UL-Northgate HS-Cannon Gate Acres': '30265',
+    'UL-Northgate HS-Cannongate Village': '30265',
+    'UL-Northgate HS-Widewater': '30265',
+    'UL-Northgate HS-Chatsworth': '30265',
+    'UL-Northgate HS-Wexford Plantation': '30265',
+    'UL-Northgate HS-Firethorne': '30265',
+    'UL-Northgate HS-Rayner Woods': '30265',
+    'UL-Northgate HS-River Park': '30265',
+    'UL-Northgate HS-HERRING FARMS': '30265',
+    'UL-Northgate HS-Persimmon Creek Estates': '30265',
+    'UL-Northgate HS-Stone Mill': '30265',
+    'UL-Northgate HS-Riva Ridge at Calumet': '30263',
+    'UL-Northgate HS-Windemerer': '30265',
+    'UL-Northgate HS-Sawgrass Manor': '30265',
+    'UL-Northgate HS-Pebble Brook': '30265',
+    'UL-Northgate HS-Timberidge': '30265',
+    'UL-Northgate HS-Timberlane': '30265',
+    'UL-Northgate HS-White Oak': '30265',
+    'UL-Northgate HS-Woodstream': '30265',
+    'UL-Northgate HS-Highlands': '30265',
+    'UL-Northgate HS-Gosdin Park': '30265',
+    'UL-Northgate HS-Summerhill Farms': '30265',
+    'UL-Northgate HS-Bailey Forest': '30265',
+    'UL-Northgate HS-Creekwood': '30265',
+    'UL-Northgate HS-Serenbe Overlook': '30268',
+    'UL-Northgate HS-PALMETTO WEST PLANTATION': '30268',
+    # East Coweta HS, Senoia/SE area → 30276
+    'UL-East Coweta HS-Heritage Pointe': '30276',
+    'UL-East Coweta HS-Keg Creek Landing': '30276',
+    'UL-East Coweta HS-The Enclave @ Keg Creek': '30276',
+    'UL-East Coweta HS-Grafton': '30276',
+    'UL-East Coweta HS-Graceton Farms': '30276',
+    'UL-East Coweta HS-Fox Hall': '30276',
+    'UL-East Coweta HS-Traditions of Senoia': '30276',
+    'UL-East Coweta HS-Walden Pond Estates': '30276',
+    'UL-East Coweta HS-Standing Rock Estates': '30276',
+    'UL-East Coweta HS-Morningside': '30276',
+    'UL-East Coweta HS-Elders Mills Estates': '30276',
+    'UL-East Coweta HS-Apache Point': '30276',
+    'UL-East Coweta HS-HARALSON FARMS': '30276',
+    'UL-East Coweta HS-Couchs Corner': '30276',
+    'UL-East Coweta HS-Grove Park': '30276',
+    'UL-East Coweta HS-Waldens Plantation': '30276',
+    'UL-East Coweta HS-Saddleridge Estates': '30276',
+    'UL-East Coweta HS-Big T': '30276',
+    'UL-East Coweta HS-Barnsley Farms': '30276',
+    'UL-East Coweta HS-Old Mill Reserve': '30276',
+    'UL-East Coweta HS-Old Mill Crossing': '30276',
+    'UL-East Coweta HS-Peeks Crossing': '30276',
+    'UL-East Coweta HS-McIntosh Estates': '30276',
+    'UL-East Coweta HS-Black Jack': '30276',
+    'UL-East Coweta HS-The Overlook At Summer Grove': '30265',
+    # East Coweta HS, Summergrove/Newnan area → 30265
+    'UL-East Coweta HS-Tapestry at Summergrove': '30265',
+    'UL-East Coweta HS-Bellaire at Summer Grove': '30265',
+    'UL-East Coweta HS-Stone Bridge': '30265',
+    'UL-East Coweta HS-Ashton Place': '30265',
+    'UL-East Coweta HS-Golfview at Summer Grove': '30265',
+    'UL-East Coweta HS- TWNHSE Stonebridge Newnan': '30265',
+    'UL-East Coweta HS-Stonebridge Newnan': '30265',
+    'UL-East Coweta HS-Woodbury Estates': '30265',
+    'UL-East Coweta HS-Daybreak': '30265',
+    'UL-East Coweta HS-Keystone at Summer Grove': '30265',
+    'UL-East Coweta HS-Hillcrest': '30265',
+    'UL-East Coweta HS-Carriage Park': '30265',
+    'UL-East Coweta HS-Cascades at Summer Grove': '30265',
+    'UL-East Coweta HS-Cascade at Summer Grove': '30265',
+    'UL-East Coweta HS-Oakpark at Summergrove': '30265',
+    'UL-East Coweta HS-Loras Place at Summergrove': '30265',
+    'UL-East Coweta HS-The Arbors at Summergrove': '30265',
+    'UL-East Coweta HS-Wicker Place': '30265',
+    'UL-East Coweta HS-Eastlake at Summergrove': '30265',
+    'UL-East Coweta HS-Beacon crest at Summergrove': '30265',
+    'UL-East Coweta HS-Southwind at Stillwood Farms': '30265',
+    'UL-East Coweta HS-Heritage Ridge at Summergrove': '30265',
+    'UL-East Coweta HS-The Dale at Summergrove': '30265',
+    'UL-East Coweta HS-Belltree at Summergrove': '30265',
+    'UL-East Coweta HS-Camden Village at Still Farms': '30265',
+    'UL-East Coweta HS-Townhomes at Eastlake': '30265',
+    'UL-East Coweta HS-Lakeshore': '30265',
+    'UL-East Coweta HS-Nickel Creek at Newnan Crossing': '30265',
+    'UL-East Coweta HS-Highlands at Madison Park': '30265',
+    'UL-East Coweta HS-Madison Park at Newnan Lakes': '30265',
+    'UL-East Coweta HS-Leesburg Plantation': '30265',
+    'UL-East Coweta HS-Twelve Parks': '30265',
+    'UL-East Coweta HS-Twelve Parks  55+': '30265',
+    'UL-East Coweta HS-Springdale': '30265',
+    'UL-East Coweta HS-Cresswind': '30265',
+    'UL-East Coweta HS-Highgate': '30265',
+    'UL-East Coweta HS-The Retreat at Browns Ridge': '30265',
+    'UL-East Coweta HS-Leverett Park': '30265',
+    'UL-East Coweta HS-Chapman Farm': '30265',
+    # East Coweta HS, Newnan/Poplar area → 30263
+    'UL-East Coweta HS-Poplar Preserve': '30263',
+    'UL-East Coweta HS-Candleberry Place': '30263',
+    'UL-East Coweta HS-Parkside Village': '30263',
+    'UL-East Coweta HS-The Cottages at Lake Shore': '30263',
+    'UL-East Coweta HS-Hutchinson Cove': '30263',
+    'UL-East Coweta HS-Abbott Walk': '30263',
+    'UL-East Coweta HS-Bedford Forest': '30263',
+    'UL-East Coweta HS-Winchester': '30263',
+    'UL-East Coweta HS-Huntington Chase': '30263',
+    'UL-East Coweta HS-Sandstone': '30263',
+    'UL-East Coweta HS-Willow Bend': '30263',
+    'UL-East Coweta HS-City View': '30263',
+    'UL-East Coweta HS-Olympia Park': '30263',
+    'UL-East Coweta HS-MLK/Pinson': '30263',
+    'UL-East Coweta HS-East Newnan Village': '30263',
+    'UL-East Coweta HS-Chestlehurst Acres': '30276',
+    'UL-East Coweta HS-Stone Mill at Summer Grove': '30265',
+    'UL-East Coweta HS-Turnberry Park': '30276',
+    'UL-East Coweta HS-Knoll Park at Summer Grove': '30265',
+    'UL-East Coweta HS-Rock House Ridge': '30276',
+    'UL-East Coweta HS-WOODVALLEY ESTATES': '30276',
+    'UL-East Coweta HS-Saddlebrook': '30276',
+    'UL-East Coweta HS-Ashton at Summergrove': '30265',
+    # Newnan HS area → mostly 30263
+    'UL-Newnan HS-Chapel Hill': '30265',
+    'UL-Newnan HS-Belle Hall': '30265',
+    'UL-Newnan HS-Piney Woods': '30263',
+    'UL-Newnan HS-Avery park': '30263',
+    'UL-Newnan HS-Lake Redwine Plantation': '30263',
+    'UL-Newnan HS-Maple Creek Plantation': '30263',
+    'UL-Newnan HS-Savannah Woods': '30263',
+    'UL-Newnan HS-The Crest': '30263',
+    'UL-Newnan HS-Farrington Ridge': '30263',
+    'UL-Newnan HS-Hickory Hills': '30263',
+    'UL-Newnan HS-Sargent Village': '30263',
+    'UL-Newnan HS-Beverly Park': '30263',
+    'UL-Newnan HS-Corn Crib': '30263',
+    'UL-Newnan HS-Lake Coweta': '30263',
+    'UL-Newnan HS-Irish Trace': '30263',
+    'UL-Newnan HS-Woodsmoke': '30263',
+    'UL-Newnan HS-Windsor Estates': '30263',
+    'UL-Newnan HS-Alatus Acres': '30263',
+    'UL-Newnan HS-Pinecrest': '30263',
+    'UL-Newnan HS-Harpers Farms': '30263',
+    'UL-Newnan HS-Newnan Pines': '30263',
+    'UL-Newnan HS-WILLOW CREEK': '30263',
+    'UL-Newnan HS-Otara Woods': '30263',
+    'UL-Newnan HS-Rosewood': '30263',
+    'UL-Newnan HS-Cross Brook Estates': '30263',
+    'UL-Newnan HS-Browns Place': '30263',
+    'UL-Newnan HS-Pineland Plantation': '30263',
+    'UL-Newnan HS-High gardens at Lake Redwine': '30263',
+    'UL-Newnan HS-Lake Redwine': '30263',
+    'UL-Newnan HS-The Woods Lake Redwine': '30263',
+    'UL-Newnan HS-Macedonia Woods': '30263',
+    'UL-Newnan HS-Hubbard Place': '30263',
+    'UL-Newnan HS-Westgate Park': '30263',
+    'UL-Newnan HS-Bohannon Woods': '30263',
+    'UL-Newnan HS-Charlesburg': '30263',
+    'UL-Newnan HS-Rock Cabin Lake': '30263',
+    'UL-Newnan HS-SADDLEBACK FARMS': '30263',
+    'UL-Newnan HS-Newnan City': '30263',
+    'UL-Newnan HS-Newnan Waverly': '30263',
+    'UL-Newnan HS-Newnan/Featherstone': '30263',
+    'UL-Newnan HS-Rocky Hill': '30263',
+    'UL-Newnan HS-Pine Grove Estates': '30263',
+    'UL-Newnan HS-Woodrow Place': '30263',
+    'UL-Newnan HS-Calico Corners': '30220',
+    'UL-Newnan HS-Canterbury Springs': '30220',
+    'UL-Newnan HS-Bears Bend': '30263',
+    'UL-Newnan HS-Lamb Road': '30263',
+    'UL-Newnan HS-Allen Place': '30263',
+    'UL-Newnan HS-BELLE LAKE PLANTATION': '30263',
+    'UL-Newnan HS-Country Club Rd': '30263',
+    'UL-Newnan HS-Halt Whistle': '30263',
+    'UL-Newnan HS-Meadowview': '30263',
+    'UL-Newnan HS-Rustica Estates': '30263',
+    'UL-Newnan HS-Welcome Woods': '30263',
+    'UL-Newnan HS-Woodland Acres': '30263',
+    'UL-Newnan HS-Grantville City': '30220',
+    'UL-Newnan HS-Moreland City': '30259',
+    'UL-Newnan HS-QUIGS FARM': '30263',
+    # Senoia city
+    'UL-East Coweta HS-Senoia (Historic)': '30276',
+    'UL-East Coweta HS-Senoia Gin Property': '30276',
+    'UL-East Coweta HS-Todd Seven': '30276',
+    # Sharpsburg area
+    'UL-Northgate HS-Peachtree Farms': '30277',
+    'UL-Northgate HS-Tyler Woods': '30277',
+    'UL-East Coweta HS-Clearwater Lake': '30277',
+    'UL-East Coweta HS-Melrose Park': '30277',
+    'UL-East Coweta HS-Winchester': '30277',
+    # Area defaults by school district
+    'RL-East Coweta HS-Georgian Pines': '30276',
+    'RL-Newnan HS-Bears Bend': '30263',
+}
+
+def _zip_from_neighborhood(neighborhood):
+    """Look up zip from our subdivision map, falling back to school-district defaults."""
+    if not neighborhood:
+        return None
+    # Exact match
+    if neighborhood in COWETA_SUBDIVISION_ZIPS:
+        return COWETA_SUBDIVISION_ZIPS[neighborhood]
+    # School district fallback
+    n = neighborhood.upper()
+    if 'NORTHGATE' in n:
+        return '30265'
+    if 'NEWNAN HS' in n:
+        return '30263'
+    if 'EAST COWETA' in n:
+        return '30265'   # conservative default
+    if 'GRANTVILLE' in n:
+        return '30220'
+    if 'SENOIA' in n:
+        return '30276'
+    return None
+
 
 @admin_bp.route('/new-movers/enrich-zips', methods=['POST'])
 @login_required
@@ -925,16 +1158,16 @@ def new_movers_enrich_zips():
     from app.utils.airtable import get_records, update_record
     import requests as req_lib
 
-    # Only fetch records where Zip is blank
+    # Fetch records missing zip (with neighborhood for map lookup)
     missing = get_records('new_movers',
                           filter_formula="Zip=''",
-                          fields=['Address', 'County', 'State', 'City'],
+                          fields=['Address', 'County', 'State', 'City', 'Neighborhood'],
                           max_records=100)
 
     if not missing:
         return jsonify({'done': True, 'message': 'All records have ZIP codes!', 'updated': 0, 'remaining': 0})
 
-    batch = missing[:10]   # small batch — fast enough to finish before timeout
+    batch   = missing[:25]
     session = req_lib.Session()
     session.headers.update({'User-Agent': 'PinpointDirect/1.0'})
 
@@ -942,38 +1175,44 @@ def new_movers_enrich_zips():
     failed  = 0
 
     for r in batch:
-        f       = r['fields']
-        address = f.get('Address', '').strip()
-        county  = f.get('County', 'Coweta County GA')
-        state   = f.get('State', 'GA')
+        f            = r['fields']
+        address      = f.get('Address', '').strip()
+        county       = f.get('County', 'Coweta County GA')
+        state        = f.get('State', 'GA')
+        neighborhood = f.get('Neighborhood', '').strip()
 
         if not address:
             failed += 1
             continue
 
-        zip_code, city = None, f.get('City', '')
-        # Try primary city first, then one fallback — keep it fast
-        cities_to_try = COUNTY_CITIES.get(county, ['Newnan'])[:2]
-        for try_city in cities_to_try:
-            try:
-                resp = session.get(
-                    'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress',
-                    params={'address': f"{address}, {try_city}, {state}",
-                            'benchmark': 'Public_AR_Current', 'format': 'json'},
-                    timeout=5
-                )
-                matches = resp.json().get('result', {}).get('addressMatches', [])
-                if matches:
-                    comps    = matches[0].get('addressComponents', {})
-                    zip_code = comps.get('zip', '')
-                    city     = comps.get('city', try_city)
-                    if zip_code:
-                        break
-            except Exception:
-                pass
+        zip_code = None
+        city     = f.get('City', 'Newnan')
+
+        # 1) Try neighborhood→zip map first (instant, no network)
+        zip_code = _zip_from_neighborhood(neighborhood)
+
+        # 2) Fall back to Census geocoder for established streets
+        if not zip_code:
+            for try_city in COUNTY_CITIES.get(county, ['Newnan'])[:2]:
+                try:
+                    resp = session.get(
+                        'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress',
+                        params={'address': f"{address}, {try_city}, {state}",
+                                'benchmark': 'Public_AR_Current', 'format': 'json'},
+                        timeout=5
+                    )
+                    matches = resp.json().get('result', {}).get('addressMatches', [])
+                    if matches:
+                        comps    = matches[0].get('addressComponents', {})
+                        zip_code = comps.get('zip', '')
+                        city     = comps.get('city', try_city).title()
+                        if zip_code:
+                            break
+                except Exception:
+                    pass
 
         if zip_code:
-            update_record('new_movers', r['id'], {'Zip': zip_code, 'City': city.title()})
+            update_record('new_movers', r['id'], {'Zip': zip_code, 'City': city})
             updated += 1
         else:
             failed += 1
