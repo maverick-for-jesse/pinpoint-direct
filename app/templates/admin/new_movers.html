@@ -26,24 +26,30 @@
   </div>
 </div>
 
-<!-- Export bar -->
+<!-- Tools bar -->
 <div class="card" style="margin-bottom:24px; padding:16px 20px;">
-  <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-    <strong>Export:</strong>
-    <select id="export-county" style="padding:6px 10px; border:1px solid #ddd; border-radius:6px;">
-      <option value="">All Counties</option>
-      {% for county in counties %}
-        <option>{{ county }}</option>
-      {% endfor %}
-    </select>
-    <select id="export-tier" style="padding:6px 10px; border:1px solid #ddd; border-radius:6px;">
-      <option value="">All Tiers</option>
-      <option value="Standard">Standard (under $500k)</option>
-      <option value="Premium">Premium ($500k–$749k)</option>
-      <option value="Ultra-Premium">Ultra-Premium ($750k+)</option>
-    </select>
-    <button class="btn btn-secondary" onclick="doExport()">⬇ Download CSV</button>
+  <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; justify-content:space-between;">
+    <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+      <strong>Export:</strong>
+      <select id="export-county" style="padding:6px 10px; border:1px solid #ddd; border-radius:6px;">
+        <option value="">All Counties</option>
+        {% for county in counties %}
+          <option>{{ county }}</option>
+        {% endfor %}
+      </select>
+      <select id="export-tier" style="padding:6px 10px; border:1px solid #ddd; border-radius:6px;">
+        <option value="">All Tiers</option>
+        <option value="Standard">Standard (under $500k)</option>
+        <option value="Premium">Premium ($500k–$749k)</option>
+        <option value="Ultra-Premium">Ultra-Premium ($750k+)</option>
+      </select>
+      <button class="btn btn-secondary" onclick="doExport()">⬇ Download CSV</button>
+    </div>
+    <div>
+      <button class="btn btn-secondary" id="enrich-btn" onclick="enrichZips()">📍 Enrich ZIP Codes</button>
+    </div>
   </div>
+  <div id="enrich-status" style="display:none; margin-top:12px; padding:10px 14px; background:#f0f7ff; border-radius:8px; font-size:14px; color:#1B3A6B;"></div>
 </div>
 
 <!-- Batches table -->
@@ -139,6 +145,32 @@ function doExport() {
   if (county) params.set('county', county);
   if (tier) params.set('tier', tier);
   window.location = '{{ url_for("admin.new_movers_export") }}?' + params.toString();
+}
+
+function enrichZips() {
+  const btn = document.getElementById('enrich-btn');
+  const status = document.getElementById('enrich-status');
+  btn.disabled = true;
+  btn.textContent = '⏳ Enriching...';
+  status.style.display = 'block';
+  status.textContent = 'Looking up ZIP codes via Census geocoder — this may take 1–2 minutes for large batches...';
+
+  fetch('{{ url_for("admin.new_movers_enrich_zips") }}', {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.textContent = '📍 Enrich ZIP Codes';
+      status.style.background = data.success ? '#f0fff4' : '#fff0f0';
+      status.style.color = data.success ? '#276749' : '#c53030';
+      status.textContent = data.message;
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.textContent = '📍 Enrich ZIP Codes';
+      status.style.background = '#fff0f0';
+      status.style.color = '#c53030';
+      status.textContent = 'Error: ' + err.message;
+    });
 }
 </script>
 {% endblock %}

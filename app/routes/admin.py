@@ -910,6 +910,79 @@ def new_movers_upload():
     return redirect(url_for('admin.new_movers'))
 
 
+@admin_bp.route('/new-movers/enrich-zips', methods=['POST'])
+@login_required
+@admin_required
+def new_movers_enrich_zips():
+    import time
+    from app.utils.airtable import get_records, update_record
+
+    # Fetch all records missing a zip
+    records = get_records('new_movers')
+    missing = [r for r in records if not r['fields'].get('Zip')]
+
+    if not missing:
+        return jsonify({'success': True, 'message': 'All records already have zip codes.', 'updated': 0, 'failed': 0})
+
+    updated = 0
+    failed = 0
+    session = __import__('requests').Session()
+    session.headers.update({'User-Agent': 'PinpointDirect/1.0 (pinpointdirect.io)'})
+
+    # Cities to try per county (Census geocoder needs city, not county name)
+    COUNTY_CITIES = {
+        'Coweta County GA': ['Newnan', 'Senoia', 'Grantville', 'Sharpsburg', 'Palmetto', 'Moreland', 'Turin'],
+        'Fayette County GA': ['Fayetteville', 'Peachtree City', 'Tyrone', 'Brooks', 'Woolsey'],
+    }
+
+    for r in missing:
+        f = r['fields']
+        address = f.get('Address', '').strip()
+        county  = f.get('County', 'Coweta County GA')
+        state   = f.get('State', 'GA')
+
+        if not address:
+            failed += 1
+            continue
+
+        cities = COUNTY_CITIES.get(county, [county])
+        zip_code, city = None, f.get('City', '')
+
+        for try_city in cities:
+            try:
+                query = f"{address}, {try_city}, {state}"
+                resp = session.get(
+                    'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress',
+                    params={'address': query, 'benchmark': 'Public_AR_Current', 'format': 'json'},
+                    timeout=10
+                )
+                matches = resp.json().get('result', {}).get('addressMatches', [])
+                if matches:
+                    comps = matches[0].get('addressComponents', {})
+                    zip_code = comps.get('zip', '')
+                    city     = comps.get('city', try_city)
+                    if zip_code:
+                        break
+            except Exception:
+                pass
+            time.sleep(0.05)
+
+        if zip_code:
+            update_record('new_movers', r['id'], {'Zip': zip_code, 'City': city.title()})
+            updated += 1
+        else:
+            failed += 1
+
+        time.sleep(0.05)
+
+    return jsonify({
+        'success': True,
+        'message': f'Done! Updated {updated} records. {failed} could not be geocoded.',
+        'updated': updated,
+        'failed': failed
+    })
+
+
 @admin_bp.route('/new-movers/export')
 @login_required
 @admin_required
@@ -938,7 +1011,7 @@ def new_movers_export():
 
     output = io.StringIO()
     writer = csv.DictWriter(output, fieldnames=[
-        'Address', 'City', 'State', 'County', 'Sale Date', 'Sale Price',
+        'Address', 'City', 'Zip', 'State', 'County', 'Sale Date', 'Sale Price',
         'Tier', 'Year Built', 'Square Ft', 'Neighborhood', 'Upload Batch'
     ])
     writer.writeheader()
