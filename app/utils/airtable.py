@@ -77,6 +77,15 @@ def update_record(table_key, record_id, fields):
     return resp.json()
 
 
+def create_records_batch(table_key, records_list):
+    """Create up to 10 records in a single API call. Returns list of created records."""
+    url = f"{_get_base_url()}/{_get_tables()[table_key]}"
+    payload = {'records': [{'fields': f} for f in records_list]}
+    resp = requests.post(url, headers=_get_headers(), json=payload)
+    resp.raise_for_status()
+    return resp.json().get('records', [])
+
+
 def delete_record(table_key, record_id):
     url = f"{_get_base_url()}/{_get_tables()[table_key]}/{record_id}"
     resp = requests.delete(url, headers=_get_headers())

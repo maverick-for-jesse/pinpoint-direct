@@ -883,20 +883,20 @@ def new_movers_upload():
         flash('No qualifying records found in that file (need Qualified FM Residential sales with addresses).', 'warning')
         return redirect(url_for('admin.new_movers'))
 
-    # Batch upload to Airtable (10 at a time — Airtable limit)
+    # Batch upload to Airtable (10 records per API call)
+    from app.utils.airtable import create_records_batch
     uploaded = 0
     errors = 0
     BATCH_SIZE = 10
 
     for i in range(0, len(records), BATCH_SIZE):
         batch = records[i:i + BATCH_SIZE]
-        for rec in batch:
-            try:
-                create_record('new_movers', rec)
-                uploaded += 1
-            except Exception as e:
-                errors += 1
-        time.sleep(0.2)  # stay under Airtable rate limits
+        try:
+            created = create_records_batch('new_movers', batch)
+            uploaded += len(created)
+        except Exception as e:
+            errors += len(batch)
+        time.sleep(0.25)  # ~4 requests/sec, safely under Airtable's 5/sec limit
 
     for w in warnings:
         flash(w, 'info')
