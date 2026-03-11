@@ -880,26 +880,59 @@ def new_movers_upload():
     if not records:
         return jsonify({'success': False, 'error': 'No qualifying records found (need Qualified FM Residential sales with addresses).'})
 
+    # Build a set of (address, sale_date) already in Airtable to prevent duplicates on re-upload
+    from app.utils.airtable import create_records_batch, get_records
+    existing_keys = set()
+    try:
+        existing = get_records('new_movers', fields=['Address', 'Sale Date'])
+        for r in existing:
+            f = r.get('fields', {})
+            key = (f.get('Address', '').strip().upper(), f.get('Sale Date', '').strip())
+            existing_keys.add(key)
+    except Exception:
+        pass  # If we can't fetch, proceed without dedup check (better than blocking upload)
+
+    deduped = []
+    already_exists = 0
+    for rec in records:
+        key = (rec.get('Address', '').strip().upper(), rec.get('Sale Date', '').strip())
+        if key in existing_keys:
+            already_exists += 1
+        else:
+            deduped.append(rec)
+            existing_keys.add(key)  # Prevent within-batch dupes too
+
+    if not deduped:
+        return jsonify({
+            'success': True,
+            'imported': 0,
+            'skipped': stats.get('skipped', 0) + already_exists,
+            'already_exists': already_exists,
+            'errors': 0,
+            'tier_summary': 'none',
+            'warnings': [f'All {already_exists} records already exist in Airtable — nothing to import.'],
+        })
+
     # Batch upload to Airtable (10 records per API call)
-    from app.utils.airtable import create_records_batch
     uploaded = 0
     errors = 0
     BATCH_SIZE = 10
 
-    for i in range(0, len(records), BATCH_SIZE):
-        batch = records[i:i + BATCH_SIZE]
+    for i in range(0, len(deduped), BATCH_SIZE):
+        batch = deduped[i:i + BATCH_SIZE]
         try:
             created = create_records_batch('new_movers', batch)
             uploaded += len(created)
         except Exception as e:
             errors += len(batch)
-        time.sleep(0.25)  # ~4 requests/sec, safely under Airtable's 5/sec limit
+        time.sleep(0.25)
 
     tier_summary = ', '.join(f"{v} {k}" for k, v in stats['by_tier'].items())
     return jsonify({
         'success': True,
         'imported': uploaded,
         'skipped': stats.get('skipped', 0),
+        'already_exists': already_exists,
         'errors': errors,
         'tier_summary': tier_summary,
         'warnings': warnings,

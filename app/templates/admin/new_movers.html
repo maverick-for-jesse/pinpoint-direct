@@ -205,7 +205,10 @@ function submitUpload() {
       bar.style.width = '100%';
       pctText.textContent = '100%';
       if (data.success || data.imported !== undefined) {
-        statusText.textContent = `✅ Imported ${data.imported} records (${data.skipped || 0} skipped as duplicates/non-qualifying)`;
+        let msg = `✅ Imported ${data.imported} records`;
+        if (data.already_exists) msg += ` · ${data.already_exists} already existed (skipped)`;
+        if (data.skipped) msg += ` · ${data.skipped} non-qualifying rows filtered`;
+        statusText.textContent = msg;
         bar.style.background = '#38a169';
         submitBtn.textContent = 'Done!';
         setTimeout(() => { window.location.reload(); }, 1500);
