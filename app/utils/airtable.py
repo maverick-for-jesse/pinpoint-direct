@@ -26,6 +26,7 @@ def _load_config():
             'invoices':   os.getenv('AIRTABLE_TABLE_INVOICES',    'tbloebwZ56XAw6QJU'),
             'print_jobs': os.getenv('AIRTABLE_TABLE_PRINT_JOBS', 'tblJ1cuAi224uoLxI'),
             'users':      os.getenv('AIRTABLE_TABLE_USERS',       'tblEjDO4bnZW9hawl'),
+            'new_movers': os.getenv('AIRTABLE_TABLE_NEW_MOVERS', 'tblGAR15Ubn6GwxkV'),
         }
     return token, base_id, tables
 
