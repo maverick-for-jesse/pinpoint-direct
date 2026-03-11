@@ -56,6 +56,8 @@ def get_records(table_key, filter_formula=None, fields=None, max_records=None):
             params['fields[]'] = fields
         if offset:
             params['offset'] = offset
+        if max_records:
+            params['pageSize'] = min(100, max_records - len(all_records))
 
         resp = requests.get(url, headers=_get_headers(), params=params)
         resp.raise_for_status()

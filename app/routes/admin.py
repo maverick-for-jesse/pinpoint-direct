@@ -925,8 +925,11 @@ def new_movers_enrich_zips():
     from app.utils.airtable import get_records, update_record
     import requests as req_lib
 
-    records = get_records('new_movers')
-    missing = [r for r in records if not r['fields'].get('Zip')]
+    # Only fetch records where Zip is blank — much faster than fetching all
+    missing = get_records('new_movers',
+                          filter_formula="Zip=''",
+                          fields=['Address', 'County', 'State', 'City'],
+                          max_records=100)
 
     if not missing:
         return jsonify({'done': True, 'message': 'All records have ZIP codes!', 'updated': 0, 'remaining': 0})
@@ -973,8 +976,9 @@ def new_movers_enrich_zips():
         else:
             failed += 1
 
-    remaining = len(missing) - len(batch)
-    done      = remaining <= 0
+    # remaining = however many were still missing BEFORE this batch minus what we processed
+    remaining = max(0, len(missing) - len(batch))
+    done      = remaining <= 0 and len(missing) <= 40
 
     return jsonify({
         'done':      done,
