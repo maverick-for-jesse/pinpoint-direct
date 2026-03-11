@@ -147,28 +147,45 @@ function doExport() {
   window.location = '{{ url_for("admin.new_movers_export") }}?' + params.toString();
 }
 
+let enrichTotalUpdated = 0;
+let enrichTotalFailed  = 0;
+
 function enrichZips() {
-  const btn = document.getElementById('enrich-btn');
+  const btn    = document.getElementById('enrich-btn');
   const status = document.getElementById('enrich-status');
+  enrichTotalUpdated = 0;
+  enrichTotalFailed  = 0;
   btn.disabled = true;
   btn.textContent = '⏳ Enriching...';
-  status.style.display = 'block';
-  status.textContent = 'Looking up ZIP codes via Census geocoder — this may take 1–2 minutes for large batches...';
+  status.style.display  = 'block';
+  status.style.background = '#f0f7ff';
+  status.style.color    = '#1B3A6B';
+  status.textContent    = 'Starting ZIP enrichment...';
+  runEnrichBatch(btn, status);
+}
 
+function runEnrichBatch(btn, status) {
   fetch('{{ url_for("admin.new_movers_enrich_zips") }}', {method: 'POST'})
     .then(r => r.json())
     .then(data => {
-      btn.disabled = false;
-      btn.textContent = '📍 Enrich ZIP Codes';
-      status.style.background = data.success ? '#f0fff4' : '#fff0f0';
-      status.style.color = data.success ? '#276749' : '#c53030';
-      status.textContent = data.message;
+      enrichTotalUpdated += data.updated || 0;
+      enrichTotalFailed  += data.failed  || 0;
+      if (data.done) {
+        btn.disabled    = false;
+        btn.textContent = '📍 Enrich ZIP Codes';
+        status.style.background = '#f0fff4';
+        status.style.color      = '#276749';
+        status.textContent = `✅ Done! ${enrichTotalUpdated} ZIPs added. ${enrichTotalFailed} addresses couldn't be geocoded (likely new construction).`;
+      } else {
+        status.textContent = `⏳ ${data.remaining} records remaining... (${enrichTotalUpdated} done so far)`;
+        setTimeout(() => runEnrichBatch(btn, status), 500);
+      }
     })
     .catch(err => {
-      btn.disabled = false;
+      btn.disabled    = false;
       btn.textContent = '📍 Enrich ZIP Codes';
       status.style.background = '#fff0f0';
-      status.style.color = '#c53030';
+      status.style.color      = '#c53030';
       status.textContent = 'Error: ' + err.message;
     });
 }

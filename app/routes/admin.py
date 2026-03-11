@@ -910,33 +910,36 @@ def new_movers_upload():
     return redirect(url_for('admin.new_movers'))
 
 
+COUNTY_CITIES = {
+    'Coweta County GA': ['Newnan', 'Senoia', 'Grantville', 'Sharpsburg', 'Palmetto', 'Moreland', 'Turin'],
+    'Fayette County GA': ['Fayetteville', 'Peachtree City', 'Tyrone', 'Brooks', 'Woolsey'],
+}
+
+
 @admin_bp.route('/new-movers/enrich-zips', methods=['POST'])
 @login_required
 @admin_required
 def new_movers_enrich_zips():
+    """Process one batch of 40 records — client calls repeatedly until remaining=0."""
     import time
     from app.utils.airtable import get_records, update_record
+    import requests as req_lib
 
-    # Fetch all records missing a zip
     records = get_records('new_movers')
     missing = [r for r in records if not r['fields'].get('Zip')]
 
     if not missing:
-        return jsonify({'success': True, 'message': 'All records already have zip codes.', 'updated': 0, 'failed': 0})
+        return jsonify({'done': True, 'message': 'All records have ZIP codes!', 'updated': 0, 'remaining': 0})
+
+    batch = missing[:40]
+    session = req_lib.Session()
+    session.headers.update({'User-Agent': 'PinpointDirect/1.0'})
 
     updated = 0
-    failed = 0
-    session = __import__('requests').Session()
-    session.headers.update({'User-Agent': 'PinpointDirect/1.0 (pinpointdirect.io)'})
+    failed  = 0
 
-    # Cities to try per county (Census geocoder needs city, not county name)
-    COUNTY_CITIES = {
-        'Coweta County GA': ['Newnan', 'Senoia', 'Grantville', 'Sharpsburg', 'Palmetto', 'Moreland', 'Turin'],
-        'Fayette County GA': ['Fayetteville', 'Peachtree City', 'Tyrone', 'Brooks', 'Woolsey'],
-    }
-
-    for r in missing:
-        f = r['fields']
+    for r in batch:
+        f       = r['fields']
         address = f.get('Address', '').strip()
         county  = f.get('County', 'Coweta County GA')
         state   = f.get('State', 'GA')
@@ -945,27 +948,24 @@ def new_movers_enrich_zips():
             failed += 1
             continue
 
-        cities = COUNTY_CITIES.get(county, [county])
         zip_code, city = None, f.get('City', '')
-
-        for try_city in cities:
+        for try_city in COUNTY_CITIES.get(county, ['Newnan']):
             try:
-                query = f"{address}, {try_city}, {state}"
                 resp = session.get(
                     'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress',
-                    params={'address': query, 'benchmark': 'Public_AR_Current', 'format': 'json'},
-                    timeout=10
+                    params={'address': f"{address}, {try_city}, {state}",
+                            'benchmark': 'Public_AR_Current', 'format': 'json'},
+                    timeout=8
                 )
                 matches = resp.json().get('result', {}).get('addressMatches', [])
                 if matches:
-                    comps = matches[0].get('addressComponents', {})
+                    comps    = matches[0].get('addressComponents', {})
                     zip_code = comps.get('zip', '')
                     city     = comps.get('city', try_city)
                     if zip_code:
                         break
             except Exception:
                 pass
-            time.sleep(0.05)
 
         if zip_code:
             update_record('new_movers', r['id'], {'Zip': zip_code, 'City': city.title()})
@@ -973,13 +973,15 @@ def new_movers_enrich_zips():
         else:
             failed += 1
 
-        time.sleep(0.05)
+    remaining = len(missing) - len(batch)
+    done      = remaining <= 0
 
     return jsonify({
-        'success': True,
-        'message': f'Done! Updated {updated} records. {failed} could not be geocoded.',
-        'updated': updated,
-        'failed': failed
+        'done':      done,
+        'updated':   updated,
+        'failed':    failed,
+        'remaining': remaining,
+        'message':   'All done! ZIPs enriched.' if done else f'{remaining} records still need ZIPs — continuing...'
     })
 
 
