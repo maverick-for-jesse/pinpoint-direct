@@ -79,11 +79,32 @@ if DATABASE_URL:
     import re
 
     # Normalize any postgres:// or postgres: variant → postgresql://
-    # Railway internal URLs sometimes omit the // (e.g. postgres:pass@host/db)
     DATABASE_URL = re.sub(r'^postgres(?:ql)?:(?://)?', 'postgresql://', DATABASE_URL)
 
+    def _build_conn_kwargs():
+        """
+        Build psycopg2 connection kwargs. Prefer individual PG* env vars (always
+        complete) over the DATABASE_URL which Railway sometimes delivers without
+        a password field.
+        """
+        pghost = os.getenv('PGHOST') or os.getenv('RAILWAY_TCP_PROXY_DOMAIN')
+        pgport = os.getenv('PGPORT', '5432')
+        pguser = os.getenv('PGUSER', 'postgres')
+        pgpass = os.getenv('PGPASSWORD')
+        pgdb   = os.getenv('PGDATABASE', 'railway')
+
+        if pghost and pgpass:
+            return dict(
+                host=pghost, port=int(pgport),
+                user=pguser, password=pgpass,
+                dbname=pgdb,
+                cursor_factory=psycopg2.extras.RealDictCursor
+            )
+        # Fall back to the (normalized) DATABASE_URL
+        return dict(dsn=DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+
     def get_db():
-        conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+        conn = psycopg2.connect(**_build_conn_kwargs())
         return conn
 
     def get_db_type():
