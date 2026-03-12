@@ -78,8 +78,16 @@ if DATABASE_URL:
     import psycopg2.extras
     import re
 
-    # Normalize any postgres:// or postgres: variant → postgresql://
-    DATABASE_URL = re.sub(r'^postgres(?:ql)?:(?://)?', 'postgresql://', DATABASE_URL)
+    # Normalize DATABASE_URL for psycopg2
+    # Standard:  postgres://user:pass@host/db  → postgresql://user:pass@host/db
+    # Railway internal: postgres:PASS@host/db (no // , no username)
+    #                → postgresql://postgres:PASS@host/db
+    if re.match(r'^postgres(?:ql)?://', DATABASE_URL):
+        DATABASE_URL = re.sub(r'^postgres(?:ql)?://', 'postgresql://', DATABASE_URL)
+    elif re.match(r'^postgres:', DATABASE_URL):
+        # Strip leading "postgres:" and inject proper scheme + default user
+        rest = DATABASE_URL[len('postgres:'):]
+        DATABASE_URL = 'postgresql://postgres:' + rest
 
     def _build_conn_kwargs():
         """
