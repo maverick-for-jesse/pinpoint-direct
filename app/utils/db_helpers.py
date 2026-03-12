@@ -61,8 +61,7 @@ _SELECT = {
     """,
     'new_movers': """
         SELECT id, address, city, zip, state, county, sale_date, sale_price,
-               tier, year_built, sqft, neighborhood, upload_batch,
-               verify_status, verify_message, created_at
+               tier, year_built, sqft, neighborhood, upload_batch, created_at
         FROM new_movers
     """,
     'users': """
@@ -155,8 +154,8 @@ def _row_to_record(table, row):
             'Square Ft':      r.get('sqft') or '',
             'Neighborhood':   r.get('neighborhood') or '',
             'Upload Batch':   r.get('upload_batch') or '',
-            'Verify Status':  r.get('verify_status') or '',
-            'Verify Message': r.get('verify_message') or '',
+            'Verify Status':  r.get('verify_status') or '',   # populated by verify route
+            'Verify Message': r.get('verify_message') or '',  # populated by verify route
         }
     elif table == 'users':
         fields = {

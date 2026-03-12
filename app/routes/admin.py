@@ -893,6 +893,13 @@ def new_movers():
 @login_required
 @admin_required
 def new_movers_upload():
+    try:
+        return _new_movers_upload_inner()
+    except Exception as e:
+        import traceback
+        return jsonify({'success': False, 'error': f'Server error: {str(e)}', 'detail': traceback.format_exc()})
+
+def _new_movers_upload_inner():
     from app.utils.county_csv_parser import parse_county_csv
     from app.utils.db_helpers import create_record
     import time
@@ -1351,6 +1358,23 @@ def new_movers_verify():
     BATCH_SIZE = 50
     db_type = get_db_type()
     ph = '%s' if db_type == 'postgres' else '?'
+
+    # Ensure verify columns exist (safe to run every time)
+    with get_db() as db:
+        try:
+            if db_type == 'postgres':
+                with db.cursor() as cur:
+                    cur.execute("ALTER TABLE new_movers ADD COLUMN IF NOT EXISTS verify_status TEXT")
+                    cur.execute("ALTER TABLE new_movers ADD COLUMN IF NOT EXISTS verify_message TEXT")
+            else:
+                for col in ['verify_status', 'verify_message']:
+                    try:
+                        db.execute(f"ALTER TABLE new_movers ADD COLUMN {col} TEXT")
+                    except Exception:
+                        pass
+            db.commit()
+        except Exception:
+            pass
 
     with get_db() as db:
         # Fetch unverified records
