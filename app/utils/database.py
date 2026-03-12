@@ -76,10 +76,11 @@ def db_executemany(db, sql, params_list):
 if DATABASE_URL:
     import psycopg2
     import psycopg2.extras
+    import re
 
-    # Railway gives postgres:// but psycopg2 needs postgresql://
-    if DATABASE_URL.startswith('postgres://'):
-        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+    # Normalize any postgres:// or postgres: variant → postgresql://
+    # Railway internal URLs sometimes omit the // (e.g. postgres:pass@host/db)
+    DATABASE_URL = re.sub(r'^postgres(?:ql)?:(?://)?', 'postgresql://', DATABASE_URL)
 
     def get_db():
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
