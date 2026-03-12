@@ -1296,36 +1296,52 @@ def new_movers_enrich_zips():
                 except Exception:
                     pass
 
-        # 3) Fall back to Google Address Validation API (handles new construction)
+        # 3) Fall back to SerpAPI Google Maps (handles new construction)
         if not zip_code:
             try:
-                import json as _json
-                goog_key = None
+                import re as _re, json as _j, os as _os
+                # Load SerpAPI key
+                serp_key = None
                 try:
-                    import json as _j, os as _os
-                    cfg_path = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.dirname(__file__))), 'config', 'google_address_validation.json')
-                    goog_key = _j.load(open(cfg_path)).get('api_key') if _os.path.exists(cfg_path) else _os.getenv('GOOGLE_ADDRESS_VALIDATION_KEY')
+                    cfg = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.dirname(__file__))), 'config', 'agency_scraper.json')
+                    serp_key = _j.load(open(cfg)).get('serpapi_key') if _os.path.exists(cfg) else None
                 except Exception:
-                    goog_key = os.getenv('GOOGLE_ADDRESS_VALIDATION_KEY')
+                    pass
+                serp_key = serp_key or _os.getenv('SERPAPI_KEY')
 
-                if goog_key:
-                    try_city = COUNTY_CITIES.get(county, ['Newnan'])[0]
-                    payload = {
-                        'address': {
-                            'addressLines': [address],
-                            'locality': try_city,
-                            'administrativeArea': state,
-                        }
-                    }
-                    gresp = session.post(
-                        f'https://addressvalidation.googleapis.com/v1:validateAddress?key={goog_key}',
-                        json=payload,
-                        timeout=6
+                # County center coordinates for accurate local search
+                COUNTY_LL = {
+                    'Coweta County GA':  '@33.3812,-84.7600,12z',
+                    'Fayette County GA': '@33.4300,-84.5000,12z',
+                }
+                ll = COUNTY_LL.get(county, '@33.3812,-84.7600,12z')
+                try_city = COUNTY_CITIES.get(county, ['Newnan'])[0]
+
+                if serp_key:
+                    sresp = session.get(
+                        'https://serpapi.com/search.json',
+                        params={
+                            'engine':  'google_maps',
+                            'q':       f'{address}, {try_city}, {state}',
+                            'll':      ll,
+                            'type':    'search',
+                            'api_key': serp_key,
+                        },
+                        timeout=8
                     )
-                    gdata = gresp.json()
-                    postal = gdata.get('result', {}).get('address', {}).get('postalAddress', {})
-                    zip_code = postal.get('postalCode', '').split('-')[0]  # strip +4
-                    city     = postal.get('locality', city) or city
+                    sdata = sresp.json()
+                    addr_str = sdata.get('place_results', {}).get('address', '')
+                    if not addr_str:
+                        results = sdata.get('local_results', [])
+                        addr_str = results[0].get('address', '') if results else ''
+                    if addr_str:
+                        zm = _re.search(r'\b(\d{5})\b', addr_str)
+                        if zm:
+                            zip_code = zm.group(1)
+                            # Extract city from address string (before ", STATE ZIP")
+                            parts = addr_str.split(',')
+                            if len(parts) >= 2:
+                                city = parts[-2].strip().split(' ')[0] or city
             except Exception:
                 pass
 
