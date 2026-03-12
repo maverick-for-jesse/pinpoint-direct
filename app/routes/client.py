@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
-from app.utils.airtable import get_records, get_record, update_record
+from app.utils.db_helpers import get_records, get_record, update_record, create_record
 from functools import wraps
 
 client_bp = Blueprint('client', __name__)
@@ -114,7 +114,7 @@ def approvals():
                            mailing_pending=mailing_pending)
 
 
-@client_bp.route('/approvals/artwork/<record_id>', methods=['POST'])
+@client_bp.route('/approvals/artwork/<int:record_id>', methods=['POST'])
 @login_required
 @client_required
 def artwork_approve(record_id):
@@ -149,7 +149,7 @@ def artwork_approve(record_id):
     return redirect(url_for('client.approvals'))
 
 
-@client_bp.route('/approvals/mailing/<record_id>', methods=['POST'])
+@client_bp.route('/approvals/mailing/<int:record_id>', methods=['POST'])
 @login_required
 @client_required
 def mailing_approve(record_id):
@@ -160,7 +160,7 @@ def mailing_approve(record_id):
         # Auto-create print job
         campaign = get_record('campaigns', record_id)
         f = campaign['fields']
-        from app.utils.airtable import create_record
+        from app.utils.db_helpers import create_record
         existing_jobs = get_records('print_jobs',
             filter_formula=f"{{Campaign}}='{f.get('Campaign Name','')}'")
         if not existing_jobs:
@@ -190,7 +190,7 @@ def invoices():
     return render_template('client/invoices.html', invoices=invoices)
 
 
-@client_bp.route('/invoices/<record_id>')
+@client_bp.route('/invoices/<int:record_id>')
 @login_required
 @client_required
 def invoice_detail(record_id):

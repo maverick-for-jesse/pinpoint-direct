@@ -24,6 +24,15 @@ def create_app():
         from app.models.user import User
         return User.get(user_id)
 
+    # Initialize database (creates all tables if not exist — safe to call every startup)
+    from app.utils.database import init_db
+    with app.app_context():
+        try:
+            init_db()
+        except Exception as e:
+            import traceback
+            print(f"WARNING: init_db failed: {e}\n{traceback.format_exc()}")
+
     from app.routes.auth import auth_bp
     from app.routes.admin import admin_bp
     from app.routes.client import client_bp

@@ -1,17 +1,21 @@
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash
-from app.utils.airtable import find_user_by_email, get_record, update_record
+from app.utils.db_helpers import find_user_by_email, get_record, update_record
 from datetime import datetime
 
 
 class User(UserMixin):
     def __init__(self, record_id, name, email, role, client=None, password_hash=None):
-        self.id = record_id
+        self.id = int(record_id)   # Flask-Login needs this; must be int for Postgres PKs
         self.name = name
         self.email = email
         self.role = role  # 'Admin', 'Staff', or 'Client'
-        self.client = client
+        self.client = client       # Company name (for client portal filtering)
         self.password_hash = password_hash
+
+    def get_id(self):
+        """Flask-Login calls this; must return a string."""
+        return str(self.id)
 
     def check_password(self, password):
         if not self.password_hash:
@@ -25,7 +29,7 @@ class User(UserMixin):
         return self.role == 'Client'
 
     def update_last_login(self):
-        now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        now = datetime.utcnow().isoformat()
         try:
             update_record('users', self.id, {'Last Login': now})
         except Exception:
@@ -33,8 +37,9 @@ class User(UserMixin):
 
     @staticmethod
     def get(record_id):
+        """Load user by integer PK. Called by Flask-Login's user_loader."""
         try:
-            record = get_record('users', record_id)
+            record = get_record('users', int(record_id))
             fields = record.get('fields', {})
             return User(
                 record_id=record['id'],

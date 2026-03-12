@@ -4,6 +4,75 @@ import sqlite3
 # If DATABASE_URL is set (Railway Postgres), use psycopg2; otherwise SQLite
 DATABASE_URL = os.getenv('DATABASE_URL', '')
 
+
+def db_exec(db, sql, params=()):
+    """
+    Execute a SQL statement using the right placeholder style (%s vs ?).
+    Use this for the mailing_list / list_records routes so they work on both backends.
+    """
+    if DATABASE_URL:
+        # psycopg2: convert ? to %s and use cursor
+        pg_sql = sql.replace('?', '%s')
+        with db.cursor() as cur:
+            cur.execute(pg_sql, params)
+            return cur
+    else:
+        return db.execute(sql, params)
+
+
+def db_fetchall(db, sql, params=()):
+    """Execute a SELECT and return list of dicts, works on both backends."""
+    if DATABASE_URL:
+        pg_sql = sql.replace('?', '%s')
+        with db.cursor() as cur:
+            cur.execute(pg_sql, params)
+            return [dict(r) for r in cur.fetchall()]
+    else:
+        return [dict(r) for r in db.execute(sql, params).fetchall()]
+
+
+def db_fetchone(db, sql, params=()):
+    """Execute a SELECT and return one dict, works on both backends."""
+    if DATABASE_URL:
+        pg_sql = sql.replace('?', '%s')
+        with db.cursor() as cur:
+            cur.execute(pg_sql, params)
+            row = cur.fetchone()
+            return dict(row) if row else None
+    else:
+        row = db.execute(sql, params).fetchone()
+        return dict(row) if row else None
+
+
+def db_insert(db, sql, params=()):
+    """
+    Execute an INSERT and return the new row's id.
+    Handles RETURNING for Postgres, lastrowid for SQLite.
+    """
+    if DATABASE_URL:
+        # Append RETURNING id if not already there
+        pg_sql = sql.replace('?', '%s')
+        if 'RETURNING' not in pg_sql.upper():
+            pg_sql += ' RETURNING id'
+        with db.cursor() as cur:
+            cur.execute(pg_sql, params)
+            row = cur.fetchone()
+            return row['id'] if row else None
+    else:
+        cur = db.execute(sql, params)
+        return cur.lastrowid
+
+
+def db_executemany(db, sql, params_list):
+    """Execute a statement for each params tuple, works on both backends."""
+    if DATABASE_URL:
+        pg_sql = sql.replace('?', '%s')
+        with db.cursor() as cur:
+            for params in params_list:
+                cur.execute(pg_sql, params)
+    else:
+        db.executemany(sql, params_list)
+
 if DATABASE_URL:
     import psycopg2
     import psycopg2.extras
@@ -16,9 +85,13 @@ if DATABASE_URL:
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
         return conn
 
+    def get_db_type():
+        return 'postgres'
+
     def init_db():
         with get_db() as conn:
             with conn.cursor() as cur:
+                # ── Existing tables (DO NOT MODIFY) ──────────────────────────
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS mailing_lists (
                         id          SERIAL PRIMARY KEY,
@@ -51,6 +124,108 @@ if DATABASE_URL:
                 """)
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_records_list ON list_records(list_id)")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_records_status ON list_records(verify_status)")
+
+                # ── New tables (migrated from Airtable) ───────────────────────
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS clients (
+                        id              SERIAL PRIMARY KEY,
+                        company_name    TEXT,
+                        contact_name    TEXT,
+                        contact_email   TEXT,
+                        contact_phone   TEXT,
+                        portal_username TEXT,
+                        status          TEXT DEFAULT 'Active',
+                        notes           TEXT,
+                        created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS users (
+                        id              SERIAL PRIMARY KEY,
+                        name            TEXT,
+                        email           TEXT UNIQUE,
+                        role            TEXT,
+                        client_id       INTEGER REFERENCES clients(id),
+                        password_hash   TEXT,
+                        last_login      TIMESTAMP,
+                        created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS campaigns (
+                        id              SERIAL PRIMARY KEY,
+                        client_id       INTEGER REFERENCES clients(id),
+                        name            TEXT,
+                        postcard_size   TEXT DEFAULT '6x9',
+                        status          TEXT DEFAULT 'Draft',
+                        piece_count     INTEGER,
+                        mail_date       DATE,
+                        notes           TEXT,
+                        created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS artwork (
+                        id              SERIAL PRIMARY KEY,
+                        campaign_id     INTEGER REFERENCES campaigns(id),
+                        client_id       INTEGER REFERENCES clients(id),
+                        name            TEXT,
+                        version         INTEGER DEFAULT 1,
+                        status          TEXT DEFAULT 'Pending Review',
+                        staff_notes     TEXT,
+                        client_notes    TEXT,
+                        created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS invoices (
+                        id              SERIAL PRIMARY KEY,
+                        invoice_number  TEXT,
+                        client_id       INTEGER REFERENCES clients(id),
+                        campaign_id     INTEGER REFERENCES campaigns(id),
+                        status          TEXT DEFAULT 'Draft',
+                        amount          DECIMAL(10,2),
+                        due_date        DATE,
+                        paid_date       DATE,
+                        notes           TEXT,
+                        created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS print_jobs (
+                        id              SERIAL PRIMARY KEY,
+                        campaign_id     INTEGER REFERENCES campaigns(id),
+                        client_id       INTEGER REFERENCES clients(id),
+                        job_name        TEXT,
+                        piece_count     INTEGER,
+                        status          TEXT DEFAULT 'Queued',
+                        print_date      DATE,
+                        mail_date       DATE,
+                        pdf_url         TEXT,
+                        notes           TEXT,
+                        created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS new_movers (
+                        id              SERIAL PRIMARY KEY,
+                        address         TEXT,
+                        city            TEXT,
+                        zip             TEXT,
+                        state           TEXT,
+                        county          TEXT,
+                        sale_date       TEXT,
+                        sale_price      TEXT,
+                        tier            TEXT,
+                        year_built      TEXT,
+                        sqft            TEXT,
+                        neighborhood    TEXT,
+                        upload_batch    TEXT,
+                        created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_new_movers_zip ON new_movers(zip)")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_new_movers_batch ON new_movers(upload_batch)")
             conn.commit()
 
 else:
@@ -62,7 +237,11 @@ else:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA foreign_keys=ON")
         return conn
+
+    def get_db_type():
+        return 'sqlite'
 
     def init_db():
         with get_db() as conn:
@@ -95,5 +274,92 @@ else:
                 );
                 CREATE INDEX IF NOT EXISTS idx_records_list ON list_records(list_id);
                 CREATE INDEX IF NOT EXISTS idx_records_status ON list_records(verify_status);
+
+                CREATE TABLE IF NOT EXISTS clients (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    company_name    TEXT,
+                    contact_name    TEXT,
+                    contact_email   TEXT,
+                    contact_phone   TEXT,
+                    portal_username TEXT,
+                    status          TEXT DEFAULT 'Active',
+                    notes           TEXT,
+                    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS users (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name            TEXT,
+                    email           TEXT UNIQUE,
+                    role            TEXT,
+                    client_id       INTEGER REFERENCES clients(id),
+                    password_hash   TEXT,
+                    last_login      DATETIME,
+                    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS campaigns (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    client_id       INTEGER REFERENCES clients(id),
+                    name            TEXT,
+                    postcard_size   TEXT DEFAULT '6x9',
+                    status          TEXT DEFAULT 'Draft',
+                    piece_count     INTEGER,
+                    mail_date       DATE,
+                    notes           TEXT,
+                    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS artwork (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    campaign_id     INTEGER REFERENCES campaigns(id),
+                    client_id       INTEGER REFERENCES clients(id),
+                    name            TEXT,
+                    version         INTEGER DEFAULT 1,
+                    status          TEXT DEFAULT 'Pending Review',
+                    staff_notes     TEXT,
+                    client_notes    TEXT,
+                    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS invoices (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    invoice_number  TEXT,
+                    client_id       INTEGER REFERENCES clients(id),
+                    campaign_id     INTEGER REFERENCES campaigns(id),
+                    status          TEXT DEFAULT 'Draft',
+                    amount          REAL,
+                    due_date        DATE,
+                    paid_date       DATE,
+                    notes           TEXT,
+                    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS print_jobs (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    campaign_id     INTEGER REFERENCES campaigns(id),
+                    client_id       INTEGER REFERENCES clients(id),
+                    job_name        TEXT,
+                    piece_count     INTEGER,
+                    status          TEXT DEFAULT 'Queued',
+                    print_date      DATE,
+                    mail_date       DATE,
+                    pdf_url         TEXT,
+                    notes           TEXT,
+                    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS new_movers (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    address         TEXT,
+                    city            TEXT,
+                    zip             TEXT,
+                    state           TEXT,
+                    county          TEXT,
+                    sale_date       TEXT,
+                    sale_price      TEXT,
+                    tier            TEXT,
+                    year_built      TEXT,
+                    sqft            TEXT,
+                    neighborhood    TEXT,
+                    upload_batch    TEXT,
+                    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_new_movers_zip ON new_movers(zip);
+                CREATE INDEX IF NOT EXISTS idx_new_movers_batch ON new_movers(upload_batch);
             """)
             conn.commit()

@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, send_file
 from flask_login import login_required, current_user
-from app.utils.airtable import get_records, get_record, create_record, update_record
+from app.utils.db_helpers import get_records, get_record, create_record, update_record, at_str
 import os, base64
 
 admin_bp = Blueprint('admin', __name__)
@@ -87,7 +87,7 @@ def client_new():
     return render_template('admin/client_form.html', client=None)
 
 
-@admin_bp.route('/clients/<record_id>')
+@admin_bp.route('/clients/<int:record_id>')
 @login_required
 @admin_required
 def client_detail(record_id):
@@ -101,7 +101,7 @@ def client_detail(record_id):
                            invoices=invoices)
 
 
-@admin_bp.route('/clients/<record_id>/edit', methods=['GET', 'POST'])
+@admin_bp.route('/clients/<int:record_id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def client_edit(record_id):
@@ -162,11 +162,10 @@ def campaign_new():
     return render_template('admin/campaign_form.html', campaign=None, clients=clients)
 
 
-@admin_bp.route('/campaigns/<record_id>')
+@admin_bp.route('/campaigns/<int:record_id>')
 @login_required
 @admin_required
 def campaign_detail(record_id):
-    from app.utils.airtable import at_str
     campaign = get_record('campaigns', record_id)
     campaign_name = campaign['fields'].get('Campaign Name', '')
     safe_name = at_str(campaign_name)
@@ -180,7 +179,7 @@ def campaign_detail(record_id):
                            print_job=print_job)
 
 
-@admin_bp.route('/campaigns/<record_id>/edit', methods=['GET', 'POST'])
+@admin_bp.route('/campaigns/<int:record_id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def campaign_edit(record_id):
@@ -206,7 +205,7 @@ def campaign_edit(record_id):
     return render_template('admin/campaign_form.html', campaign=campaign, clients=clients)
 
 
-@admin_bp.route('/campaigns/<record_id>/advance', methods=['POST'])
+@admin_bp.route('/campaigns/<int:record_id>/advance', methods=['POST'])
 @login_required
 @admin_required
 def campaign_advance(record_id):
@@ -244,7 +243,7 @@ def campaign_advance(record_id):
     return redirect(url_for('admin.campaign_detail', record_id=record_id))
 
 
-@admin_bp.route('/campaigns/<record_id>/cancel', methods=['POST'])
+@admin_bp.route('/campaigns/<int:record_id>/cancel', methods=['POST'])
 @login_required
 @admin_required
 def campaign_cancel(record_id):
@@ -419,13 +418,10 @@ def export_pdf():
 @login_required
 @admin_required
 def lists():
-    from app.utils.database import get_db, init_db
+    from app.utils.database import get_db, init_db, db_fetchall
     init_db()
     with get_db() as db:
-        rows = db.execute(
-            "SELECT * FROM mailing_lists ORDER BY created_at DESC"
-        ).fetchall()
-    mailing_lists = [dict(r) for r in rows]
+        mailing_lists = db_fetchall(db, "SELECT * FROM mailing_lists ORDER BY created_at DESC")
     campaigns = get_records('campaigns')
     return render_template('admin/lists.html', mailing_lists=mailing_lists, campaigns=campaigns)
 
@@ -455,12 +451,12 @@ def list_upload():
         return redirect(url_for('admin.lists'))
 
     with get_db() as db:
-        cur = db.execute(
+        from app.utils.database import db_insert, db_executemany
+        list_id = db_insert(db,
             "INSERT INTO mailing_lists (name, client, campaign, total, notes) VALUES (?,?,?,?,?)",
             (list_name, client, campaign, len(records), notes)
         )
-        list_id = cur.lastrowid
-        db.executemany(
+        db_executemany(db,
             """INSERT INTO list_records
                (list_id, first_name, last_name, company, address1, address2, city, state, zip, offer_code)
                VALUES (?,?,?,?,?,?,?,?,?,?)""",
@@ -480,19 +476,20 @@ def list_upload():
 @login_required
 @admin_required
 def list_detail(list_id):
-    from app.utils.database import get_db
+    from app.utils.database import get_db, db_fetchone, db_fetchall
     page = int(request.args.get('page', 1))
     per_page = 50
     offset = (page - 1) * per_page
 
     with get_db() as db:
-        mailing_list = dict(db.execute("SELECT * FROM mailing_lists WHERE id=?", (list_id,)).fetchone())
-        total_records = db.execute("SELECT COUNT(*) FROM list_records WHERE list_id=?", (list_id,)).fetchone()[0]
-        records = [dict(r) for r in db.execute(
+        mailing_list = db_fetchone(db, "SELECT * FROM mailing_lists WHERE id=?", (list_id,))
+        count_row = db_fetchone(db, "SELECT COUNT(*) as cnt FROM list_records WHERE list_id=?", (list_id,))
+        total_records = count_row['cnt'] if count_row else 0
+        records = db_fetchall(db,
             "SELECT * FROM list_records WHERE list_id=? LIMIT ? OFFSET ?",
             (list_id, per_page, offset)
-        ).fetchall()]
-        stats = dict(db.execute(
+        )
+        stats = db_fetchone(db,
             """SELECT
                 COUNT(*) as total,
                 SUM(CASE WHEN verify_status='verified' THEN 1 ELSE 0 END) as verified,
@@ -500,7 +497,7 @@ def list_detail(list_id):
                 SUM(CASE WHEN verify_status='pending'  THEN 1 ELSE 0 END) as pending
                FROM list_records WHERE list_id=?""",
             (list_id,)
-        ).fetchone())
+        )
 
     total_pages = (total_records + per_page - 1) // per_page
     campaigns = get_records('campaigns')
@@ -517,14 +514,14 @@ def list_detail(list_id):
 @login_required
 @admin_required
 def list_verify(list_id):
-    from app.utils.database import get_db
+    from app.utils.database import get_db, db_fetchall, db_exec
     from app.utils.usps import verify_address
 
     with get_db() as db:
-        pending = db.execute(
+        pending = db_fetchall(db,
             "SELECT * FROM list_records WHERE list_id=? AND verify_status='pending' LIMIT 500",
             (list_id,)
-        ).fetchall()
+        )
 
         verified_count = 0
         failed_count = 0
@@ -544,7 +541,7 @@ def list_verify(list_id):
                 updates['city']     = result.get('city', row['city'])
                 updates['state']    = result.get('state', row['state'])
                 updates['zip']      = result.get('zip5', row['zip'])
-            db.execute(
+            db_exec(db,
                 """UPDATE list_records SET verify_status=?, verify_message=?,
                    address1=?, city=?, state=?, zip=? WHERE id=?""",
                 (status, message,
@@ -558,7 +555,7 @@ def list_verify(list_id):
             else: failed_count += 1
 
         # Update summary counts
-        db.execute(
+        db_exec(db,
             """UPDATE mailing_lists SET
                verified = (SELECT COUNT(*) FROM list_records WHERE list_id=? AND verify_status='verified'),
                failed   = (SELECT COUNT(*) FROM list_records WHERE list_id=? AND verify_status='failed')
@@ -575,23 +572,24 @@ def list_verify(list_id):
 @login_required
 @admin_required
 def list_assign(list_id):
-    from app.utils.database import get_db
+    from app.utils.database import get_db, db_exec, db_fetchone
     campaign_name = request.form.get('campaign_name', '').strip()
     campaign_id   = request.form.get('campaign_id', '').strip()
 
     with get_db() as db:
-        db.execute("UPDATE mailing_lists SET campaign=? WHERE id=?", (campaign_name, list_id))
+        db_exec(db, "UPDATE mailing_lists SET campaign=? WHERE id=?", (campaign_name, list_id))
         db.commit()
 
     # Also update piece count on campaign
     if campaign_id:
         with get_db() as db:
-            total = db.execute(
-                "SELECT COUNT(*) FROM list_records WHERE list_id=? AND verify_status != 'failed'",
+            row = db_fetchone(db,
+                "SELECT COUNT(*) as cnt FROM list_records WHERE list_id=? AND verify_status != 'failed'",
                 (list_id,)
-            ).fetchone()[0]
+            )
+            total = row['cnt'] if row else 0
         try:
-            update_record('campaigns', campaign_id, {'Piece Count': total})
+            update_record('campaigns', int(campaign_id), {'Piece Count': total})
         except Exception:
             pass
 
@@ -603,19 +601,19 @@ def list_assign(list_id):
 @login_required
 @admin_required
 def list_export(list_id):
-    from app.utils.database import get_db
+    from app.utils.database import get_db, db_fetchone, db_fetchall
     import csv
     import io
     from flask import Response
 
     only_verified = request.args.get('verified_only', '0') == '1'
     with get_db() as db:
-        mailing_list = dict(db.execute("SELECT * FROM mailing_lists WHERE id=?", (list_id,)).fetchone())
+        mailing_list = db_fetchone(db, "SELECT * FROM mailing_lists WHERE id=?", (list_id,))
         query = "SELECT * FROM list_records WHERE list_id=?"
         params = [list_id]
         if only_verified:
             query += " AND verify_status='verified'"
-        records = [dict(r) for r in db.execute(query, params).fetchall()]
+        records = db_fetchall(db, query, params)
 
     output = io.StringIO()
     writer = csv.DictWriter(output, fieldnames=[
@@ -637,10 +635,10 @@ def list_export(list_id):
 @login_required
 @admin_required
 def list_delete(list_id):
-    from app.utils.database import get_db
+    from app.utils.database import get_db, db_exec
     with get_db() as db:
-        db.execute("DELETE FROM list_records WHERE list_id=?", (list_id,))
-        db.execute("DELETE FROM mailing_lists WHERE id=?", (list_id,))
+        db_exec(db, "DELETE FROM list_records WHERE list_id=?", (list_id,))
+        db_exec(db, "DELETE FROM mailing_lists WHERE id=?", (list_id,))
         db.commit()
     flash('List deleted.', 'success')
     return redirect(url_for('admin.lists'))
@@ -668,7 +666,7 @@ def print_queue():
                            current_filter=current_filter, counts=counts)
 
 
-@admin_bp.route('/print-queue/<record_id>')
+@admin_bp.route('/print-queue/<int:record_id>')
 @login_required
 @admin_required
 def print_job_detail(record_id):
@@ -677,7 +675,7 @@ def print_job_detail(record_id):
     return render_template('admin/print_job_detail.html', job=job, today=date.today().isoformat())
 
 
-@admin_bp.route('/print-queue/<record_id>/update', methods=['POST'])
+@admin_bp.route('/print-queue/<int:record_id>/update', methods=['POST'])
 @login_required
 @admin_required
 def print_job_update(record_id):
@@ -778,7 +776,7 @@ def invoice_new():
                            clients=clients, campaigns=campaigns, next_number=next_num)
 
 
-@admin_bp.route('/invoices/<record_id>')
+@admin_bp.route('/invoices/<int:record_id>')
 @login_required
 @admin_required
 def invoice_detail(record_id):
@@ -787,7 +785,7 @@ def invoice_detail(record_id):
     return render_template('admin/invoice_detail.html', invoice=invoice, today=date.today().isoformat())
 
 
-@admin_bp.route('/invoices/<record_id>/edit', methods=['GET', 'POST'])
+@admin_bp.route('/invoices/<int:record_id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def invoice_edit(record_id):
@@ -831,7 +829,7 @@ SUPPORTED_COUNTIES = [
 @login_required
 @admin_required
 def new_movers():
-    from app.utils.airtable import get_records
+    from app.utils.db_helpers import get_records
     # Get recent batches (unique Upload Batch values)
     try:
         records = get_records('new_movers', fields=['Upload Batch', 'County', 'Tier', 'Sale Date'])
@@ -862,7 +860,7 @@ def new_movers():
 @admin_required
 def new_movers_upload():
     from app.utils.county_csv_parser import parse_county_csv
-    from app.utils.airtable import create_record
+    from app.utils.db_helpers import create_record
     import time
 
     file = request.files.get('file')
@@ -880,8 +878,8 @@ def new_movers_upload():
     if not records:
         return jsonify({'success': False, 'error': 'No qualifying records found (need Qualified FM Residential sales with addresses).'})
 
-    # Build a set of (address, sale_date) already in Airtable to prevent duplicates on re-upload
-    from app.utils.airtable import create_records_batch, get_records
+    # Build a set of (address, sale_date) already in Postgres to prevent duplicates on re-upload
+    from app.utils.db_helpers import create_records_batch, get_records
     existing_keys = set()
     try:
         existing = get_records('new_movers', fields=['Address', 'Sale Date'])
@@ -910,10 +908,10 @@ def new_movers_upload():
             'already_exists': already_exists,
             'errors': 0,
             'tier_summary': 'none',
-            'warnings': [f'All {already_exists} records already exist in Airtable — nothing to import.'],
+            'warnings': [f'All {already_exists} records already exist in Postgres — nothing to import.'],
         })
 
-    # Batch upload to Airtable (10 records per API call)
+    # Batch insert to Postgres (10 records per batch)
     uploaded = 0
     errors = 0
     BATCH_SIZE = 10
@@ -1184,7 +1182,7 @@ def _zip_from_neighborhood(neighborhood):
 def new_movers_enrich_zips():
     """Process one batch of 40 records — client calls repeatedly until remaining=0."""
     import time
-    from app.utils.airtable import get_records, update_record
+    from app.utils.db_helpers import get_records, update_record
     import requests as req_lib
 
     # Fetch records missing zip (with neighborhood for map lookup)
@@ -1262,7 +1260,7 @@ def new_movers_enrich_zips():
 @login_required
 @admin_required
 def new_movers_export():
-    from app.utils.airtable import get_records
+    from app.utils.db_helpers import get_records
     import csv, io
     from flask import Response
 
@@ -1300,7 +1298,7 @@ def new_movers_export():
                     headers={'Content-Disposition': f'attachment; filename="{filename}"'})
 
 
-@admin_bp.route('/invoices/<record_id>/action', methods=['POST'])
+@admin_bp.route('/invoices/<int:record_id>/action', methods=['POST'])
 @login_required
 @admin_required
 def invoice_action(record_id):

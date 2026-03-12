@@ -8,7 +8,7 @@ import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 from werkzeug.security import generate_password_hash
-from app.utils.airtable import create_record
+from app.utils.db_helpers import create_record
 
 def main():
     print("=== Create Pinpoint Direct User ===\n")
