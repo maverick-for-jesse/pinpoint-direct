@@ -26,6 +26,39 @@
   </div>
 </div>
 
+<!-- Missing Fields Report -->
+{% if missing_fields and missing_fields.has_gaps %}
+<div class="card" style="margin-bottom:20px; padding:16px 20px; border-left:4px solid #e5a000; background:#fffdf0;">
+  <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+    <span style="font-size:18px;">⚠️</span>
+    <strong style="color:#7a4f00;">Missing Fields Report</strong>
+    <span style="font-size:13px; color:#999;">({{ missing_fields.total }} total records)</span>
+  </div>
+  <div style="display:flex; gap:20px; flex-wrap:wrap; font-size:14px;">
+    {% if missing_fields.missing_zip %}
+    <span style="padding:4px 10px; background:#fff3cd; border-radius:12px; color:#856404;">
+      📮 {{ missing_fields.missing_zip }} missing ZIP
+    </span>
+    {% endif %}
+    {% if missing_fields.missing_city %}
+    <span style="padding:4px 10px; background:#fff3cd; border-radius:12px; color:#856404;">
+      🏙️ {{ missing_fields.missing_city }} missing City
+    </span>
+    {% endif %}
+    {% if missing_fields.missing_neighborhood %}
+    <span style="padding:4px 10px; background:#fff3cd; border-radius:12px; color:#856404;">
+      🏘️ {{ missing_fields.missing_neighborhood }} missing Neighborhood
+    </span>
+    {% endif %}
+    {% if missing_fields.missing_sale_price %}
+    <span style="padding:4px 10px; background:#fff3cd; border-radius:12px; color:#856404;">
+      💰 {{ missing_fields.missing_sale_price }} missing Sale Price
+    </span>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 <!-- Tools bar -->
 <div class="card" style="margin-bottom:24px; padding:16px 20px;">
   <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; justify-content:space-between;">
@@ -45,11 +78,13 @@
       </select>
       <button class="btn btn-secondary" onclick="doExport()">⬇ Download CSV</button>
     </div>
-    <div>
+    <div style="display:flex; gap:10px; align-items:center;">
       <button class="btn btn-secondary" id="enrich-btn" onclick="enrichZips()">📍 Enrich ZIP Codes</button>
+      <button class="btn btn-secondary" id="verify-btn" onclick="verifyAddresses()">✅ Verify Addresses</button>
     </div>
   </div>
   <div id="enrich-status" style="display:none; margin-top:12px; padding:10px 14px; background:#f0f7ff; border-radius:8px; font-size:14px; color:#1B3A6B;"></div>
+  <div id="verify-status" style="display:none; margin-top:12px; padding:10px 14px; background:#f0f7ff; border-radius:8px; font-size:14px; color:#1B3A6B;"></div>
 </div>
 
 <!-- Batches table -->
@@ -65,11 +100,25 @@
           <th>Standard</th>
           <th>Premium</th>
           <th>Ultra-Premium</th>
+          <th>Verified</th>
+          <th>Failed</th>
+          <th>Age</th>
           <th>Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for batch_name, info in batches %}
+        {% set earliest = info.earliest_sale_date %}
+        {% if earliest %}
+          {# Calculate days since earliest sale_date #}
+          {% set sale_parts = earliest.split('-') %}
+          {% if sale_parts|length == 3 %}
+            {% set sale_year = sale_parts[0]|int %}
+            {% set sale_month = sale_parts[1]|int %}
+            {% set sale_day = sale_parts[2]|int %}
+            {# Use a Jinja-safe way: pass to JS; we'll set data attribute and compute in JS #}
+          {% endif %}
+        {% endif %}
         <tr>
           <td><strong>{{ batch_name }}</strong></td>
           <td>{{ info.county }}</td>
@@ -77,6 +126,15 @@
           <td>{{ info.tiers.get('Standard', 0) }}</td>
           <td>{{ info.tiers.get('Premium', 0) }}</td>
           <td>{{ info.tiers.get('Ultra-Premium', 0) }}</td>
+          <td style="color:#276749; font-weight:600;">{{ info.verified }}</td>
+          <td style="color:#c53030; font-weight:600;">{{ info.failed }}</td>
+          <td>
+            {% if earliest %}
+            <span class="age-badge" data-sale-date="{{ earliest }}">…</span>
+            {% else %}
+            <span style="color:#bbb; font-size:12px;">—</span>
+            {% endif %}
+          </td>
           <td>
             <a href="{{ url_for('admin.new_movers_export', batch=batch_name) }}" class="btn btn-sm btn-secondary">Export Batch</a>
           </td>
@@ -126,7 +184,8 @@
         ✓ Qualified FM (arm's-length) sales only<br>
         ✓ Residential properties only<br>
         ✓ Must have a street address<br>
-        ✓ Deduplicated by address + sale date<br>
+        ✓ Deduplicated by address + sale date (cross-batch)<br>
+        ✓ Investor/LLC entities filtered out<br>
         ✓ Tiered: Standard (&lt;$500k) · Premium ($500k–$749k) · Ultra-Premium ($750k+)
       </div>
       <!-- Progress bar (hidden until upload starts) -->
@@ -138,6 +197,7 @@
         <div style="background:#e9ecef; border-radius:99px; height:8px; overflow:hidden;">
           <div id="upload-bar" style="height:100%; background:#1B3A6B; border-radius:99px; width:0%; transition:width 0.3s ease;"></div>
         </div>
+        <div id="upload-warnings" style="display:none; margin-top:10px; padding:8px 12px; background:#fff8e1; border-radius:6px; font-size:13px; color:#7a4f00;"></div>
       </div>
 
       <div style="display:flex; gap:12px; justify-content:flex-end;">
@@ -148,7 +208,45 @@
   </div>
 </div>
 
+<style>
+.age-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.age-hot   { background: #c6f6d5; color: #276749; }
+.age-warm  { background: #fefcbf; color: #744210; }
+.age-cold  { background: #fed7d7; color: #9b2c2c; }
+</style>
+
 <script>
+// ── Golden Window Age Badges ────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  document.querySelectorAll('.age-badge').forEach(function(badge) {
+    const sd = badge.getAttribute('data-sale-date'); // YYYY-MM-DD
+    if (!sd) return;
+    const parts = sd.split('-');
+    if (parts.length !== 3) return;
+    const saleDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    const diffMs   = today - saleDate;
+    const days     = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (days <= 30) {
+      badge.textContent = `🟢 ${days}d Hot`;
+      badge.classList.add('age-hot');
+    } else if (days <= 45) {
+      badge.textContent = `🟡 ${days}d Warm`;
+      badge.classList.add('age-warm');
+    } else {
+      badge.textContent = `🔴 ${days}d Cold`;
+      badge.classList.add('age-cold');
+    }
+  });
+});
+
 let progressTimer = null;
 
 function submitUpload() {
@@ -162,12 +260,14 @@ function submitUpload() {
   const bar        = document.getElementById('upload-bar');
   const statusText = document.getElementById('upload-status-text');
   const pctText    = document.getElementById('upload-pct-text');
+  const warningsEl = document.getElementById('upload-warnings');
 
   // Show progress UI
   submitBtn.disabled = true;
   submitBtn.textContent = 'Importing…';
   cancelBtn.disabled = true;
   progressWrap.style.display = 'block';
+  warningsEl.style.display = 'none';
 
   // Animate bar to ~85% while we wait (indeterminate phase)
   let pct = 0;
@@ -208,10 +308,25 @@ function submitUpload() {
         let msg = `✅ Imported ${data.imported} records`;
         if (data.already_exists) msg += ` · ${data.already_exists} already existed (skipped)`;
         if (data.skipped) msg += ` · ${data.skipped} non-qualifying rows filtered`;
+        if (data.skipped_investor) msg += ` · ${data.skipped_investor} investor/LLC entities filtered`;
         statusText.textContent = msg;
         bar.style.background = '#38a169';
         submitBtn.textContent = 'Done!';
-        setTimeout(() => { window.location.reload(); }, 1500);
+
+        // Show warnings for price outliers
+        let warnParts = [];
+        if (data.price_outliers) {
+          warnParts.push(`⚠️ ${data.price_outliers} record(s) have unusual sale prices (< $50k or > $2M) — imported but flagged.`);
+        }
+        if (data.dedup_note) {
+          warnParts.push(`ℹ️ ${data.dedup_note}`);
+        }
+        if (warnParts.length > 0) {
+          warningsEl.innerHTML = warnParts.join('<br>');
+          warningsEl.style.display = 'block';
+        }
+
+        setTimeout(() => { window.location.reload(); }, 2000);
       } else {
         statusText.textContent = '❌ ' + (data.error || 'Import failed. Check server logs.');
         bar.style.background = '#e53e3e';
@@ -251,6 +366,7 @@ function doExport() {
   window.location = '{{ url_for("admin.new_movers_export") }}?' + params.toString();
 }
 
+// ── ZIP Enrichment ────────────────────────────────────────────────────────────
 let enrichTotalUpdated = 0;
 let enrichTotalFailed  = 0;
 
@@ -288,6 +404,51 @@ function runEnrichBatch(btn, status) {
     .catch(err => {
       btn.disabled    = false;
       btn.textContent = '📍 Enrich ZIP Codes';
+      status.style.background = '#fff0f0';
+      status.style.color      = '#c53030';
+      status.textContent = 'Error: ' + err.message;
+    });
+}
+
+// ── USPS Address Verification ─────────────────────────────────────────────────
+let verifyTotalUpdated = 0;
+let verifyTotalFailed  = 0;
+
+function verifyAddresses() {
+  const btn    = document.getElementById('verify-btn');
+  const status = document.getElementById('verify-status');
+  verifyTotalUpdated = 0;
+  verifyTotalFailed  = 0;
+  btn.disabled = true;
+  btn.textContent = '⏳ Verifying...';
+  status.style.display  = 'block';
+  status.style.background = '#f0f7ff';
+  status.style.color    = '#1B3A6B';
+  status.textContent    = 'Starting USPS address verification...';
+  runVerifyBatch(btn, status);
+}
+
+function runVerifyBatch(btn, status) {
+  fetch('{{ url_for("admin.new_movers_verify") }}', {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+      verifyTotalUpdated += data.updated || 0;
+      verifyTotalFailed  += data.failed  || 0;
+      if (data.done) {
+        btn.disabled    = false;
+        btn.textContent = '✅ Verify Addresses';
+        status.style.background = '#f0fff4';
+        status.style.color      = '#276749';
+        status.textContent = `✅ Done! ${verifyTotalUpdated} verified, ${verifyTotalFailed} failed.`;
+        setTimeout(() => { window.location.reload(); }, 1500);
+      } else {
+        status.textContent = `⏳ ${data.remaining} records remaining... (${verifyTotalUpdated} verified, ${verifyTotalFailed} failed so far)`;
+        setTimeout(() => runVerifyBatch(btn, status), 500);
+      }
+    })
+    .catch(err => {
+      btn.disabled    = false;
+      btn.textContent = '✅ Verify Addresses';
       status.style.background = '#fff0f0';
       status.style.color      = '#c53030';
       status.textContent = 'Error: ' + err.message;

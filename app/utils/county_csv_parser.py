@@ -21,6 +21,26 @@ TIER_STANDARD      = 'Standard'       # < $500k
 TIER_PREMIUM       = 'Premium'        # $500k – $749,999
 TIER_ULTRA_PREMIUM = 'Ultra-Premium'  # $750k+
 
+# Investor/entity keywords — records with these in the buyer name are skipped
+INVESTOR_KEYWORDS = [
+    'LLC', 'L.L.C', 'CORP', 'CORPORATION', 'TRUST', 'HOLDINGS',
+    'PROPERTIES', 'INVESTMENTS', 'REALTY', 'GROUP', 'PARTNERS',
+    'FUND', 'ESTATE',
+]
+
+
+def _is_investor(name):
+    """Return True if buyer name looks like an LLC/corporation/entity."""
+    if not name:
+        return False
+    name_upper = name.upper()
+    for kw in INVESTOR_KEYWORDS:
+        # Match as whole word to avoid false positives (e.g. "PARTNERSHIP" matching "PARTNERS")
+        import re
+        if re.search(r'\b' + re.escape(kw) + r'\b', name_upper):
+            return True
+    return False
+
 
 def _parse_price(price_str):
     """Parse '$285,400.00' → 285400.0"""
@@ -63,6 +83,7 @@ def parse_county_csv(file_obj, county='Coweta County GA', batch_label=None):
 
     records = []
     skipped = 0
+    skipped_investor = 0
     warnings = []
     seen = set()  # deduplicate by (address, sale_date)
 
@@ -89,6 +110,18 @@ def parse_county_csv(file_obj, county='Coweta County GA', batch_label=None):
         address = row.get('Address', '').strip()
         if not address:
             skipped += 1
+            continue
+
+        # Filter out investors/entities — check common buyer name fields
+        buyer_name = (
+            row.get('Grantee', '') or
+            row.get('Buyer', '') or
+            row.get('Buyer Name', '') or
+            row.get('Name', '') or
+            ''
+        ).strip()
+        if _is_investor(buyer_name):
+            skipped_investor += 1
             continue
 
         sale_date_raw = row.get('Sale Date', '').strip()
@@ -151,10 +184,11 @@ def parse_county_csv(file_obj, county='Coweta County GA', batch_label=None):
         by_tier[t] = by_tier.get(t, 0) + 1
 
     stats = {
-        'total_rows': len(records) + skipped,
-        'imported':   len(records),
-        'skipped':    skipped,
-        'by_tier':    by_tier,
+        'total_rows':        len(records) + skipped + skipped_investor,
+        'imported':          len(records),
+        'skipped':           skipped,
+        'skipped_investor':  skipped_investor,
+        'by_tier':           by_tier,
     }
 
     return records, stats, warnings

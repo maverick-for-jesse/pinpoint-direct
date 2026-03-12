@@ -61,7 +61,8 @@ _SELECT = {
     """,
     'new_movers': """
         SELECT id, address, city, zip, state, county, sale_date, sale_price,
-               tier, year_built, sqft, neighborhood, upload_batch, created_at
+               tier, year_built, sqft, neighborhood, upload_batch,
+               verify_status, verify_message, created_at
         FROM new_movers
     """,
     'users': """
@@ -142,18 +143,20 @@ def _row_to_record(table, row):
         }
     elif table == 'new_movers':
         fields = {
-            'Address':       r.get('address') or '',
-            'City':          r.get('city') or '',
-            'Zip':           r.get('zip') or '',
-            'State':         r.get('state') or '',
-            'County':        r.get('county') or '',
-            'Sale Date':     r.get('sale_date') or '',
-            'Sale Price':    r.get('sale_price') or '',
-            'Tier':          r.get('tier') or '',
-            'Year Built':    r.get('year_built') or '',
-            'Square Ft':     r.get('sqft') or '',
-            'Neighborhood':  r.get('neighborhood') or '',
-            'Upload Batch':  r.get('upload_batch') or '',
+            'Address':        r.get('address') or '',
+            'City':           r.get('city') or '',
+            'Zip':            r.get('zip') or '',
+            'State':          r.get('state') or '',
+            'County':         r.get('county') or '',
+            'Sale Date':      r.get('sale_date') or '',
+            'Sale Price':     r.get('sale_price') or '',
+            'Tier':           r.get('tier') or '',
+            'Year Built':     r.get('year_built') or '',
+            'Square Ft':      r.get('sqft') or '',
+            'Neighborhood':   r.get('neighborhood') or '',
+            'Upload Batch':   r.get('upload_batch') or '',
+            'Verify Status':  r.get('verify_status') or '',
+            'Verify Message': r.get('verify_message') or '',
         }
     elif table == 'users':
         fields = {
@@ -301,18 +304,20 @@ def _fields_to_pg(table, fields, db):
 
     elif table == 'new_movers':
         MAP = {
-            'Address':      'address',
-            'City':         'city',
-            'Zip':          'zip',
-            'State':        'state',
-            'County':       'county',
-            'Sale Date':    'sale_date',
-            'Sale Price':   'sale_price',
-            'Tier':         'tier',
-            'Year Built':   'year_built',
-            'Square Ft':    'sqft',
-            'Neighborhood': 'neighborhood',
-            'Upload Batch': 'upload_batch',
+            'Address':        'address',
+            'City':           'city',
+            'Zip':            'zip',
+            'State':          'state',
+            'County':         'county',
+            'Sale Date':      'sale_date',
+            'Sale Price':     'sale_price',
+            'Tier':           'tier',
+            'Year Built':     'year_built',
+            'Square Ft':      'sqft',
+            'Neighborhood':   'neighborhood',
+            'Upload Batch':   'upload_batch',
+            'Verify Status':  'verify_status',
+            'Verify Message': 'verify_message',
         }
         for at_key, pg_col in MAP.items():
             if at_key in fields:

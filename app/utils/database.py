@@ -251,9 +251,17 @@ if DATABASE_URL:
                         sqft            TEXT,
                         neighborhood    TEXT,
                         upload_batch    TEXT,
+                        verify_status   TEXT,
+                        verify_message  TEXT,
                         created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
+                # Add verify columns to existing tables (idempotent)
+                for col, col_type in [('verify_status', 'TEXT'), ('verify_message', 'TEXT')]:
+                    try:
+                        cur.execute(f"ALTER TABLE new_movers ADD COLUMN IF NOT EXISTS {col} {col_type}")
+                    except Exception:
+                        pass
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_new_movers_zip ON new_movers(zip)")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_new_movers_batch ON new_movers(upload_batch)")
             conn.commit()
@@ -387,9 +395,17 @@ else:
                     sqft            TEXT,
                     neighborhood    TEXT,
                     upload_batch    TEXT,
+                    verify_status   TEXT,
+                    verify_message  TEXT,
                     created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
                 CREATE INDEX IF NOT EXISTS idx_new_movers_zip ON new_movers(zip);
                 CREATE INDEX IF NOT EXISTS idx_new_movers_batch ON new_movers(upload_batch);
             """)
+            # Add verify columns to existing SQLite tables (idempotent)
+            for col, col_type in [('verify_status', 'TEXT'), ('verify_message', 'TEXT')]:
+                try:
+                    conn.execute(f"ALTER TABLE new_movers ADD COLUMN {col} {col_type}")
+                except Exception:
+                    pass  # Column already exists
             conn.commit()

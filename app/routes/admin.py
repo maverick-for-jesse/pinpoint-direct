@@ -830,9 +830,9 @@ SUPPORTED_COUNTIES = [
 @admin_required
 def new_movers():
     from app.utils.db_helpers import get_records
-    # Get recent batches (unique Upload Batch values)
+    # Get all records (we need full fields for stats)
     try:
-        records = get_records('new_movers', fields=['Upload Batch', 'County', 'Tier', 'Sale Date'])
+        records = get_records('new_movers')
     except Exception:
         records = []
 
@@ -842,17 +842,51 @@ def new_movers():
         f = r['fields']
         batch = f.get('Upload Batch', 'Unknown')
         if batch not in batches:
-            batches[batch] = {'county': f.get('County', ''), 'count': 0, 'tiers': {}}
+            batches[batch] = {
+                'county': f.get('County', ''),
+                'count': 0,
+                'tiers': {},
+                'verified': 0,
+                'failed': 0,
+                'earliest_sale_date': None,
+            }
         batches[batch]['count'] += 1
         tier = f.get('Tier', 'Standard')
         batches[batch]['tiers'][tier] = batches[batch]['tiers'].get(tier, 0) + 1
+        vs = f.get('Verify Status', '')
+        if vs == 'verified':
+            batches[batch]['verified'] += 1
+        elif vs == 'failed':
+            batches[batch]['failed'] += 1
+        # Track earliest (oldest) sale_date for golden window badge
+        sd = f.get('Sale Date', '')
+        if sd:
+            prev = batches[batch]['earliest_sale_date']
+            if prev is None or sd < prev:
+                batches[batch]['earliest_sale_date'] = sd
 
     batch_list = sorted(batches.items(), reverse=True)
+
+    # ── Missing Fields Report ─────────────────────────────────────────────────
+    total = len(records)
+    missing_zip          = sum(1 for r in records if not r['fields'].get('Zip', '').strip())
+    missing_city         = sum(1 for r in records if not r['fields'].get('City', '').strip())
+    missing_neighborhood = sum(1 for r in records if not r['fields'].get('Neighborhood', '').strip())
+    missing_sale_price   = sum(1 for r in records if not r['fields'].get('Sale Price', ''))
+    missing_fields = {
+        'total':              total,
+        'missing_zip':        missing_zip,
+        'missing_city':       missing_city,
+        'missing_neighborhood': missing_neighborhood,
+        'missing_sale_price': missing_sale_price,
+        'has_gaps':           any([missing_zip, missing_city, missing_neighborhood, missing_sale_price]),
+    }
 
     return render_template('admin/new_movers.html',
                            batches=batch_list,
                            counties=SUPPORTED_COUNTIES,
-                           total_records=len(records))
+                           total_records=total,
+                           missing_fields=missing_fields)
 
 
 @admin_bp.route('/new-movers/upload', methods=['POST'])
@@ -877,6 +911,16 @@ def new_movers_upload():
 
     if not records:
         return jsonify({'success': False, 'error': 'No qualifying records found (need Qualified FM Residential sales with addresses).'})
+
+    # ── Sale Price Outlier Detection ──────────────────────────────────────────
+    price_outliers = 0
+    for rec in records:
+        try:
+            price = float(str(rec.get('Sale Price', 0) or 0))
+            if price > 0 and (price < 50_000 or price > 2_000_000):
+                price_outliers += 1
+        except (ValueError, TypeError):
+            pass
 
     # Build a set of (address, sale_date) already in Postgres to prevent duplicates on re-upload
     from app.utils.db_helpers import create_records_batch, get_records
@@ -906,6 +950,8 @@ def new_movers_upload():
             'imported': 0,
             'skipped': stats.get('skipped', 0) + already_exists,
             'already_exists': already_exists,
+            'skipped_investor': stats.get('skipped_investor', 0),
+            'price_outliers': price_outliers,
             'errors': 0,
             'tier_summary': 'none',
             'warnings': [f'All {already_exists} records already exist in Postgres — nothing to import.'],
@@ -926,14 +972,19 @@ def new_movers_upload():
         time.sleep(0.25)
 
     tier_summary = ', '.join(f"{v} {k}" for k, v in stats['by_tier'].items())
+    # Note: dedup checks against ALL existing records (built from get_records above)
+    dedup_note = f'{already_exists} duplicate(s) found and skipped' if already_exists else None
     return jsonify({
         'success': True,
         'imported': uploaded,
         'skipped': stats.get('skipped', 0),
         'already_exists': already_exists,
+        'skipped_investor': stats.get('skipped_investor', 0),
+        'price_outliers': price_outliers,
         'errors': errors,
         'tier_summary': tier_summary,
         'warnings': warnings,
+        'dedup_note': dedup_note,
     })
 
 
@@ -1286,6 +1337,87 @@ def new_movers_enrich_zips():
         'failed':    failed,
         'remaining': remaining,
         'message':   'All done! ZIPs enriched.' if done else f'{remaining} records still need ZIPs — continuing...'
+    })
+
+
+@admin_bp.route('/new-movers/verify', methods=['POST'])
+@login_required
+@admin_required
+def new_movers_verify():
+    """Process one batch of 50 unverified records — client calls repeatedly until done=True."""
+    from app.utils.usps import verify_address
+    from app.utils.database import get_db, get_db_type
+
+    BATCH_SIZE = 50
+    db_type = get_db_type()
+    ph = '%s' if db_type == 'postgres' else '?'
+
+    with get_db() as db:
+        # Fetch unverified records
+        sql = f"""
+            SELECT id, address, city, state, zip
+            FROM new_movers
+            WHERE (verify_status IS NULL OR verify_status = 'pending')
+            LIMIT {BATCH_SIZE}
+        """
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(sql)
+                rows = [dict(r) for r in cur.fetchall()]
+        else:
+            rows = [dict(r) for r in db.execute(sql).fetchall()]
+
+        if not rows:
+            # Count remaining just in case
+            count_sql = "SELECT COUNT(*) as cnt FROM new_movers WHERE (verify_status IS NULL OR verify_status = 'pending')"
+            if db_type == 'postgres':
+                with db.cursor() as cur:
+                    cur.execute(count_sql)
+                    cnt = cur.fetchone()['cnt']
+            else:
+                cnt = db.execute(count_sql).fetchone()[0]
+            return jsonify({'done': True, 'updated': 0, 'failed': 0, 'remaining': 0, 'message': 'All addresses verified!'})
+
+        updated = 0
+        failed = 0
+        for row in rows:
+            result = verify_address(
+                address1=row.get('address', '') or '',
+                city=row.get('city', '') or '',
+                state=row.get('state', 'GA') or 'GA',
+                zip5=row.get('zip', '') or '',
+            )
+            status = 'verified' if result.get('success') else 'failed'
+            msg    = result.get('message', '')
+            update_sql = f"UPDATE new_movers SET verify_status = {ph}, verify_message = {ph} WHERE id = {ph}"
+            if db_type == 'postgres':
+                with db.cursor() as cur:
+                    cur.execute(update_sql, (status, msg, row['id']))
+            else:
+                db.execute(update_sql, (status, msg, row['id']))
+            if result.get('success'):
+                updated += 1
+            else:
+                failed += 1
+
+        db.commit()
+
+        # Count remaining
+        count_sql = f"SELECT COUNT(*) as cnt FROM new_movers WHERE (verify_status IS NULL OR verify_status = 'pending')"
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(count_sql)
+                remaining = cur.fetchone()['cnt']
+        else:
+            remaining = db.execute(count_sql).fetchone()[0]
+
+    done = remaining == 0
+    return jsonify({
+        'done':      done,
+        'updated':   updated,
+        'failed':    failed,
+        'remaining': remaining,
+        'message':   'All addresses verified!' if done else f'{remaining} records remaining...',
     })
 
 
