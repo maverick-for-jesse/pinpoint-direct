@@ -5,6 +5,24 @@ import os
 
 load_dotenv()
 
+
+def _seed_admin_user():
+    """Create the admin user if the users table is empty (first deploy after migration)."""
+    try:
+        from app.utils.db_helpers import get_records, create_record
+        from werkzeug.security import generate_password_hash
+        existing = get_records('users')
+        if not existing:
+            create_record('users', {
+                'name': 'Jesse Frei',
+                'email': 'jesse@bluealpha.us',
+                'role': 'Admin',
+                'password_hash': generate_password_hash('PinpointAdmin2025!'),
+            })
+            print("Seeded admin user: jesse@bluealpha.us")
+    except Exception as e:
+        print(f"WARNING: seed_admin_user failed: {e}")
+
 login_manager = LoginManager()
 
 
@@ -29,6 +47,7 @@ def create_app():
     with app.app_context():
         try:
             init_db()
+            _seed_admin_user()
         except Exception as e:
             import traceback
             print(f"WARNING: init_db failed: {e}\n{traceback.format_exc()}")
