@@ -1,6 +1,6 @@
 {% extends "admin/base.html" %}
-{% block title %}New Movers{% endblock %}
-{% block page_title %}New Movers{% endblock %}
+{% block title %}Mover Leads{% endblock %}
+{% block page_title %}Mover Leads{% endblock %}
 
 {% block topbar_actions %}
   <button class="btn btn-primary" onclick="document.getElementById('upload-modal').style.display='flex'">
@@ -89,7 +89,7 @@
 {% else %}
 <div class="card" style="text-align:center; padding:48px; color:#999;">
   <div style="font-size:48px; margin-bottom:12px;">📬</div>
-  <h3 style="margin-bottom:8px; color:#666;">No new mover data yet</h3>
+  <h3 style="margin-bottom:8px; color:#666;">No mover leads yet</h3>
   <p>Upload a county property transfer CSV to get started.</p>
   <button class="btn btn-primary" style="margin-top:16px;" onclick="document.getElementById('upload-modal').style.display='flex'">
     + Upload County CSV
