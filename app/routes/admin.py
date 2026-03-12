@@ -1238,6 +1238,39 @@ def new_movers_enrich_zips():
                 except Exception:
                     pass
 
+        # 3) Fall back to Google Address Validation API (handles new construction)
+        if not zip_code:
+            try:
+                import json as _json
+                goog_key = None
+                try:
+                    import json as _j, os as _os
+                    cfg_path = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.dirname(__file__))), 'config', 'google_address_validation.json')
+                    goog_key = _j.load(open(cfg_path)).get('api_key') if _os.path.exists(cfg_path) else _os.getenv('GOOGLE_ADDRESS_VALIDATION_KEY')
+                except Exception:
+                    goog_key = os.getenv('GOOGLE_ADDRESS_VALIDATION_KEY')
+
+                if goog_key:
+                    try_city = COUNTY_CITIES.get(county, ['Newnan'])[0]
+                    payload = {
+                        'address': {
+                            'addressLines': [address],
+                            'locality': try_city,
+                            'administrativeArea': state,
+                        }
+                    }
+                    gresp = session.post(
+                        f'https://addressvalidation.googleapis.com/v1:validateAddress?key={goog_key}',
+                        json=payload,
+                        timeout=6
+                    )
+                    gdata = gresp.json()
+                    postal = gdata.get('result', {}).get('address', {}).get('postalAddress', {})
+                    zip_code = postal.get('postalCode', '').split('-')[0]  # strip +4
+                    city     = postal.get('locality', city) or city
+            except Exception:
+                pass
+
         if zip_code:
             update_record('new_movers', r['id'], {'Zip': zip_code, 'City': city})
             updated += 1
