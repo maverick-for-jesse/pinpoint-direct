@@ -14,10 +14,10 @@ def _seed_admin_user():
         existing = get_records('users')
         if not existing:
             create_record('users', {
-                'name': 'Jesse Frei',
-                'email': 'jesse@bluealpha.us',
-                'role': 'Admin',
-                'password_hash': generate_password_hash('PinpointAdmin2025!'),
+                'Name': 'Jesse Frei',
+                'Email': 'jesse@bluealpha.us',
+                'Role': 'Admin',
+                'Password Hash': generate_password_hash('PinpointAdmin2025!'),
             })
             print("Seeded admin user: jesse@bluealpha.us")
     except Exception as e:
