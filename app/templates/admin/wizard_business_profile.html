@@ -1,0 +1,129 @@
+{% extends "admin/base.html" %}
+{% block title %}Business Profile — {{ client_name }}{% endblock %}
+{% block page_title %}Business Profile: {{ client_name }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.admin_wizard') }}" class="btn btn-secondary">← Campaign Wizard</a>
+  <a href="{{ url_for('admin.client_detail', record_id=client.id) }}" class="btn btn-secondary">Client Detail</a>
+{% endblock %}
+
+{% block content %}
+<style>
+  .profile-wrap { max-width: 680px; margin: 0 auto; }
+  .section-label {
+    font-size: 11px; font-weight: 700; color: #e63946;
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 14px; margin-top: 24px; padding-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .section-label:first-child { margin-top: 0; }
+  .submit-row { margin-top: 32px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .status-banner {
+    padding: 12px 16px; border-radius: 8px; margin-bottom: 24px;
+    font-size: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .status-banner.exists { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+  .status-banner.new { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+</style>
+
+<div class="profile-wrap">
+
+  <div class="status-banner {% if profile %}exists{% else %}new{% endif %}">
+    {% if profile %}
+      ✓ This client already has a business profile. Edit it below.
+    {% else %}
+      ℹ️ No business profile exists for <strong>{{ client_name }}</strong> yet. Fill in the details below.
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <form method="POST">
+      {% if request.args.get('next') %}
+        <input type="hidden" name="next" value="{{ request.args.get('next') }}">
+      {% endif %}
+
+      <div class="section-label">Business Overview</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="business_name">Business Name *</label>
+          <input type="text" id="business_name" name="business_name" class="form-control"
+                 value="{{ profile.business_name if profile else '' }}"
+                 placeholder="e.g. Bright Smile Dental" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="business_type">Business Type *</label>
+          <input type="text" id="business_type" name="business_type" class="form-control"
+                 value="{{ profile.business_type if profile else '' }}"
+                 placeholder="e.g. Dental Practice, HVAC, Auto Repair" required>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="years_in_business">Years in Business</label>
+          <input type="text" id="years_in_business" name="years_in_business" class="form-control"
+                 value="{{ profile.years_in_business if profile else '' }}"
+                 placeholder="e.g. 12">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="average_transaction_value">Avg. Transaction Value</label>
+          <input type="text" id="average_transaction_value" name="average_transaction_value" class="form-control"
+                 value="{{ profile.average_transaction_value if profile else '' }}"
+                 placeholder="e.g. $350">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="top_services">Top Services / Products</label>
+        <div class="form-hint">What are their main offerings?</div>
+        <textarea id="top_services" name="top_services" class="form-control" style="min-height:80px;"
+                  placeholder="e.g. Teeth whitening, cleanings, Invisalign, crowns">{{ profile.top_services if profile else '' }}</textarea>
+      </div>
+
+      <div class="section-label">Customer Profile</div>
+
+      <div class="form-group">
+        <label class="form-label" for="best_customer_description">Best Customer Description</label>
+        <div class="form-hint">Who is their ideal customer?</div>
+        <textarea id="best_customer_description" name="best_customer_description" class="form-control" style="min-height:80px;"
+                  placeholder="e.g. Homeowners aged 30-55 in suburban areas who care about their appearance">{{ profile.best_customer_description if profile else '' }}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="customer_compliment">What Do Customers Compliment Most?</label>
+        <div class="form-hint">What do their best reviews say?</div>
+        <textarea id="customer_compliment" name="customer_compliment" class="form-control" style="min-height:70px;"
+                  placeholder="e.g. Friendly staff, painless procedures, results that last">{{ profile.customer_compliment if profile else '' }}</textarea>
+      </div>
+
+      <div class="section-label">Competitive Position</div>
+
+      <div class="form-group">
+        <label class="form-label" for="main_competitor">Main Competitor</label>
+        <input type="text" id="main_competitor" name="main_competitor" class="form-control"
+               value="{{ profile.main_competitor if profile else '' }}"
+               placeholder="e.g. SmileCare Dental down the street">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="competitive_advantage">Competitive Advantage</label>
+        <div class="form-hint">What makes this business better or different?</div>
+        <textarea id="competitive_advantage" name="competitive_advantage" class="form-control" style="min-height:80px;"
+                  placeholder="e.g. Same-day appointments, 20 years experience, family-friendly atmosphere, no hidden fees">{{ profile.competitive_advantage if profile else '' }}</textarea>
+      </div>
+
+      <div class="submit-row">
+        <button type="submit" class="btn btn-primary">
+          {% if profile %}Update Profile{% else %}Save Profile{% endif %}
+        </button>
+        <a href="{{ url_for('admin.admin_wizard') }}" style="color:#999; font-size:13px; text-decoration:none;">
+          Cancel
+        </a>
+      </div>
+
+    </form>
+  </div>
+
+</div>
+{% endblock %}

@@ -258,6 +258,9 @@
       <a href="{{ url_for('admin.postcard_builder') }}" class="nav-item {% if 'postcard' in request.endpoint %}active{% endif %}">
         <span class="icon">🎨</span> Postcard Builder
       </a>
+      <a href="{{ url_for('admin.admin_wizard') }}" class="nav-item {% if 'wizard' in request.endpoint %}active{% endif %}">
+        <span class="icon">🧙</span> Campaign Wizard
+      </a>
     </div>
 
     <div class="nav-section">

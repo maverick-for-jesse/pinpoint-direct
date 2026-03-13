@@ -1,0 +1,302 @@
+{% extends "admin/base.html" %}
+{% block title %}Admin Wizard — Step 3{% endblock %}
+{% block page_title %}Campaign Wizard — Step 3 of 3{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.admin_wizard_step2', campaign_id=campaign.id) }}" class="btn btn-secondary">← Back to Step 2</a>
+{% endblock %}
+
+{% block content %}
+<style>
+  .wizard-wrap { max-width: 780px; margin: 0 auto; }
+  .progress-steps { display: flex; gap: 0; margin-bottom: 28px; }
+  .step-item { flex: 1; text-align: center; position: relative; }
+  .step-item::after {
+    content: ''; position: absolute; top: 15px; left: 50%; right: -50%;
+    height: 2px; background: #27ae60; z-index: 0;
+  }
+  .step-item:last-child::after { display: none; }
+  .step-item.active::after { background: #e0e0e0; }
+  .step-circle {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; position: relative; z-index: 1;
+    background: #e0e0e0; color: #999;
+  }
+  .step-item.active .step-circle { background: #e63946; color: white; }
+  .step-item.done .step-circle { background: #27ae60; color: white; }
+  .step-label { font-size: 11px; color: #aaa; margin-top: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .step-item.active .step-label { color: #e63946; }
+  .step-item.done .step-label { color: #27ae60; }
+
+  /* Loading state */
+  .loading-screen { text-align: center; padding: 60px 24px; }
+  .spinner {
+    width: 44px; height: 44px; border: 4px solid #f0f0f0;
+    border-top-color: #e63946; border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin: 0 auto 20px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 16px; color: #555; font-weight: 600; }
+  .loading-sub { font-size: 13px; color: #aaa; margin-top: 6px; }
+
+  /* Error state */
+  .error-screen { text-align: center; padding: 40px 24px; }
+  .error-screen .icon { font-size: 36px; margin-bottom: 12px; }
+  .error-msg { font-size: 14px; color: #c62828; margin-bottom: 16px; }
+
+  /* Copy cards */
+  .section-title {
+    font-size: 13px; font-weight: 700; color: #888;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin-bottom: 12px; margin-top: 28px;
+  }
+  .section-title:first-child { margin-top: 0; }
+  .copy-cards { display: grid; gap: 10px; }
+  .copy-cards.two-col { grid-template-columns: 1fr 1fr; }
+  .copy-card {
+    border: 2px solid #e8e8e8; border-radius: 10px; padding: 16px 18px;
+    cursor: pointer; transition: all 0.15s; background: white; position: relative;
+    user-select: none;
+  }
+  .copy-card:hover { border-color: #e63946; background: #fff8f8; }
+  .copy-card.selected { border-color: #e63946; background: #fff0f1; }
+  .copy-card.selected::after {
+    content: '✓'; position: absolute; top: 10px; right: 14px;
+    color: #e63946; font-size: 16px; font-weight: 700;
+  }
+  .card-label {
+    font-size: 10px; font-weight: 700; color: #ccc;
+    text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px;
+  }
+  .copy-card.selected .card-label { color: #e63946; }
+  .copy-card input[type="radio"] { display: none; }
+  .copy-card .copy-text { font-size: 15px; font-weight: 700; color: #1a1a2e; line-height: 1.4; }
+  .copy-card.body-card .copy-text { font-size: 13px; font-weight: 400; line-height: 1.6; }
+  .copy-card.cta-card .copy-text { font-size: 14px; font-weight: 700; color: #e63946; }
+
+  .submit-section {
+    margin-top: 32px; padding-top: 24px; border-top: 1px solid #f0f0f0;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .selection-summary {
+    background: #f8f9fa; border-radius: 8px; padding: 16px 20px; margin-top: 24px;
+    font-size: 13px; color: #555; display: none;
+  }
+  .selection-summary.visible { display: block; }
+  .selection-summary strong { color: #1a1a2e; }
+  .regen-btn {
+    background: none; border: 1.5px solid #e0e0e0; color: #666;
+    padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .regen-btn:hover { border-color: #999; color: #333; }
+  .client-badge {
+    background: #e3f2fd; color: #1565c0; padding: 6px 14px;
+    border-radius: 20px; font-size: 13px; font-weight: 600;
+    display: inline-block; margin-bottom: 20px;
+  }
+
+  @media (max-width: 600px) {
+    .copy-cards.two-col { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="wizard-wrap">
+
+  {% if campaign.client_company %}
+    <div class="client-badge">👤 Client: {{ campaign.client_company }}</div>
+  {% endif %}
+
+  <div class="progress-steps">
+    <div class="step-item done">
+      <div class="step-circle">✓</div>
+      <div class="step-label">The Offer</div>
+    </div>
+    <div class="step-item done">
+      <div class="step-circle">✓</div>
+      <div class="step-label">Audience</div>
+    </div>
+    <div class="step-item active">
+      <div class="step-circle">3</div>
+      <div class="step-label">AI Copy</div>
+    </div>
+  </div>
+
+  <div class="card" id="main-card">
+
+    <!-- Loading state -->
+    <div id="loading-screen" class="loading-screen">
+      <div class="spinner"></div>
+      <div class="loading-text">Generating postcard copy…</div>
+      <div class="loading-sub">AI is crafting headlines, body copy, and CTAs based on the client's business profile.</div>
+    </div>
+
+    <!-- Error state -->
+    <div id="error-screen" class="error-screen" style="display:none;">
+      <div class="icon">⚠️</div>
+      <div class="error-msg" id="error-msg">Something went wrong generating copy.</div>
+      <button class="btn btn-secondary regen-btn" onclick="generateCopy()">Try Again</button>
+    </div>
+
+    <!-- Copy selection -->
+    <div id="copy-screen" style="display:none;">
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <div style="font-size:15px; font-weight:700; color:#1a1a2e;">Choose postcard copy</div>
+        <button type="button" class="regen-btn" onclick="generateCopy()">↻ Regenerate</button>
+      </div>
+      <p style="font-size:13px; color:#888; margin-bottom:20px;">
+        Click to select one option from each section. Regenerate as many times as needed.
+      </p>
+
+      <form method="POST" action="{{ url_for('admin.admin_wizard_complete', campaign_id=campaign.id) }}" id="copy-form">
+        <input type="hidden" name="selected_headline" id="selected_headline" value="">
+        <input type="hidden" name="selected_body" id="selected_body" value="">
+        <input type="hidden" name="selected_cta" id="selected_cta" value="">
+
+        <div class="section-title">Headlines <span style="font-weight:400; color:#bbb; text-transform:none; letter-spacing:0;">(select one)</span></div>
+        <div class="copy-cards" id="headlines-container"></div>
+
+        <div class="section-title" style="margin-top:24px;">Body Copy <span style="font-weight:400; color:#bbb; text-transform:none; letter-spacing:0;">(select one)</span></div>
+        <div class="copy-cards two-col" id="bodies-container"></div>
+
+        <div class="section-title" style="margin-top:24px;">Call to Action <span style="font-weight:400; color:#bbb; text-transform:none; letter-spacing:0;">(select one)</span></div>
+        <div class="copy-cards two-col" id="ctas-container"></div>
+
+        <div class="selection-summary" id="selection-summary">
+          <strong>Your selections:</strong><br>
+          <span id="summary-headline"></span><br>
+          <span id="summary-body"></span><br>
+          <span id="summary-cta"></span>
+        </div>
+
+        <div class="submit-section">
+          <button type="submit" class="btn btn-primary" id="submit-btn" disabled>
+            ✅ Finish &amp; Create Campaign →
+          </button>
+          <a href="{{ url_for('admin.admin_wizard_step2', campaign_id=campaign.id) }}"
+             style="color:#999; font-size:13px; text-decoration:none;">← Back</a>
+        </div>
+
+      </form>
+
+    </div><!-- /copy-screen -->
+
+  </div><!-- /card -->
+</div>
+
+<script>
+const GENERATE_URL = "{{ url_for('admin.admin_generate_copy', campaign_id=campaign.id) }}";
+
+let selectedHeadline = '';
+let selectedBody = '';
+let selectedCta = '';
+
+function generateCopy() {
+  document.getElementById('loading-screen').style.display = 'block';
+  document.getElementById('error-screen').style.display = 'none';
+  document.getElementById('copy-screen').style.display = 'none';
+
+  fetch(GENERATE_URL, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { showError(data.error); return; }
+      renderCopy(data);
+      // Reset selections
+      selectedHeadline = '';
+      selectedBody = '';
+      selectedCta = '';
+      document.getElementById('selected_headline').value = '';
+      document.getElementById('selected_body').value = '';
+      document.getElementById('selected_cta').value = '';
+      document.getElementById('submit-btn').disabled = true;
+      document.getElementById('selection-summary').classList.remove('visible');
+    })
+    .catch(err => showError(err.toString()));
+}
+
+function showError(msg) {
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('error-screen').style.display = 'block';
+  document.getElementById('error-msg').textContent = msg;
+}
+
+function renderCopy(data) {
+  const hl = document.getElementById('headlines-container');
+  hl.innerHTML = '';
+  hl.style.gridTemplateColumns = '';
+  (data.headlines || []).forEach((text, i) => {
+    const labels = ['Benefit-Focused', 'Urgency-Focused', 'Curiosity-Focused'];
+    hl.innerHTML += `
+      <label class="copy-card" onclick="selectCard(this, 'headline', ${JSON.stringify(text)})">
+        <div class="card-label">${labels[i] || 'Option ' + (i+1)}</div>
+        <div class="copy-text">${escHtml(text)}</div>
+      </label>`;
+  });
+
+  const bd = document.getElementById('bodies-container');
+  bd.innerHTML = '';
+  (data.body_copies || []).forEach((text, i) => {
+    bd.innerHTML += `
+      <label class="copy-card body-card" onclick="selectCard(this, 'body', ${JSON.stringify(text)})">
+        <div class="card-label">Option ${i+1}</div>
+        <div class="copy-text">${escHtml(text)}</div>
+      </label>`;
+  });
+
+  const ct = document.getElementById('ctas-container');
+  ct.innerHTML = '';
+  (data.ctas || []).forEach((text, i) => {
+    ct.innerHTML += `
+      <label class="copy-card cta-card" onclick="selectCard(this, 'cta', ${JSON.stringify(text)})">
+        <div class="card-label">CTA ${i+1}</div>
+        <div class="copy-text">${escHtml(text)}</div>
+      </label>`;
+  });
+
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('copy-screen').style.display = 'block';
+}
+
+function selectCard(card, type, text) {
+  const container = card.parentElement;
+  container.querySelectorAll('.copy-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+
+  if (type === 'headline') {
+    selectedHeadline = text;
+    document.getElementById('selected_headline').value = text;
+  } else if (type === 'body') {
+    selectedBody = text;
+    document.getElementById('selected_body').value = text;
+  } else if (type === 'cta') {
+    selectedCta = text;
+    document.getElementById('selected_cta').value = text;
+  }
+
+  updateSubmitState();
+}
+
+function updateSubmitState() {
+  const ready = selectedHeadline && selectedBody && selectedCta;
+  document.getElementById('submit-btn').disabled = !ready;
+
+  const summary = document.getElementById('selection-summary');
+  if (ready) {
+    document.getElementById('summary-headline').innerHTML = `<strong>Headline:</strong> ${escHtml(selectedHeadline)}`;
+    document.getElementById('summary-body').innerHTML = `<strong>Body:</strong> ${escHtml(selectedBody)}`;
+    document.getElementById('summary-cta').innerHTML = `<strong>CTA:</strong> ${escHtml(selectedCta)}`;
+    summary.classList.add('visible');
+  } else {
+    summary.classList.remove('visible');
+  }
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+window.addEventListener('load', generateCopy);
+</script>
+{% endblock %}

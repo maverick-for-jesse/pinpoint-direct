@@ -1,0 +1,172 @@
+{% extends "admin/base.html" %}
+{% block title %}Campaign Wizard{% endblock %}
+{% block page_title %}Campaign Wizard{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.campaigns') }}" class="btn btn-secondary">← All Campaigns</a>
+{% endblock %}
+
+{% block content %}
+<style>
+  .wizard-intro {
+    max-width: 620px;
+    margin: 0 auto;
+  }
+  .wizard-intro p {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 24px;
+  }
+  .client-select-wrap {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    margin-bottom: 20px;
+  }
+  .client-select-wrap .form-group {
+    flex: 1;
+    margin-bottom: 0;
+  }
+  .profile-notice {
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #795548;
+    margin-top: 16px;
+    display: none;
+  }
+  .profile-notice.has-profile {
+    background: #e8f5e9;
+    border-color: #c8e6c9;
+    color: #2e7d32;
+  }
+  .profile-notice a {
+    font-weight: 600;
+    text-decoration: underline;
+  }
+  .divider {
+    border: none;
+    border-top: 1px solid #e8e8e8;
+    margin: 28px 0;
+  }
+  .section-heading {
+    font-size: 13px;
+    font-weight: 700;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+  }
+  .profile-table a {
+    color: #e63946;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .profile-table a:hover { text-decoration: underline; }
+</style>
+
+<div class="wizard-intro">
+
+  <div class="card">
+    <div class="card-title">Start a Campaign for a Client</div>
+    <p>Select a client below to walk through the Campaign Wizard together. The wizard will create a Draft campaign with AI-generated postcard copy based on the client's business profile.</p>
+
+    <form method="POST" action="{{ url_for('admin.admin_wizard_start') }}" id="picker-form">
+      <div class="client-select-wrap">
+        <div class="form-group">
+          <label class="form-label" for="client_id">Select Client</label>
+          <select name="client_id" id="client_id" class="form-control" onchange="updateProfileNotice(this)" required>
+            <option value="">— Choose a client —</option>
+            {% for client in clients %}
+              <option value="{{ client.id }}"
+                      data-name="{{ client.company_name }}"
+                      data-has-profile="{{ '1' if client.company_name in profiles_with_data else '0' }}">
+                {{ client.company_name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary" style="white-space:nowrap; height:42px; margin-top:20px;">
+          🧙 Start Wizard →
+        </button>
+      </div>
+    </form>
+
+    <div id="profile-notice" class="profile-notice">
+      <span id="profile-notice-text"></span>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="card">
+    <div class="section-heading">Client Business Profiles</div>
+    <p style="font-size:13px; color:#888; margin-bottom:16px;">
+      Set up or update a business profile before your in-person meeting — the wizard uses this to generate accurate AI copy.
+    </p>
+    <div class="table-wrap">
+      <table class="profile-table">
+        <thead>
+          <tr>
+            <th>Client</th>
+            <th>Profile Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for client in clients %}
+          <tr>
+            <td>{{ client.company_name }}</td>
+            <td>
+              {% if client.company_name in profiles_with_data %}
+                <span class="badge badge-green">✓ Set up</span>
+              {% else %}
+                <span class="badge badge-gray">Not set up</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{{ url_for('admin.admin_client_business_profile', client_name=client.company_name) }}">
+                {% if client.company_name in profiles_with_data %}Edit{% else %}Set up{% endif %} profile
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const profilesWithData = new Set({{ profiles_with_data | list | tojson }});
+
+function updateProfileNotice(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  const notice = document.getElementById('profile-notice');
+  const text = document.getElementById('profile-notice-text');
+
+  if (!opt.value) {
+    notice.style.display = 'none';
+    return;
+  }
+
+  const name = opt.getAttribute('data-name');
+  const hasProfile = opt.getAttribute('data-has-profile') === '1';
+  notice.style.display = 'block';
+
+  if (hasProfile) {
+    notice.className = 'profile-notice has-profile';
+    text.innerHTML = `✓ <strong>${name}</strong> has a business profile set up. Ready to go!
+      <a href="/admin/clients/${encodeURIComponent(name)}/business-profile">Edit profile</a>`;
+  } else {
+    notice.className = 'profile-notice';
+    text.innerHTML = `⚠️ <strong>${name}</strong> doesn't have a business profile yet. The AI copy step needs one.
+      <a href="/admin/clients/${encodeURIComponent(name)}/business-profile">Set up profile first →</a>`;
+  }
+}
+</script>
+{% endblock %}
