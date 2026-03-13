@@ -56,7 +56,7 @@ def create_app():
     from app.routes.admin import admin_bp
     from app.routes.client import client_bp
     from app.routes.wizard import wizard_bp
-    import app.routes.admin_wizard  # registers additional routes on admin_bp  # noqa: F401
+    from app.routes import admin_wizard  # noqa: F401
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
