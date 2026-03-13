@@ -5,6 +5,21 @@
 
 {% block content %}
 
+<!-- Business Profile Setup Banner -->
+{% if not has_profile %}
+<div class="card" style="margin-bottom:20px; padding:20px 24px; border-left:4px solid #e63946; background:#fff8f8;">
+  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <div>
+      <div style="font-weight:700; color:#1a1a2e; font-size:15px;">🚀 Set Up Your Business Profile</div>
+      <div style="font-size:13px; color:#666; margin-top:4px;">
+        Takes 2 minutes. We'll use it to automatically generate compelling copy for every campaign — no marketing experience needed.
+      </div>
+    </div>
+    <a href="{{ url_for('wizard.onboarding') }}" class="btn btn-primary">Get Started →</a>
+  </div>
+</div>
+{% endif %}
+
 <!-- Action items banner -->
 {% if pending_approvals %}
 <div class="card action-needed" style="margin-bottom:20px; padding:16px 20px;">

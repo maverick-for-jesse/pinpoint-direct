@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 from app.utils.db_helpers import get_records, get_record, update_record, create_record
+from app.utils.database import get_db, db_fetchone
 from functools import wraps
 
 client_bp = Blueprint('client', __name__)
@@ -19,6 +20,18 @@ def client_required(f):
 
 def client_name():
     return current_user.client or ''
+
+
+def has_business_profile():
+    """Check if current user has completed their business profile."""
+    try:
+        with get_db() as db:
+            row = db_fetchone(db, "SELECT id FROM business_profiles WHERE user_id = ?",
+                              (current_user.id,))
+        return row is not None
+    except Exception:
+        # Table may not exist yet (migration not run) — don't block access
+        return True
 
 
 def get_client_campaigns():
@@ -79,7 +92,8 @@ def dashboard():
                            campaigns=campaigns,
                            stats=stats,
                            pending_approvals=pending_approvals,
-                           unpaid_invoices=unpaid_invoices[:3])
+                           unpaid_invoices=unpaid_invoices[:3],
+                           has_profile=has_business_profile())
 
 
 # ── Campaigns ─────────────────────────────────────────────────────────────────

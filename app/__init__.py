@@ -55,10 +55,12 @@ def create_app():
     from app.routes.auth import auth_bp
     from app.routes.admin import admin_bp
     from app.routes.client import client_bp
+    from app.routes.wizard import wizard_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(client_bp, url_prefix='/portal')
+    app.register_blueprint(wizard_bp, url_prefix='/portal')
 
     @app.template_filter('format_number')
     def format_number(value):

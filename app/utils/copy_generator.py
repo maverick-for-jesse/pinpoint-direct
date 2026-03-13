@@ -68,6 +68,49 @@ def _generate_with_xai(api_key, system_prompt):
     return json.loads(text.strip())
 
 
+def generate_campaign_copy(profile: dict, campaign: dict) -> dict:
+    """
+    Generate postcard copy using business profile + campaign data.
+    Returns: {headlines: [str, str, str], body_copies: [str, str], ctas: [str, str, str]}
+
+    profile keys: business_name, business_type, years_in_business,
+                  average_transaction_value, top_services, best_customer_description,
+                  customer_compliment, main_competitor, competitive_advantage
+    campaign keys: what_promoting, offer_detail, offer_type, has_deadline,
+                   deadline_date, desired_action
+    """
+    provider, api_key = get_ai_provider()
+
+    # Build readable deadline text
+    has_deadline = campaign.get('has_deadline') or False
+    deadline_date = campaign.get('deadline_date')
+    if has_deadline and deadline_date:
+        deadline_text = str(deadline_date)
+    elif has_deadline:
+        deadline_text = 'Limited time'
+    else:
+        deadline_text = 'None'
+
+    system_prompt = f"""You are an expert direct mail copywriter. Based on this business info and campaign details, generate compelling postcard copy.
+
+BUSINESS: {profile.get('business_name', 'this business')}, {profile.get('business_type', 'local')} business, {profile.get('years_in_business', 'established')} years in business. Average transaction: ${profile.get('average_transaction_value', 'varies')}. Services: {profile.get('top_services', 'see below')}. Best customers: {profile.get('best_customer_description', 'local residents')}. Known for: {profile.get('customer_compliment', 'quality service')}. Differentiator vs {profile.get('main_competitor', 'competitors')}: {profile.get('competitive_advantage', 'superior service')}.
+
+CAMPAIGN: Promoting {campaign.get('what_promoting', 'services')}. Offer type: {campaign.get('offer_type', 'special offer')}. Offer: {campaign.get('offer_detail', 'contact us for details')}. Deadline: {deadline_text}. Desired action: {campaign.get('desired_action', 'call us')}.
+
+Generate:
+- 3 headlines (max 10 words each): first benefit-focused, second urgency-focused, third curiosity-focused
+- 2 body copy options (max 40 words each): punchy, direct, no fluff — each a complete standalone message
+- 3 CTA options (max 8 words each): action-oriented
+
+Return ONLY valid JSON with this exact structure (no markdown fences, no extra text):
+{{"headlines": ["headline1", "headline2", "headline3"], "body_copies": ["body1", "body2"], "ctas": ["cta1", "cta2", "cta3"]}}"""
+
+    if provider == 'gemini':
+        return _generate_with_gemini(api_key, system_prompt)
+    else:
+        return _generate_with_xai(api_key, system_prompt)
+
+
 def generate_postcard_copy(business_name, business_type, offer_description, target_audience='local customers'):
     """
     Generate 2 headline + copy options for a postcard.

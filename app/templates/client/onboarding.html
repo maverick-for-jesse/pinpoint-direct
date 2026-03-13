@@ -1,0 +1,148 @@
+{% extends "client/base.html" %}
+{% block title %}Business Profile{% endblock %}
+{% block page_title %}Business Profile{% endblock %}
+{% block page_sub %}<p>Help us understand your business so we can create better campaigns for you</p>{% endblock %}
+
+{% block content %}
+<style>
+  .onboarding-wrap { max-width: 700px; margin: 0 auto; }
+  .section-label {
+    font-size: 11px; font-weight: 700; color: #e63946;
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 6px; margin-top: 28px;
+  }
+  .section-label:first-child { margin-top: 0; }
+  .form-group { margin-bottom: 20px; }
+  .form-group label {
+    display: block; font-size: 14px; font-weight: 600;
+    color: #333; margin-bottom: 6px;
+  }
+  .form-group .hint {
+    font-size: 12px; color: #999; margin-bottom: 6px; margin-top: -2px;
+  }
+  .form-control {
+    width: 100%; padding: 10px 14px; border: 1.5px solid #e0e0e0;
+    border-radius: 8px; font-size: 14px; color: #1a1a2e;
+    background: white; transition: border-color 0.15s;
+    font-family: inherit;
+  }
+  .form-control:focus {
+    outline: none; border-color: #e63946;
+    box-shadow: 0 0 0 3px rgba(230,57,70,0.1);
+  }
+  select.form-control { cursor: pointer; }
+  textarea.form-control { resize: vertical; min-height: 80px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .submit-row { margin-top: 32px; display: flex; align-items: center; gap: 16px; }
+  .profile-complete-badge {
+    background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9;
+    padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 600px) {
+    .form-row { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="onboarding-wrap">
+
+  {% if profile %}
+  <div class="profile-complete-badge">✓ Your business profile is set up. Update it below if anything changes.</div>
+  {% endif %}
+
+  <div class="card">
+    <form method="POST" action="{{ url_for('wizard.onboarding') }}">
+
+      <div class="section-label">About Your Business</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="business_name">Business Name *</label>
+          <input type="text" id="business_name" name="business_name" class="form-control"
+                 value="{{ profile.business_name if profile else '' }}"
+                 placeholder="e.g. Sunrise Dental" required>
+        </div>
+        <div class="form-group">
+          <label for="business_type">Business Type *</label>
+          <select id="business_type" name="business_type" class="form-control" required>
+            <option value="">— Select type —</option>
+            {% for opt in ['Restaurant', 'Retail', 'Home Services', 'Medical/Dental', 'Real Estate', 'Salon/Spa', 'Auto', 'Other'] %}
+            <option value="{{ opt }}"
+              {% if profile and profile.business_type == opt %}selected{% endif %}>
+              {{ opt }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="years_in_business">Years in Business</label>
+          <input type="text" id="years_in_business" name="years_in_business" class="form-control"
+                 value="{{ profile.years_in_business if profile else '' }}"
+                 placeholder="e.g. 8">
+        </div>
+        <div class="form-group">
+          <label for="average_transaction_value">Average Transaction Value ($)</label>
+          <div class="hint">What does a typical customer spend with you?</div>
+          <input type="text" id="average_transaction_value" name="average_transaction_value" class="form-control"
+                 value="{{ profile.average_transaction_value if profile else '' }}"
+                 placeholder="e.g. 250">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="top_services">Top Services / Products</label>
+        <div class="hint">What do you sell or offer? List your main services.</div>
+        <textarea id="top_services" name="top_services" class="form-control"
+                  placeholder="e.g. General dentistry, teeth whitening, Invisalign, implants">{{ profile.top_services if profile else '' }}</textarea>
+      </div>
+
+      <div class="section-label">Your Customers</div>
+
+      <div class="form-group">
+        <label for="best_customer_description">Who Is Your Best Customer?</label>
+        <div class="hint">Describe who typically buys from you (age, situation, needs, etc.)</div>
+        <textarea id="best_customer_description" name="best_customer_description" class="form-control"
+                  placeholder="e.g. Families with young children within 5 miles, homeowners 30-55 who value quality care">{{ profile.best_customer_description if profile else '' }}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="customer_compliment">What Do Customers Compliment You Most On?</label>
+        <div class="hint">What do your best reviews or word-of-mouth say about you?</div>
+        <textarea id="customer_compliment" name="customer_compliment" class="form-control"
+                  placeholder="e.g. Friendly staff, no waiting, explained everything clearly, gentle with kids">{{ profile.customer_compliment if profile else '' }}</textarea>
+      </div>
+
+      <div class="section-label">Your Competition</div>
+
+      <div class="form-group">
+        <label for="main_competitor">Who Is Your Main Competitor?</label>
+        <input type="text" id="main_competitor" name="main_competitor" class="form-control"
+               value="{{ profile.main_competitor if profile else '' }}"
+               placeholder="e.g. Bright Smiles Dental on Main St.">
+      </div>
+
+      <div class="form-group">
+        <label for="competitive_advantage">What Do You Do That They Don't?</label>
+        <div class="hint">What makes you the better choice?</div>
+        <textarea id="competitive_advantage" name="competitive_advantage" class="form-control"
+                  placeholder="e.g. Same-day appointments, accept most insurance, evening hours, family discounts">{{ profile.competitive_advantage if profile else '' }}</textarea>
+      </div>
+
+      <div class="submit-row">
+        <button type="submit" class="btn btn-primary">
+          {{ 'Update Profile' if profile else 'Save Profile & Start Campaign →' }}
+        </button>
+        {% if profile %}
+        <a href="{{ url_for('wizard.new_campaign') }}" class="btn btn-secondary">Start New Campaign</a>
+        {% endif %}
+        <a href="{{ url_for('client.dashboard') }}" style="color:#999; font-size:13px; text-decoration:none;">← Back to Dashboard</a>
+      </div>
+
+    </form>
+  </div>
+
+</div>
+{% endblock %}

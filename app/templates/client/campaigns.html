@@ -4,6 +4,9 @@
 {% block page_sub %}<p>All direct mail campaigns for {{ current_user.client }}</p>{% endblock %}
 
 {% block content %}
+<div style="display:flex; justify-content:flex-end; margin-bottom:20px;">
+  <a href="{{ url_for('wizard.new_campaign') }}" class="btn btn-primary">+ New Campaign</a>
+</div>
 {% if campaigns %}
 <div class="card" style="padding:0;">
   <div class="table-wrap">
@@ -51,7 +54,8 @@
   <div class="empty-state">
     <div class="icon">📬</div>
     <p>No campaigns yet.</p>
-    <p style="margin-top:6px; font-size:13px;">Contact your account manager to get started.</p>
+    <p style="margin-top:6px; font-size:13px;">Use the Campaign Wizard to create your first campaign.</p>
+    <a href="{{ url_for('wizard.new_campaign') }}" class="btn btn-primary" style="margin-top:16px;">Start New Campaign →</a>
   </div>
 </div>
 {% endif %}
