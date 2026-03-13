@@ -221,33 +221,39 @@ function renderCopy(data) {
   hl.style.gridTemplateColumns = '';
   (data.headlines || []).forEach((text, i) => {
     const labels = ['Benefit-Focused', 'Urgency-Focused', 'Curiosity-Focused'];
-    hl.innerHTML += `
-      <label class="copy-card" onclick="selectCard(this, 'headline', ${JSON.stringify(text)})">
-        <div class="card-label">${labels[i] || 'Option ' + (i+1)}</div>
-        <div class="copy-text">${escHtml(text)}</div>
-      </label>`;
+    const card = document.createElement('label');
+    card.className = 'copy-card';
+    card.dataset.type = 'headline';
+    card.dataset.text = text;
+    card.innerHTML = `<div class="card-label">${labels[i] || 'Option ' + (i+1)}</div><div class="copy-text">${escHtml(text)}</div>`;
+    card.addEventListener('click', () => selectCard(card, 'headline', text));
+    hl.appendChild(card);
   });
 
   // Render body copies (2, two-column)
   const bd = document.getElementById('bodies-container');
   bd.innerHTML = '';
   (data.body_copies || []).forEach((text, i) => {
-    bd.innerHTML += `
-      <label class="copy-card body-card" onclick="selectCard(this, 'body', ${JSON.stringify(text)})">
-        <div class="card-label">Option ${i+1}</div>
-        <div class="copy-text">${escHtml(text)}</div>
-      </label>`;
+    const card = document.createElement('label');
+    card.className = 'copy-card body-card';
+    card.dataset.type = 'body';
+    card.dataset.text = text;
+    card.innerHTML = `<div class="card-label">Option ${i+1}</div><div class="copy-text">${escHtml(text)}</div>`;
+    card.addEventListener('click', () => selectCard(card, 'body', text));
+    bd.appendChild(card);
   });
 
   // Render CTAs (3, two-column)
   const ct = document.getElementById('ctas-container');
   ct.innerHTML = '';
   (data.ctas || []).forEach((text, i) => {
-    ct.innerHTML += `
-      <label class="copy-card cta-card" onclick="selectCard(this, 'cta', ${JSON.stringify(text)})">
-        <div class="card-label">CTA ${i+1}</div>
-        <div class="copy-text">${escHtml(text)}</div>
-      </label>`;
+    const card = document.createElement('label');
+    card.className = 'copy-card cta-card';
+    card.dataset.type = 'cta';
+    card.dataset.text = text;
+    card.innerHTML = `<div class="card-label">CTA ${i+1}</div><div class="copy-text">${escHtml(text)}</div>`;
+    card.addEventListener('click', () => selectCard(card, 'cta', text));
+    ct.appendChild(card);
   });
 
   document.getElementById('loading-screen').style.display = 'none';
