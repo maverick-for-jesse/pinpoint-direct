@@ -1,0 +1,303 @@
+{% extends "marketing/base.html" %}
+
+{% block title %}Pricing — Pinpoint Direct{% endblock %}
+
+{% block head %}
+<style>
+  .page-hero {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+    padding: 72px 40px 64px;
+    text-align: center;
+  }
+  .page-hero h1 {
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 900;
+    color: white;
+    margin-bottom: 14px;
+    letter-spacing: -0.5px;
+  }
+  .page-hero p { font-size: 18px; color: rgba(255,255,255,0.75); max-width: 500px; margin: 0 auto; line-height: 1.7; }
+
+  /* ── PRICING GRID ── */
+  .pricing-section { background: var(--gray-50); }
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+    margin-top: 48px;
+    align-items: start;
+  }
+  .pricing-card {
+    background: white;
+    border-radius: 16px;
+    border: 2px solid var(--gray-200);
+    padding: 36px 32px;
+    position: relative;
+    transition: transform 0.18s, box-shadow 0.18s;
+  }
+  .pricing-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+  .pricing-card.featured {
+    border-color: var(--orange);
+    transform: translateY(-8px);
+    box-shadow: 0 12px 40px rgba(249,115,22,0.2);
+  }
+  .pricing-card.featured:hover { transform: translateY(-12px); }
+  .featured-badge {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--orange);
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 5px 18px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .plan-name { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--orange); margin-bottom: 8px; }
+  .plan-price { display: flex; align-items: baseline; gap: 4px; margin-bottom: 6px; }
+  .plan-price .dollar { font-size: 28px; font-weight: 700; color: var(--navy); align-self: flex-start; margin-top: 8px; }
+  .plan-price .amount { font-size: 56px; font-weight: 900; color: var(--navy); line-height: 1; }
+  .plan-price .period { font-size: 16px; color: var(--gray-400); }
+  .plan-desc { font-size: 14px; color: var(--gray-600); margin-bottom: 28px; line-height: 1.5; }
+  .plan-features { list-style: none; margin-bottom: 32px; display: flex; flex-direction: column; gap: 10px; }
+  .plan-features li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--gray-600);
+  }
+  .plan-features li .check { color: var(--orange); font-weight: 700; flex-shrink: 0; }
+  .plan-divider { border: none; border-top: 1px solid var(--gray-200); margin: 20px 0; }
+  .plan-btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 14px;
+    font-size: 15px;
+    font-weight: 700;
+    border-radius: 10px;
+    transition: all 0.18s;
+  }
+  .plan-btn-outline {
+    background: transparent;
+    color: var(--navy);
+    border: 2px solid var(--navy);
+  }
+  .plan-btn-outline:hover { background: var(--navy); color: white; }
+  .plan-btn-primary {
+    background: var(--orange);
+    color: white;
+    border: 2px solid var(--orange);
+  }
+  .plan-btn-primary:hover { background: var(--orange-dark); border-color: var(--orange-dark); transform: translateY(-1px); }
+
+  /* ── COMPARISON TABLE ── */
+  .compare-section { background: white; }
+  .compare-table { width: 100%; border-collapse: collapse; margin-top: 40px; }
+  .compare-table th, .compare-table td { padding: 14px 20px; text-align: left; font-size: 14px; border-bottom: 1px solid var(--gray-200); }
+  .compare-table th { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-400); background: var(--gray-50); }
+  .compare-table th:first-child { color: var(--navy); }
+  .compare-table td:not(:first-child) { text-align: center; }
+  .compare-table th:not(:first-child) { text-align: center; }
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table tr:hover td { background: var(--gray-50); }
+  .compare-table .feature-name { font-weight: 600; color: var(--navy); }
+  .check-yes { color: var(--orange); font-size: 18px; }
+  .check-no { color: var(--gray-200); font-size: 18px; }
+  .col-featured { background: rgba(249,115,22,0.04); }
+
+  /* ── CUSTOM CTA ── */
+  .custom-section {
+    background: var(--navy);
+    padding: 72px 40px;
+    text-align: center;
+  }
+  .custom-section h2 { font-size: clamp(24px, 3.5vw, 38px); font-weight: 800; color: white; margin-bottom: 12px; }
+  .custom-section p { font-size: 17px; color: rgba(255,255,255,0.7); margin-bottom: 32px; max-width: 480px; margin-left: auto; margin-right: auto; }
+
+  @media (max-width: 900px) {
+    .page-hero { padding: 52px 20px 48px; }
+    .pricing-grid { grid-template-columns: 1fr; }
+    .pricing-card.featured { transform: none; }
+    .pricing-card.featured:hover { transform: translateY(-4px); }
+    .compare-section { overflow-x: auto; }
+    .custom-section { padding: 56px 20px; }
+  }
+  @media (min-width: 600px) and (max-width: 900px) {
+    .pricing-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<section class="page-hero">
+  <span class="section-label" style="color:#fdba74;">Transparent Pricing</span>
+  <h1>Simple Plans, Predictable Costs</h1>
+  <p>No per-piece fees. No design charges. Just flat monthly plans that include everything you need to grow.</p>
+</section>
+
+<!-- ── PRICING CARDS ── -->
+<section class="section pricing-section">
+  <div class="section-inner">
+    <div class="pricing-grid">
+
+      <!-- STARTER -->
+      <div class="pricing-card">
+        <div class="plan-name">Starter</div>
+        <div class="plan-price">
+          <span class="dollar">$</span>
+          <span class="amount">299</span>
+          <span class="period">/mo</span>
+        </div>
+        <p class="plan-desc">Perfect for local businesses ready to try direct mail for the first time.</p>
+        <ul class="plan-features">
+          <li><span class="check">✓</span> Up to 500 postcards/month</li>
+          <li><span class="check">✓</span> 1 active campaign at a time</li>
+          <li><span class="check">✓</span> AI-assisted postcard design</li>
+          <li><span class="check">✓</span> Targeted mailing list included</li>
+          <li><span class="check">✓</span> Client portal access</li>
+          <li><span class="check">✓</span> Email support</li>
+        </ul>
+        <a href="{{ url_for('marketing.get_started') }}" class="plan-btn plan-btn-outline">Get Started</a>
+      </div>
+
+      <!-- GROWTH (FEATURED) -->
+      <div class="pricing-card featured">
+        <div class="featured-badge">Most Popular</div>
+        <div class="plan-name">Growth</div>
+        <div class="plan-price">
+          <span class="dollar">$</span>
+          <span class="amount">599</span>
+          <span class="period">/mo</span>
+        </div>
+        <p class="plan-desc">For established local businesses scaling their marketing with consistent campaigns.</p>
+        <ul class="plan-features">
+          <li><span class="check">✓</span> Up to 1,500 postcards/month</li>
+          <li><span class="check">✓</span> 3 active campaigns at a time</li>
+          <li><span class="check">✓</span> AI-assisted postcard design</li>
+          <li><span class="check">✓</span> Targeted mailing lists included</li>
+          <li><span class="check">✓</span> Client portal + campaign tracking</li>
+          <li><span class="check">✓</span> Priority email support</li>
+          <li><span class="check">✓</span> Dedicated account rep</li>
+        </ul>
+        <a href="{{ url_for('marketing.get_started') }}" class="plan-btn plan-btn-primary">Get Started</a>
+      </div>
+
+      <!-- PRO -->
+      <div class="pricing-card">
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">
+          <span class="dollar">$</span>
+          <span class="amount">999</span>
+          <span class="period">/mo</span>
+        </div>
+        <p class="plan-desc">For high-volume businesses or agencies that need full-service white-glove support.</p>
+        <ul class="plan-features">
+          <li><span class="check">✓</span> Unlimited postcards</li>
+          <li><span class="check">✓</span> Unlimited active campaigns</li>
+          <li><span class="check">✓</span> AI-assisted design + manual review</li>
+          <li><span class="check">✓</span> Custom mailing lists</li>
+          <li><span class="check">✓</span> Full campaign tracking & reporting</li>
+          <li><span class="check">✓</span> White-glove service</li>
+          <li><span class="check">✓</span> Phone + priority support</li>
+        </ul>
+        <a href="{{ url_for('marketing.get_started') }}" class="plan-btn plan-btn-outline">Get Started</a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── COMPARISON TABLE ── -->
+<section class="section compare-section">
+  <div class="section-inner">
+    <span class="section-label">Compare Plans</span>
+    <h2 class="section-title">Feature Breakdown</h2>
+    <div style="overflow-x:auto;">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>Starter</th>
+            <th class="col-featured" style="color:var(--orange);">Growth</th>
+            <th>Pro</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="feature-name">Monthly postcards</td>
+            <td>Up to 500</td>
+            <td class="col-featured">Up to 1,500</td>
+            <td>Unlimited</td>
+          </tr>
+          <tr>
+            <td class="feature-name">Active campaigns</td>
+            <td>1</td>
+            <td class="col-featured">3</td>
+            <td>Unlimited</td>
+          </tr>
+          <tr>
+            <td class="feature-name">AI-assisted design</td>
+            <td><span class="check-yes">✓</span></td>
+            <td class="col-featured"><span class="check-yes">✓</span></td>
+            <td><span class="check-yes">✓</span></td>
+          </tr>
+          <tr>
+            <td class="feature-name">Targeted mailing list</td>
+            <td><span class="check-yes">✓</span></td>
+            <td class="col-featured"><span class="check-yes">✓</span></td>
+            <td><span class="check-yes">✓</span></td>
+          </tr>
+          <tr>
+            <td class="feature-name">Client portal</td>
+            <td><span class="check-yes">✓</span></td>
+            <td class="col-featured"><span class="check-yes">✓</span></td>
+            <td><span class="check-yes">✓</span></td>
+          </tr>
+          <tr>
+            <td class="feature-name">Campaign tracking</td>
+            <td><span class="check-yes">✓</span></td>
+            <td class="col-featured"><span class="check-yes">✓</span></td>
+            <td><span class="check-yes">✓</span></td>
+          </tr>
+          <tr>
+            <td class="feature-name">Dedicated account rep</td>
+            <td><span class="check-no">—</span></td>
+            <td class="col-featured"><span class="check-yes">✓</span></td>
+            <td><span class="check-yes">✓</span></td>
+          </tr>
+          <tr>
+            <td class="feature-name">Phone support</td>
+            <td><span class="check-no">—</span></td>
+            <td class="col-featured"><span class="check-no">—</span></td>
+            <td><span class="check-yes">✓</span></td>
+          </tr>
+          <tr>
+            <td class="feature-name">White-glove service</td>
+            <td><span class="check-no">—</span></td>
+            <td class="col-featured"><span class="check-no">—</span></td>
+            <td><span class="check-yes">✓</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ── CUSTOM ── -->
+<section class="custom-section">
+  <span class="section-label" style="color:#fdba74;">Custom Needs?</span>
+  <h2>Need Something Bigger?</h2>
+  <p>Running a multi-location business, franchise, or agency? We offer custom enterprise plans tailored to your volume and workflow.</p>
+  <a href="{{ url_for('marketing.get_started') }}" class="btn btn-white" style="font-size:16px; padding:14px 32px;">
+    Contact Us About Custom Plans
+  </a>
+</section>
+
+{% endblock %}

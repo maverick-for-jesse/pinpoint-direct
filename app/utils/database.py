@@ -264,6 +264,17 @@ if DATABASE_URL:
                         pass
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_new_movers_zip ON new_movers(zip)")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_new_movers_batch ON new_movers(upload_batch)")
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS leads (
+                        id            SERIAL PRIMARY KEY,
+                        name          VARCHAR(255),
+                        email         VARCHAR(255),
+                        business_name VARCHAR(255),
+                        phone         VARCHAR(50),
+                        message       TEXT,
+                        created_at    TIMESTAMP DEFAULT NOW()
+                    )
+                """)
             conn.commit()
 
 else:
@@ -401,6 +412,15 @@ else:
                 );
                 CREATE INDEX IF NOT EXISTS idx_new_movers_zip ON new_movers(zip);
                 CREATE INDEX IF NOT EXISTS idx_new_movers_batch ON new_movers(upload_batch);
+                CREATE TABLE IF NOT EXISTS leads (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name          TEXT,
+                    email         TEXT,
+                    business_name TEXT,
+                    phone         TEXT,
+                    message       TEXT,
+                    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
             """)
             # Add verify columns to existing SQLite tables (idempotent)
             for col, col_type in [('verify_status', 'TEXT'), ('verify_message', 'TEXT')]:

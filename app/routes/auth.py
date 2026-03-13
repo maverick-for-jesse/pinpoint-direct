@@ -5,19 +5,12 @@ from app.models.user import User
 auth_bp = Blueprint('auth', __name__)
 
 
-@auth_bp.route('/')
-def index():
+@auth_bp.route('/login', methods=['GET', 'POST'])
+def login():
     if current_user.is_authenticated:
         if current_user.is_admin():
             return redirect(url_for('admin.dashboard'))
         return redirect(url_for('client.dashboard'))
-    return redirect(url_for('auth.login'))
-
-
-@auth_bp.route('/login', methods=['GET', 'POST'])
-def login():
-    if current_user.is_authenticated:
-        return redirect(url_for('auth.index'))
 
     error = None
     if request.method == 'POST':

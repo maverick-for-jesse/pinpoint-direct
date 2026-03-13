@@ -1,0 +1,420 @@
+{% extends "marketing/base.html" %}
+
+{% block title %}How It Works — Pinpoint Direct{% endblock %}
+
+{% block head %}
+<style>
+  .page-hero {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+    padding: 72px 40px 64px;
+    text-align: center;
+  }
+  .page-hero h1 {
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 900;
+    color: white;
+    margin-bottom: 14px;
+    letter-spacing: -0.5px;
+  }
+  .page-hero p {
+    font-size: 18px;
+    color: rgba(255,255,255,0.75);
+    max-width: 520px;
+    margin: 0 auto;
+    line-height: 1.7;
+  }
+
+  /* ── BIG STEPS ── */
+  .big-step {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+    padding: 80px 0;
+    border-bottom: 1px solid var(--gray-200);
+  }
+  .big-step:last-child { border-bottom: none; }
+  .big-step.reverse { direction: rtl; }
+  .big-step.reverse > * { direction: ltr; }
+  .step-number-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .step-number-badge .num {
+    width: 48px; height: 48px;
+    background: var(--orange);
+    color: white;
+    font-size: 20px;
+    font-weight: 900;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .step-number-badge .label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--orange);
+  }
+  .step-content h2 {
+    font-size: clamp(22px, 3vw, 34px);
+    font-weight: 800;
+    color: var(--navy);
+    margin-bottom: 16px;
+    line-height: 1.2;
+  }
+  .step-content p {
+    font-size: 16px;
+    color: var(--gray-600);
+    line-height: 1.8;
+    margin-bottom: 14px;
+  }
+  .step-bullets { margin: 20px 0; list-style: none; }
+  .step-bullets li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 15px;
+    color: var(--gray-600);
+    margin-bottom: 10px;
+  }
+  .step-bullets li::before {
+    content: '✓';
+    color: var(--orange);
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .step-visual {
+    background: var(--gray-50);
+    border-radius: 20px;
+    border: 1px solid var(--gray-200);
+    overflow: hidden;
+    min-height: 320px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    gap: 16px;
+  }
+  .step-visual .icon { font-size: 64px; }
+  .step-visual .caption {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-600);
+    text-align: center;
+  }
+
+  /* Fake UI mockup */
+  .mock-form {
+    width: 100%;
+    max-width: 340px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    padding: 24px;
+    border: 1px solid var(--gray-200);
+  }
+  .mock-form .mock-title { font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 16px; }
+  .mock-field {
+    height: 36px;
+    background: var(--gray-100);
+    border-radius: 6px;
+    margin-bottom: 10px;
+    border: 1px solid var(--gray-200);
+  }
+  .mock-field.half { width: 48%; display: inline-block; }
+  .mock-btn {
+    display: block;
+    width: 100%;
+    height: 40px;
+    background: var(--orange);
+    border-radius: 8px;
+    margin-top: 8px;
+  }
+
+  .mock-postcard {
+    width: 100%;
+    max-width: 360px;
+    aspect-ratio: 3/2;
+    background: linear-gradient(135deg, #1a3260 0%, #0f1f3d 100%);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+  }
+  .mock-postcard::before {
+    content: '';
+    position: absolute;
+    top: -30px; right: -30px;
+    width: 120px; height: 120px;
+    background: var(--orange);
+    border-radius: 50%;
+    opacity: 0.15;
+  }
+  .mock-postcard .pc-headline {
+    font-size: 18px; font-weight: 800; color: white; line-height: 1.3;
+  }
+  .mock-postcard .pc-offer {
+    font-size: 22px; font-weight: 900; color: var(--orange); margin-top: 8px;
+  }
+  .mock-postcard .pc-cta {
+    display: inline-block;
+    background: var(--orange);
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 8px 16px;
+    border-radius: 6px;
+    align-self: flex-start;
+  }
+
+  .mock-mail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .mock-envelope {
+    font-size: 80px;
+  }
+  .mock-addresses {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    max-width: 280px;
+  }
+  .mock-addr-line {
+    height: 10px;
+    background: var(--gray-200);
+    border-radius: 4px;
+  }
+  .mock-addr-line.short { width: 55%; }
+
+  /* ── FAQ ── */
+  .faq-section { background: var(--gray-50); }
+  .faq-list { margin-top: 40px; display: flex; flex-direction: column; gap: 16px; max-width: 720px; }
+  .faq-item {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--gray-200);
+    overflow: hidden;
+  }
+  .faq-q {
+    padding: 20px 24px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--navy);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    list-style: none;
+  }
+  .faq-q::after { content: '+'; font-size: 22px; font-weight: 400; flex-shrink: 0; color: var(--orange); }
+  .faq-q.open::after { content: '−'; }
+  .faq-a {
+    display: none;
+    padding: 0 24px 20px;
+    font-size: 15px;
+    color: var(--gray-600);
+    line-height: 1.7;
+  }
+  .faq-a.open { display: block; }
+
+  /* CTA bottom */
+  .hiw-cta {
+    background: var(--orange);
+    padding: 80px 40px;
+    text-align: center;
+  }
+  .hiw-cta h2 { font-size: clamp(24px, 3.5vw, 40px); font-weight: 900; color: white; margin-bottom: 12px; }
+  .hiw-cta p { font-size: 17px; color: rgba(255,255,255,0.85); margin-bottom: 32px; }
+
+  @media (max-width: 900px) {
+    .page-hero { padding: 52px 20px 48px; }
+    .big-step { grid-template-columns: 1fr; gap: 32px; padding: 56px 0; }
+    .big-step.reverse { direction: ltr; }
+    .step-visual { min-height: 220px; }
+    .hiw-cta { padding: 60px 20px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<section class="page-hero">
+  <span class="section-label" style="color:#fdba74;">Simple 3-Step Process</span>
+  <h1>How Pinpoint Direct Works</h1>
+  <p>From your first conversation with us to postcards in local mailboxes — here's exactly what happens.</p>
+</section>
+
+<section class="section">
+  <div class="section-inner">
+
+    <!-- STEP 1 -->
+    <div class="big-step">
+      <div class="step-content">
+        <div class="step-number-badge">
+          <div class="num">1</div>
+          <span class="label">Step One</span>
+        </div>
+        <h2>Tell Us About Your Business</h2>
+        <p>We start with a short onboarding wizard that captures everything we need to design a great campaign. No lengthy onboarding calls required.</p>
+        <ul class="step-bullets">
+          <li>Business name, type, and years in operation</li>
+          <li>Your best customers and what they love about you</li>
+          <li>Your current offer and campaign goal</li>
+          <li>Target area — zip codes, neighborhoods, or radius</li>
+          <li>Budget and estimated mailing quantity</li>
+        </ul>
+        <p style="font-size:14px; color:var(--gray-400);">⏱ Takes about 5–10 minutes. No design skills needed.</p>
+      </div>
+      <div class="step-visual">
+        <div class="mock-form">
+          <div class="mock-title">📋 Tell us about your business</div>
+          <div class="mock-field"></div>
+          <div class="mock-field"></div>
+          <div class="mock-field"></div>
+          <div class="mock-field" style="height:64px;"></div>
+          <div class="mock-btn"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="big-step reverse">
+      <div class="step-content">
+        <div class="step-number-badge">
+          <div class="num">2</div>
+          <span class="label">Step Two</span>
+        </div>
+        <h2>We Design Your Postcard With AI</h2>
+        <p>Our AI-powered system analyzes your business profile and creates compelling postcard copy and design concepts tailored to your brand and audience.</p>
+        <ul class="step-bullets">
+          <li>AI-generated headlines, body copy, and CTAs</li>
+          <li>Professional layout matched to your postcard size</li>
+          <li>You review and approve before anything prints</li>
+          <li>Unlimited revisions until you're 100% happy</li>
+          <li>Available in 4×6 and 6×9 postcard formats</li>
+        </ul>
+        <p style="font-size:14px; color:var(--gray-400);">🎨 Average design approval: under 24 hours.</p>
+      </div>
+      <div class="step-visual">
+        <div class="mock-postcard">
+          <div>
+            <div class="pc-headline">Get Your Roof Winter-Ready</div>
+            <div class="pc-offer">FREE Inspection + 10% Off</div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <div class="pc-cta">Call Now: (555) 123-4567</div>
+            <div style="font-size:10px; color:rgba(255,255,255,0.4);">✓ AI-designed</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="big-step">
+      <div class="step-content">
+        <div class="step-number-badge">
+          <div class="num">3</div>
+          <span class="label">Step Three</span>
+        </div>
+        <h2>We Print and Mail It For You</h2>
+        <p>Once you approve the design, we take care of everything — professional printing on premium cardstock, and delivery to real mailing lists in your target area.</p>
+        <ul class="step-bullets">
+          <li>Full-color, high-gloss postcard printing</li>
+          <li>We build or apply your targeted mailing list</li>
+          <li>USPS-compliant addressing and postage</li>
+          <li>Delivery confirmation and campaign tracking</li>
+          <li>In mailboxes within 7–10 business days of approval</li>
+        </ul>
+        <p style="font-size:14px; color:var(--gray-400);">📬 From design approval to mailing: 48–72 hours.</p>
+      </div>
+      <div class="step-visual">
+        <div class="mock-mail">
+          <div class="mock-envelope">📬</div>
+          <div class="mock-addresses">
+            <div class="mock-addr-line"></div>
+            <div class="mock-addr-line short"></div>
+            <div class="mock-addr-line" style="width:70%;"></div>
+          </div>
+          <div style="font-size:13px; font-weight:600; color:var(--gray-400);">10,000 households reached</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── FAQ ── -->
+<section class="section faq-section">
+  <div class="section-inner">
+    <span class="section-label">Common Questions</span>
+    <h2 class="section-title">Frequently Asked Questions</h2>
+    <div class="faq-list" id="faq-list">
+
+      <div class="faq-item">
+        <div class="faq-q">How quickly will my postcards go out?</div>
+        <div class="faq-a">Once you approve your design, we typically have your postcards printed and handed off to USPS within 48–72 hours. From there, USPS first-class delivery takes 3–5 business days depending on your area.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">Do I need to provide my own mailing list?</div>
+        <div class="faq-a">Nope! We build targeted mailing lists based on the zip codes, neighborhoods, or radius you specify. We can also target by homeowner status, home value, and more. If you already have a list, we can use that too.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">What does the design process look like?</div>
+        <div class="faq-a">After you complete the onboarding wizard, our AI system generates postcard design options based on your business profile and campaign goals. You'll see a preview in your client portal and can request changes or approve it — all online, no back-and-forth emails needed.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">What postcard sizes do you offer?</div>
+        <div class="faq-a">We offer standard 4×6 and oversized 6×9 postcards. Most clients prefer 6×9 for its higher visibility and better response rates.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">Can I track my campaign?</div>
+        <div class="faq-a">Yes! Your client portal shows every campaign — status, estimated mail date, piece count, and more. You'll receive notifications as your campaign moves through each stage.</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ── -->
+<section class="hiw-cta">
+  <h2>Ready to Launch Your First Campaign?</h2>
+  <p>It takes about 5 minutes to get started. We'll handle everything from there.</p>
+  <a href="{{ url_for('marketing.get_started') }}" class="btn btn-white" style="font-size:16px; padding:16px 36px;">
+    Request Access →
+  </a>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('.faq-q').forEach(q => {
+    q.addEventListener('click', () => {
+      const a = q.nextElementSibling;
+      q.classList.toggle('open');
+      a.classList.toggle('open');
+    });
+  });
+</script>
+{% endblock %}

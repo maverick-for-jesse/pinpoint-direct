@@ -1,0 +1,284 @@
+{% extends "marketing/base.html" %}
+
+{% block title %}Pinpoint Direct — Direct Mail That Actually Gets Noticed{% endblock %}
+
+{% block head %}
+<style>
+  /* ── HERO ── */
+  .hero {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+    padding: 96px 40px 80px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+  .hero-inner { position: relative; max-width: 760px; margin: 0 auto; }
+  .hero-eyebrow {
+    display: inline-block;
+    background: rgba(249,115,22,0.2);
+    color: #fdba74;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 6px 16px;
+    border-radius: 20px;
+    margin-bottom: 24px;
+  }
+  .hero h1 {
+    font-size: clamp(32px, 5.5vw, 58px);
+    font-weight: 900;
+    color: white;
+    line-height: 1.1;
+    margin-bottom: 22px;
+    letter-spacing: -1px;
+  }
+  .hero h1 .accent { color: var(--orange); }
+  .hero p {
+    font-size: clamp(16px, 2.5vw, 20px);
+    color: rgba(255,255,255,0.75);
+    max-width: 580px;
+    margin: 0 auto 36px;
+    line-height: 1.7;
+  }
+  .hero-ctas { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+  /* ── SOCIAL PROOF BAR ── */
+  .proof-bar {
+    background: var(--gray-50);
+    border-top: 1px solid var(--gray-200);
+    border-bottom: 1px solid var(--gray-200);
+    padding: 20px 40px;
+  }
+  .proof-bar-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    flex-wrap: wrap;
+  }
+  .proof-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-600);
+  }
+  .proof-item .num {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--navy);
+  }
+  .proof-divider { color: var(--gray-200); font-size: 24px; }
+
+  /* ── HOW IT WORKS (homepage mini) ── */
+  .hiw-section { background: var(--gray-50); }
+  .steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; margin-top: 48px; }
+  .step {
+    text-align: center;
+    padding: 36px 28px;
+    background: white;
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-200);
+    position: relative;
+  }
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px; height: 42px;
+    background: var(--navy);
+    color: white;
+    font-size: 16px;
+    font-weight: 800;
+    border-radius: 50%;
+    margin-bottom: 16px;
+  }
+  .step h3 { font-size: 17px; font-weight: 700; color: var(--navy); margin-bottom: 10px; }
+  .step p { font-size: 14px; color: var(--gray-600); line-height: 1.6; }
+  .step-arrow {
+    display: none;
+  }
+
+  /* ── FEATURES ── */
+  .features-section { background: white; }
+  .features-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 24px; margin-top: 48px; }
+
+  /* ── PRICING TEASER ── */
+  .pricing-teaser {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+    padding: 80px 40px;
+    text-align: center;
+  }
+  .pricing-teaser .section-label { color: #fdba74; }
+  .pricing-teaser .section-title { color: white; }
+  .pricing-teaser .section-sub { color: rgba(255,255,255,0.7); max-width: 480px; margin: 0 auto 32px; }
+
+  /* ── CTA SECTION ── */
+  .cta-section {
+    background: var(--orange);
+    padding: 96px 40px;
+    text-align: center;
+  }
+  .cta-section h2 {
+    font-size: clamp(28px, 4vw, 46px);
+    font-weight: 900;
+    color: white;
+    line-height: 1.15;
+    margin-bottom: 14px;
+    letter-spacing: -0.5px;
+  }
+  .cta-section p { font-size: 18px; color: rgba(255,255,255,0.85); margin-bottom: 36px; }
+
+  @media (max-width: 900px) {
+    .hero { padding: 64px 20px 56px; }
+    .proof-bar { padding: 16px 20px; }
+    .proof-divider { display: none; }
+    .steps { grid-template-columns: 1fr; }
+    .features-grid { grid-template-columns: repeat(2,1fr); }
+    .pricing-teaser, .cta-section { padding: 64px 20px; }
+  }
+  @media (max-width: 480px) {
+    .features-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="hero-inner">
+    <span class="hero-eyebrow">📬 Direct Mail, Reimagined</span>
+    <h1>Reach More Customers With Direct Mail That <span class="accent">Actually Gets Noticed</span></h1>
+    <p>Pinpoint Direct handles everything — design, printing, and mailing — so you can focus on running your business.</p>
+    <div class="hero-ctas">
+      <a href="{{ url_for('marketing.get_started') }}" class="btn btn-primary" style="font-size:16px; padding:16px 32px;">
+        Get Started Free →
+      </a>
+      <a href="{{ url_for('marketing.how_it_works') }}" class="btn btn-white" style="font-size:16px; padding:16px 32px;">
+        See How It Works
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ── SOCIAL PROOF BAR ── -->
+<div class="proof-bar">
+  <div class="proof-bar-inner">
+    <div class="proof-item">
+      <span>✅ Trusted by local businesses across the Southeast</span>
+    </div>
+    <span class="proof-divider">•</span>
+    <div class="proof-item">
+      <span class="num">10,000+</span>
+      <span>postcards mailed</span>
+    </div>
+    <span class="proof-divider">•</span>
+    <div class="proof-item">
+      <span class="num">X%</span>
+      <span>average response rate</span>
+    </div>
+    <span class="proof-divider">•</span>
+    <div class="proof-item">
+      <span>48–72 hr turnaround</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── HOW IT WORKS ── -->
+<section class="section hiw-section">
+  <div class="section-inner">
+    <div style="text-align:center;">
+      <span class="section-label">Simple Process</span>
+      <h2 class="section-title">From Idea to Mailbox in 3 Steps</h2>
+      <p class="section-sub" style="margin: 0 auto 0;">No design experience needed. No printing headaches. Just results.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div style="font-size:36px; margin-bottom:14px;">🏢</div>
+        <h3>Tell Us About Your Business</h3>
+        <p>Answer a few quick questions about your business, offer, and target customers. Takes about 5 minutes.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div style="font-size:36px; margin-bottom:14px;">🎨</div>
+        <h3>We Design Your Postcard With AI</h3>
+        <p>Our AI-powered design system creates compelling postcard artwork tailored to your brand and message.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div style="font-size:36px; margin-bottom:14px;">📬</div>
+        <h3>We Print & Mail It For You</h3>
+        <p>We handle professional printing and targeted mailing to real homeowners and businesses in your area.</p>
+      </div>
+    </div>
+    <div style="text-align:center; margin-top:36px;">
+      <a href="{{ url_for('marketing.how_it_works') }}" class="btn btn-outline">Learn More About Our Process</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── FEATURES ── -->
+<section class="section features-section">
+  <div class="section-inner">
+    <span class="section-label">Why Choose Us</span>
+    <h2 class="section-title">Everything You Need to Grow with Direct Mail</h2>
+    <div class="features-grid">
+      <div class="card">
+        <div class="card-icon">⚡</div>
+        <h3>Fast Turnaround</h3>
+        <p>From approved design to in-the-mail in 48–72 hours. No waiting weeks for your campaign to launch.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🤖</div>
+        <h3>AI-Assisted Design</h3>
+        <p>Professionally designed postcards powered by AI — beautiful, on-brand, and optimized for response rates.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🎯</div>
+        <h3>Targeted Mailing Lists</h3>
+        <p>Reach the right households. We build lists based on geography, demographics, and homeowner data.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">📊</div>
+        <h3>Full Campaign Tracking</h3>
+        <p>See your campaigns, approvals, and invoices in one clean dashboard. Know exactly what's in-flight.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── PRICING TEASER ── -->
+<section class="pricing-teaser">
+  <div>
+    <span class="section-label">Transparent Pricing</span>
+    <h2 class="section-title" style="color:white; margin-bottom:12px;">Simple, Flat-Rate Plans</h2>
+    <p class="section-sub" style="color:rgba(255,255,255,0.75); max-width:480px; margin:0 auto 32px;">
+      Starting at $299/month. No hidden fees, no per-piece surprises. Just results.
+    </p>
+    <a href="{{ url_for('marketing.pricing') }}" class="btn btn-white">See Pricing →</a>
+  </div>
+</section>
+
+<!-- ── CTA ── -->
+<section class="cta-section">
+  <h2>Ready to Get More Customers?</h2>
+  <p>Join local businesses already growing with Pinpoint Direct. Setup is fast and we'll guide you every step.</p>
+  <a href="{{ url_for('marketing.get_started') }}" class="btn btn-white" style="font-size:17px; padding:18px 40px;">
+    Get Started Today →
+  </a>
+</section>
+
+{% endblock %}

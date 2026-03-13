@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Pinpoint Direct — Direct Mail That Gets Results{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:       #0f1f3d;
+      --navy-light: #1a3260;
+      --orange:     #f97316;
+      --orange-dark:#ea6a0a;
+      --white:      #ffffff;
+      --gray-50:    #f8fafc;
+      --gray-100:   #f1f5f9;
+      --gray-200:   #e2e8f0;
+      --gray-400:   #94a3b8;
+      --gray-600:   #475569;
+      --gray-800:   #1e293b;
+      --radius:     10px;
+      --shadow:     0 4px 24px rgba(15,31,61,0.10);
+      --shadow-lg:  0 8px 40px rgba(15,31,61,0.15);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      color: var(--gray-800);
+      background: var(--white);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+
+    /* ── NAV ── */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--white);
+      border-bottom: 1px solid var(--gray-200);
+      padding: 0 40px;
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-logo {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--navy);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .nav-logo span { color: var(--orange); }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .nav-link {
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--gray-600);
+      border-radius: 8px;
+      transition: all 0.15s;
+    }
+    .nav-link:hover { background: var(--gray-100); color: var(--navy); }
+    .nav-link.active { color: var(--navy); font-weight: 600; }
+    .nav-btn-login {
+      padding: 8px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--navy);
+      border: 2px solid var(--navy);
+      border-radius: 8px;
+      transition: all 0.15s;
+    }
+    .nav-btn-login:hover { background: var(--navy); color: white; }
+    .nav-btn-cta {
+      padding: 8px 20px;
+      font-size: 14px;
+      font-weight: 700;
+      color: white;
+      background: var(--orange);
+      border-radius: 8px;
+      transition: all 0.15s;
+    }
+    .nav-btn-cta:hover { background: var(--orange-dark); transform: translateY(-1px); }
+    .nav-mobile-toggle {
+      display: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+      color: var(--navy);
+    }
+
+    /* ── FOOTER ── */
+    .footer {
+      background: var(--navy);
+      color: rgba(255,255,255,0.7);
+      padding: 48px 40px 32px;
+    }
+    .footer-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 40px;
+    }
+    .footer-brand .logo {
+      font-size: 20px;
+      font-weight: 800;
+      color: white;
+      margin-bottom: 10px;
+    }
+    .footer-brand .logo span { color: var(--orange); }
+    .footer-brand p { font-size: 14px; line-height: 1.7; max-width: 280px; }
+    .footer-col h4 { font-size: 12px; font-weight: 700; text-transform: uppercase;
+                     letter-spacing: 1px; color: white; margin-bottom: 16px; }
+    .footer-col a { display: block; font-size: 14px; color: rgba(255,255,255,0.6);
+                    margin-bottom: 10px; transition: color 0.15s; }
+    .footer-col a:hover { color: white; }
+    .footer-bottom {
+      max-width: 1100px;
+      margin: 32px auto 0;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      font-size: 15px;
+      font-weight: 700;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      transition: all 0.18s;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: var(--orange);
+      color: white;
+    }
+    .btn-primary:hover { background: var(--orange-dark); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(249,115,22,0.4); }
+    .btn-outline {
+      background: transparent;
+      color: var(--navy);
+      border: 2px solid var(--navy);
+    }
+    .btn-outline:hover { background: var(--navy); color: white; transform: translateY(-2px); }
+    .btn-white {
+      background: white;
+      color: var(--navy);
+    }
+    .btn-white:hover { background: var(--gray-100); transform: translateY(-2px); }
+    .btn-sm { padding: 10px 20px; font-size: 14px; }
+
+    /* ── SECTION ── */
+    .section { padding: 88px 40px; }
+    .section-inner { max-width: 1100px; margin: 0 auto; }
+    .section-label {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--orange);
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: clamp(26px, 4vw, 40px);
+      font-weight: 800;
+      color: var(--navy);
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+    .section-sub {
+      font-size: 18px;
+      color: var(--gray-600);
+      max-width: 560px;
+      line-height: 1.7;
+    }
+
+    /* ── CARDS ── */
+    .card-grid {
+      display: grid;
+      gap: 24px;
+      margin-top: 48px;
+    }
+    .card-grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .card-grid-4 { grid-template-columns: repeat(4, 1fr); }
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--gray-200);
+      transition: transform 0.18s, box-shadow 0.18s;
+    }
+    .card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+    .card-icon { font-size: 32px; margin-bottom: 16px; }
+    .card h3 { font-size: 17px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+    .card p { font-size: 14px; color: var(--gray-600); line-height: 1.6; }
+
+    /* ── FLASH ── */
+    .flash { padding: 14px 20px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; font-weight: 500; }
+    .flash-error   { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .flash-success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      .nav { padding: 0 20px; }
+      .nav-links { display: none; }
+      .nav-links.open { display: flex; flex-direction: column; position: absolute;
+                        top: 68px; left: 0; right: 0; background: white;
+                        padding: 16px 20px; border-bottom: 1px solid var(--gray-200);
+                        box-shadow: var(--shadow); gap: 4px; }
+      .nav-mobile-toggle { display: block; }
+      .section { padding: 64px 20px; }
+      .footer { padding: 40px 20px 24px; }
+      .footer-inner { grid-template-columns: 1fr; gap: 28px; }
+      .footer-bottom { flex-direction: column; gap: 8px; text-align: center; }
+      .card-grid-3, .card-grid-4 { grid-template-columns: 1fr; }
+    }
+    @media (min-width: 600px) and (max-width: 900px) {
+      .card-grid-3, .card-grid-4 { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<nav class="nav" id="main-nav">
+  <a href="{{ url_for('marketing.index') }}" class="nav-logo">📍 <span>Pinpoint</span> Direct</a>
+  <div class="nav-links" id="nav-links">
+    <a href="{{ url_for('marketing.how_it_works') }}" class="nav-link {% if request.endpoint == 'marketing.how_it_works' %}active{% endif %}">How It Works</a>
+    <a href="{{ url_for('marketing.pricing') }}" class="nav-link {% if request.endpoint == 'marketing.pricing' %}active{% endif %}">Pricing</a>
+    <a href="{{ url_for('auth.login') }}" class="nav-btn-login" style="margin-left:8px;">Client Login</a>
+    <a href="{{ url_for('marketing.get_started') }}" class="nav-btn-cta">Get Started</a>
+  </div>
+  <button class="nav-mobile-toggle" id="nav-toggle" aria-label="Menu">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  </button>
+</nav>
+
+{% block content %}{% endblock %}
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="logo">📍 <span>Pinpoint</span> Direct</div>
+      <p>Professional direct mail marketing for local businesses. We handle design, printing, and delivery — you handle growth.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Company</h4>
+      <a href="{{ url_for('marketing.how_it_works') }}">How It Works</a>
+      <a href="{{ url_for('marketing.pricing') }}">Pricing</a>
+      <a href="{{ url_for('marketing.get_started') }}">Get Started</a>
+    </div>
+    <div class="footer-col">
+      <h4>Account</h4>
+      <a href="{{ url_for('auth.login') }}">Client Login</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2025 Pinpoint Direct. All rights reserved.</span>
+    <span>Direct mail that gets noticed.</span>
+  </div>
+</footer>
+
+<script>
+  document.getElementById('nav-toggle').addEventListener('click', function() {
+    document.getElementById('nav-links').classList.toggle('open');
+  });
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,249 @@
+{% extends "marketing/base.html" %}
+
+{% block title %}Get Started — Pinpoint Direct{% endblock %}
+
+{% block head %}
+<style>
+  .gs-section {
+    min-height: calc(100vh - 68px);
+    background: var(--gray-50);
+    display: flex;
+    align-items: center;
+    padding: 64px 40px;
+  }
+  .gs-inner {
+    max-width: 1000px;
+    margin: 0 auto;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 72px;
+    align-items: start;
+  }
+
+  /* ── LEFT SIDE ── */
+  .gs-left { padding-top: 8px; }
+  .gs-left .section-label { color: var(--orange); }
+  .gs-left h1 {
+    font-size: clamp(26px, 3.5vw, 40px);
+    font-weight: 900;
+    color: var(--navy);
+    line-height: 1.15;
+    margin-bottom: 16px;
+    letter-spacing: -0.5px;
+  }
+  .gs-left p {
+    font-size: 16px;
+    color: var(--gray-600);
+    line-height: 1.7;
+    margin-bottom: 32px;
+  }
+  .trust-items { display: flex; flex-direction: column; gap: 14px; }
+  .trust-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 14px;
+    color: var(--gray-600);
+  }
+  .trust-item .icon {
+    width: 32px; height: 32px;
+    background: rgba(249,115,22,0.1);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .trust-item strong { display: block; font-weight: 700; color: var(--navy); font-size: 14px; margin-bottom: 2px; }
+
+  /* ── FORM ── */
+  .gs-form-card {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 8px 40px rgba(15,31,61,0.12);
+    padding: 40px 36px;
+    border: 1px solid var(--gray-200);
+  }
+  .form-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--navy);
+    margin-bottom: 6px;
+  }
+  .form-sub { font-size: 14px; color: var(--gray-400); margin-bottom: 28px; }
+  .form-group { margin-bottom: 18px; }
+  .form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 6px;
+  }
+  .form-group label .req { color: var(--orange); margin-left: 2px; }
+  .form-group input,
+  .form-group textarea {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 15px;
+    font-family: inherit;
+    color: var(--gray-800);
+    background: var(--gray-50);
+    border: 1.5px solid var(--gray-200);
+    border-radius: 10px;
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
+    -webkit-appearance: none;
+  }
+  .form-group input:focus,
+  .form-group textarea:focus {
+    border-color: var(--orange);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(249,115,22,0.1);
+  }
+  .form-group textarea { resize: vertical; min-height: 100px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .submit-btn {
+    width: 100%;
+    padding: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+    background: var(--orange);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.18s;
+    margin-top: 6px;
+    font-family: inherit;
+  }
+  .submit-btn:hover { background: var(--orange-dark); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(249,115,22,0.35); }
+  .form-note { font-size: 12px; color: var(--gray-400); text-align: center; margin-top: 14px; }
+
+  /* ── SUCCESS STATE ── */
+  .success-card {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 8px 40px rgba(15,31,61,0.12);
+    padding: 56px 40px;
+    text-align: center;
+    border: 1px solid var(--gray-200);
+  }
+  .success-icon { font-size: 64px; margin-bottom: 20px; }
+  .success-card h2 { font-size: 26px; font-weight: 800; color: var(--navy); margin-bottom: 12px; }
+  .success-card p { font-size: 16px; color: var(--gray-600); line-height: 1.7; margin-bottom: 10px; max-width: 340px; margin-left: auto; margin-right: auto; }
+  .success-back { display: inline-block; margin-top: 24px; font-size: 14px; color: var(--orange); font-weight: 600; text-decoration: underline; }
+
+  @media (max-width: 900px) {
+    .gs-section { padding: 40px 20px; }
+    .gs-inner { grid-template-columns: 1fr; gap: 36px; }
+    .gs-form-card { padding: 28px 24px; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<section class="gs-section">
+  <div class="gs-inner">
+
+    <!-- LEFT: info -->
+    <div class="gs-left">
+      <span class="section-label">Get Started</span>
+      <h1>Let's Get Your First Postcard Campaign Going</h1>
+      <p>Fill out the short form and we'll reach out within 1 business day to get your account set up and walk you through everything.</p>
+      <div class="trust-items">
+        <div class="trust-item">
+          <div class="icon">⚡</div>
+          <div>
+            <strong>Fast setup</strong>
+            Campaigns live in as little as 72 hours after you approve your design.
+          </div>
+        </div>
+        <div class="trust-item">
+          <div class="icon">🎨</div>
+          <div>
+            <strong>We design it for you</strong>
+            No creative work required on your end — our AI handles the heavy lifting.
+          </div>
+        </div>
+        <div class="trust-item">
+          <div class="icon">📬</div>
+          <div>
+            <strong>We handle the mailing</strong>
+            Printing, postage, and delivery — all taken care of by our team.
+          </div>
+        </div>
+        <div class="trust-item">
+          <div class="icon">📊</div>
+          <div>
+            <strong>Track everything</strong>
+            Your private client portal keeps you in the loop every step of the way.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: form or success -->
+    <div>
+      {% if success %}
+        <div class="success-card">
+          <div class="success-icon">🎉</div>
+          <h2>You're on the list!</h2>
+          <p>Thanks for reaching out. We'll be in touch within <strong>1 business day</strong> to get your account set up.</p>
+          <p>In the meantime, feel free to browse our <a href="{{ url_for('marketing.how_it_works') }}" style="color:var(--orange);">how it works</a> page or check out <a href="{{ url_for('marketing.pricing') }}" style="color:var(--orange);">pricing</a>.</p>
+          <a href="{{ url_for('marketing.index') }}" class="success-back">← Back to home</a>
+        </div>
+      {% else %}
+        <div class="gs-form-card">
+          <div class="form-title">Request Access</div>
+          <div class="form-sub">We'll follow up within 1 business day.</div>
+
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+              <div class="flash flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endwith %}
+
+          <form method="POST" action="{{ url_for('marketing.get_started') }}" novalidate>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="name">Full Name <span class="req">*</span></label>
+                <input type="text" id="name" name="name" placeholder="Jane Smith"
+                       value="{{ form_data.name if form_data else '' }}" required autocomplete="name">
+              </div>
+              <div class="form-group">
+                <label for="business_name">Business Name <span class="req">*</span></label>
+                <input type="text" id="business_name" name="business_name" placeholder="Acme Roofing Co."
+                       value="{{ form_data.business_name if form_data else '' }}" required autocomplete="organization">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="email">Email Address <span class="req">*</span></label>
+                <input type="email" id="email" name="email" placeholder="jane@example.com"
+                       value="{{ form_data.email if form_data else '' }}" required autocomplete="email">
+              </div>
+              <div class="form-group">
+                <label for="phone">Phone Number</label>
+                <input type="tel" id="phone" name="phone" placeholder="(555) 123-4567"
+                       value="{{ form_data.phone if form_data else '' }}" autocomplete="tel">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="message">Tell Us About Your Business <span style="font-weight:400; color:var(--gray-400);">(optional)</span></label>
+              <textarea id="message" name="message" placeholder="What do you sell, who are your customers, and what are you hoping direct mail will do for you?">{{ form_data.message if form_data else '' }}</textarea>
+            </div>
+            <button type="submit" class="submit-btn">Request Access →</button>
+            <p class="form-note">🔒 No spam, ever. We'll only use your info to set up your account.</p>
+          </form>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+</section>
+
+{% endblock %}

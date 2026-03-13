@@ -285,6 +285,8 @@
         {{ current_user.role }}
       </div>
       <a href="{{ url_for('auth.logout') }}" class="logout-link">Sign out</a>
+      <a href="/" style="display:block; font-size:11px; color:rgba(255,255,255,0.3); margin-top:6px; text-decoration:none; transition:color 0.15s;"
+         onmouseover="this.style.color='rgba(255,255,255,0.6)'" onmouseout="this.style.color='rgba(255,255,255,0.3)'">← Back to site</a>
     </div>
   </nav>
 
