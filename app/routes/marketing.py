@@ -106,12 +106,10 @@ def _save_lead(name, email, business_name, phone, message):
 
 @marketing_bp.route('/')
 def index():
-    # Authenticated users go straight to their portal
-    if current_user.is_authenticated:
-        if current_user.is_admin():
-            return redirect(url_for('admin.dashboard'))
+    # Clients auto-redirect to their portal; admins can see the marketing site
+    if current_user.is_authenticated and not current_user.is_admin():
         return redirect(url_for('client.dashboard'))
-    return render_template('marketing/index.html')
+    return render_template('marketing/index.html', logged_in=current_user.is_authenticated)
 
 
 @marketing_bp.route('/how-it-works')
