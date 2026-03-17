@@ -342,6 +342,130 @@
   </div>
 </section>
 
+<!-- ── LIVE MARKET DATA ── -->
+<section class="section" style="background:var(--navy); color:white;">
+  <div class="section-inner" style="max-width:960px;">
+    <div style="text-align:center; margin-bottom:48px;">
+      <span class="section-label" style="color:#fdba74;">📊 Live Market Data</span>
+      <h2 class="section-title" style="color:white;">Your Next Customers Are Already in Our Database</h2>
+      <p style="font-size:17px; color:rgba(255,255,255,0.7); max-width:600px; margin:0 auto;">
+        We build our own lists from official Coweta County property transfer records — not recycled data broker lists. Here's exactly what's in our database right now.
+      </p>
+    </div>
+
+    <!-- Big stats row -->
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:24px; margin-bottom:40px;" id="stats-grid">
+      <div style="background:rgba(255,255,255,0.07); border-radius:14px; padding:28px; text-align:center; border:1px solid rgba(255,255,255,0.1);">
+        <div id="stat-total" style="font-size:52px; font-weight:900; color:white; line-height:1;">—</div>
+        <div style="font-size:14px; color:rgba(255,255,255,0.6); margin-top:8px; font-weight:600;">New Homeowners on File</div>
+        <div style="font-size:12px; color:rgba(255,255,255,0.4); margin-top:4px;">Coweta County, GA</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.07); border-radius:14px; padding:28px; text-align:center; border:1px solid rgba(255,255,255,0.1);">
+        <div id="stat-avg-price" style="font-size:52px; font-weight:900; color:var(--orange); line-height:1;">—</div>
+        <div style="font-size:14px; color:rgba(255,255,255,0.6); margin-top:8px; font-weight:600;">Avg Home Sale Price</div>
+        <div style="font-size:12px; color:rgba(255,255,255,0.4); margin-top:4px;">Strong buying power</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.07); border-radius:14px; padding:28px; text-align:center; border:1px solid rgba(255,255,255,0.1);">
+        <div id="stat-monthly" style="font-size:52px; font-weight:900; color:#68d391; line-height:1;">—</div>
+        <div style="font-size:14px; color:rgba(255,255,255,0.6); margin-top:8px; font-weight:600;">New Records / Month</div>
+        <div style="font-size:12px; color:rgba(255,255,255,0.4); margin-top:4px;">Updated from county records</div>
+      </div>
+    </div>
+
+    <!-- Tier breakdown -->
+    <div style="background:rgba(255,255,255,0.05); border-radius:14px; padding:28px; margin-bottom:40px; border:1px solid rgba(255,255,255,0.08);">
+      <div style="font-size:14px; font-weight:700; color:rgba(255,255,255,0.5); text-transform:uppercase; letter-spacing:1px; margin-bottom:20px;">Homeowner Tiers by Sale Price</div>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px;" id="tier-grid">
+        <div style="text-align:center;">
+          <div id="tier-standard-pct" style="font-size:28px; font-weight:800; color:white;">—</div>
+          <div style="font-size:13px; color:rgba(255,255,255,0.6); margin-top:4px;">Standard</div>
+          <div style="font-size:11px; color:rgba(255,255,255,0.35);">Under $500k</div>
+        </div>
+        <div style="text-align:center;">
+          <div id="tier-premium-pct" style="font-size:28px; font-weight:800; color:var(--orange);">—</div>
+          <div style="font-size:13px; color:rgba(255,255,255,0.6); margin-top:4px;">Premium</div>
+          <div style="font-size:11px; color:rgba(255,255,255,0.35);">$500k–$749k</div>
+        </div>
+        <div style="text-align:center;">
+          <div id="tier-ultra-pct" style="font-size:28px; font-weight:800; color:#68d391;">—</div>
+          <div style="font-size:13px; color:rgba(255,255,255,0.6); margin-top:4px;">Ultra-Premium</div>
+          <div style="font-size:11px; color:rgba(255,255,255,0.35);">$750k+</div>
+        </div>
+      </div>
+      <div id="tier-bar" style="margin-top:20px; height:10px; border-radius:99px; overflow:hidden; background:rgba(255,255,255,0.1); display:flex;">
+        <div id="bar-standard" style="background:#94a3b8; height:100%; transition:width 0.8s ease;"></div>
+        <div id="bar-premium" style="background:var(--orange); height:100%; transition:width 0.8s ease;"></div>
+        <div id="bar-ultra" style="background:#68d391; height:100%; transition:width 0.8s ease;"></div>
+      </div>
+    </div>
+
+    <!-- Top neighborhoods -->
+    <div style="background:rgba(255,255,255,0.05); border-radius:14px; padding:28px; border:1px solid rgba(255,255,255,0.08);">
+      <div style="font-size:14px; font-weight:700; color:rgba(255,255,255,0.5); text-transform:uppercase; letter-spacing:1px; margin-bottom:20px;">Top Neighborhoods / Subdivisions</div>
+      <div id="neighborhoods-grid" style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px;">
+        <div style="color:rgba(255,255,255,0.3); font-size:14px;">Loading...</div>
+      </div>
+    </div>
+
+    <p style="text-align:center; margin-top:24px; font-size:12px; color:rgba(255,255,255,0.3);">
+      Data sourced from Coweta County property transfer records. Updated monthly. Records represent qualified arm's-length residential sales.
+    </p>
+  </div>
+</section>
+
+<script>
+// Load live market stats
+fetch('/api/market-stats')
+  .then(r => r.json())
+  .then(d => {
+    if (d.error) return;
+
+    // Big numbers
+    document.getElementById('stat-total').textContent = d.total.toLocaleString();
+
+    if (d.avg_sale_price > 0) {
+      const price = d.avg_sale_price >= 1000000
+        ? '$' + (d.avg_sale_price / 1000000).toFixed(1) + 'M'
+        : '$' + Math.round(d.avg_sale_price / 1000) + 'k';
+      document.getElementById('stat-avg-price').textContent = price;
+    }
+
+    // Monthly avg from last 6 months
+    if (d.monthly && d.monthly.length > 0) {
+      const recent = d.monthly.slice(0, 6);
+      const avg = Math.round(recent.reduce((s, m) => s + m.count, 0) / recent.length);
+      document.getElementById('stat-monthly').textContent = avg + '/mo';
+    }
+
+    // Tiers
+    if (d.tiers && d.total > 0) {
+      const std = d.tiers['Standard'] || 0;
+      const pre = d.tiers['Premium'] || 0;
+      const ult = d.tiers['Ultra-Premium'] || 0;
+      const tot = std + pre + ult || 1;
+      const pct = n => Math.round(n / tot * 100) + '%';
+      document.getElementById('tier-standard-pct').textContent = pct(std);
+      document.getElementById('tier-premium-pct').textContent = pct(pre);
+      document.getElementById('tier-ultra-pct').textContent = pct(ult);
+      document.getElementById('bar-standard').style.width = pct(std);
+      document.getElementById('bar-premium').style.width = pct(pre);
+      document.getElementById('bar-ultra').style.width = pct(ult);
+    }
+
+    // Neighborhoods
+    if (d.neighborhoods && d.neighborhoods.length > 0) {
+      const grid = document.getElementById('neighborhoods-grid');
+      grid.innerHTML = d.neighborhoods.map(n =>
+        `<div style="background:rgba(255,255,255,0.07); border-radius:8px; padding:10px 14px;">
+          <div style="font-size:13px; font-weight:600; color:white;">${n.name}</div>
+          <div style="font-size:11px; color:rgba(255,255,255,0.4); margin-top:2px;">${n.count} homeowners</div>
+        </div>`
+      ).join('');
+    }
+  })
+  .catch(() => {}); // Silently fail — section just stays with dashes
+</script>
+
 <!-- ── BETA CALLOUT ── -->
 <section class="section" style="background:var(--gray-50); border-top:1px solid var(--gray-200);">
   <div class="section-inner" style="max-width:800px; text-align:center;">

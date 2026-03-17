@@ -8,7 +8,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import current_user
 
 from app.utils.database import get_db, get_db_type
@@ -157,3 +157,89 @@ def get_started():
                                    form_data=request.form)
 
     return render_template('marketing/get_started.html')
+
+
+@marketing_bp.route('/api/market-stats')
+def market_stats():
+    """Public endpoint — returns live Coweta County new mover stats for the marketing homepage."""
+    try:
+        db_type = get_db_type()
+        with get_db() as db:
+            def q(sql):
+                if db_type == 'postgres':
+                    with db.cursor() as cur:
+                        cur.execute(sql)
+                        return cur.fetchone()
+                else:
+                    return db.execute(sql).fetchone()
+
+            def qa(sql):
+                if db_type == 'postgres':
+                    with db.cursor() as cur:
+                        cur.execute(sql)
+                        return cur.fetchall()
+                else:
+                    return db.execute(sql).fetchall()
+
+            # Total records
+            total = (q("SELECT COUNT(*) as cnt FROM new_movers") or {}).get('cnt', 0)
+
+            # Tier breakdown
+            tier_rows = qa("SELECT tier, COUNT(*) as cnt FROM new_movers GROUP BY tier")
+            tiers = {r['tier'] or 'Standard': r['cnt'] for r in tier_rows}
+
+            # Monthly volume (last 12 months)
+            monthly_rows = qa("""
+                SELECT TO_CHAR(DATE_TRUNC('month', sale_date::date), 'Mon YYYY') as month,
+                       COUNT(*) as cnt
+                FROM new_movers
+                WHERE sale_date IS NOT NULL
+                  AND sale_date::date >= NOW() - INTERVAL '12 months'
+                GROUP BY DATE_TRUNC('month', sale_date::date)
+                ORDER BY DATE_TRUNC('month', sale_date::date) DESC
+            """) if db_type == 'postgres' else qa("""
+                SELECT strftime('%b %Y', sale_date) as month, COUNT(*) as cnt
+                FROM new_movers
+                WHERE sale_date IS NOT NULL
+                GROUP BY strftime('%Y-%m', sale_date)
+                ORDER BY sale_date DESC
+                LIMIT 12
+            """)
+            monthly = [{'month': r['month'], 'count': r['cnt']} for r in monthly_rows]
+
+            # Top neighborhoods
+            neighborhood_rows = qa("""
+                SELECT neighborhood, COUNT(*) as cnt
+                FROM new_movers
+                WHERE neighborhood IS NOT NULL AND neighborhood != ''
+                GROUP BY neighborhood
+                ORDER BY cnt DESC
+                LIMIT 8
+            """)
+            neighborhoods = [{'name': r['neighborhood'], 'count': r['cnt']} for r in neighborhood_rows]
+
+            # Avg sale price
+            avg_price = (q("SELECT AVG(sale_price::numeric) as avg FROM new_movers WHERE sale_price IS NOT NULL AND sale_price != '' AND sale_price::numeric > 0") or {}).get('avg', 0)
+
+            # Months of data
+            date_range = q("""
+                SELECT MIN(sale_date) as earliest, MAX(sale_date) as latest
+                FROM new_movers WHERE sale_date IS NOT NULL
+            """)
+
+        return jsonify({
+            'total': int(total),
+            'tiers': {k: int(v) for k, v in tiers.items()},
+            'monthly': monthly,
+            'neighborhoods': neighborhoods,
+            'avg_sale_price': int(float(avg_price or 0)),
+            'date_range': {
+                'earliest': str(date_range['earliest']) if date_range and date_range['earliest'] else None,
+                'latest': str(date_range['latest']) if date_range and date_range['latest'] else None,
+            },
+            'county': 'Coweta County, GA',
+        })
+    except Exception as e:
+        import traceback
+        print(f"market_stats error: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
