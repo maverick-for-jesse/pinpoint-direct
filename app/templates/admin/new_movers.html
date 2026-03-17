@@ -336,7 +336,9 @@ function submitUpload() {
         closeUploadModal();
         setTimeout(() => { window.location.reload(); }, 2000);
       } else {
-        statusText.textContent = '❌ ' + (data.error || 'Import failed. Check server logs.');
+        const errMsg = data.error || data.detail || JSON.stringify(data);
+        statusText.textContent = '❌ ' + errMsg;
+        console.error('Upload error response:', data);
         bar.style.background = '#e53e3e';
         submitBtn.disabled = false;
         submitBtn.textContent = 'Upload & Import';
