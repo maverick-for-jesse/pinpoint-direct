@@ -256,7 +256,10 @@
 </div>
 
 <nav class="nav" id="main-nav">
-  <a href="{{ url_for('marketing.index') }}" class="nav-logo">📍 <span>Pinpoint</span> Direct</a>
+  <a href="{{ url_for('marketing.index') }}" class="nav-logo">
+  <img src="/static/img/logo.png" alt="Pinpoint Direct" style="height:36px; width:auto; object-fit:contain; display:inline-block; vertical-align:middle; margin-right:8px;">
+  <span style="color:var(--navy); font-weight:800;">Pinpoint</span>&nbsp;Direct
+</a>
   <div class="nav-links" id="nav-links">
     <a href="{{ url_for('marketing.how_it_works') }}" class="nav-link {% if request.endpoint == 'marketing.how_it_works' %}active{% endif %}">How It Works</a>
     <a href="{{ url_for('marketing.pricing') }}" class="nav-link {% if request.endpoint == 'marketing.pricing' %}active{% endif %}">Pricing</a>
@@ -275,8 +278,12 @@
 <footer class="footer">
   <div class="footer-inner">
     <div class="footer-brand">
-      <div class="logo">📍 <span>Pinpoint</span> Direct</div>
+      <div class="logo" style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <img src="/static/img/logo.png" alt="Pinpoint Direct" style="height:32px; width:auto; object-fit:contain; filter:brightness(0) invert(1);">
+        <span><span style="color:var(--orange);">Pinpoint</span> Direct</span>
+      </div>
       <p>Hyper targeted direct mail for local businesses. We handle design, printing, and delivery — you handle growth.</p>
+      <p style="margin-top:10px; font-size:13px; color:rgba(255,255,255,0.45);">📍 35 Andrew St, Newnan, GA 30263</p>
     </div>
     <div class="footer-col">
       <h4>Company</h4>
