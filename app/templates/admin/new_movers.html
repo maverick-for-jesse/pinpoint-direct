@@ -3,7 +3,7 @@
 {% block page_title %}Mover Leads{% endblock %}
 
 {% block topbar_actions %}
-  <button class="btn btn-primary" onclick="document.getElementById('upload-modal').style.display='flex'">
+  <button class="btn btn-primary" onclick="openUploadModal()">
     + Upload County CSV
   </button>
 {% endblock %}
@@ -149,7 +149,7 @@
   <div style="font-size:48px; margin-bottom:12px;">📬</div>
   <h3 style="margin-bottom:8px; color:#666;">No mover leads yet</h3>
   <p>Upload a county property transfer CSV to get started.</p>
-  <button class="btn btn-primary" style="margin-top:16px;" onclick="document.getElementById('upload-modal').style.display='flex'">
+  <button class="btn btn-primary" style="margin-top:16px;" onclick="openUploadModal()">
     + Upload County CSV
   </button>
 </div>
@@ -352,6 +352,16 @@ function submitUpload() {
       submitBtn.textContent = 'Upload & Import';
       cancelBtn.disabled = false;
     });
+}
+
+function openUploadModal() {
+  // Always clear fields before showing — prevents browser from restoring cached values
+  const form = document.querySelector('#upload-modal form');
+  const fileInput = form.querySelector('input[name="file"]');
+  const batchInput = form.querySelector('input[name="batch_label"]');
+  if (fileInput) fileInput.value = '';
+  if (batchInput) batchInput.value = '';
+  document.getElementById('upload-modal').style.display = 'flex';
 }
 
 // Reset modal (progress bar + form fields) when closed
