@@ -37,6 +37,13 @@ def create_app():
     login_manager.login_message = 'Please log in to access this page.'
     login_manager.login_message_category = 'info'
 
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        from flask import request as req, jsonify, redirect, url_for
+        if req.is_json or req.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'upload' in req.path or 'json' in req.accept_mimetypes.best or req.method == 'POST':
+            return jsonify({'success': False, 'error': 'Session expired. Please log in again.', 'redirect': '/login'}), 401
+        return redirect(url_for('auth.login'))
+
     @login_manager.user_loader
     def load_user(user_id):
         from app.models.user import User
