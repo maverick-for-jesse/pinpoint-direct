@@ -1,0 +1,181 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ campaign.name }}{% endblock %}
+{% block page_title %}{{ campaign.name }}{% endblock %}
+
+{% block topbar_actions %}
+  <form method="POST" action="{{ url_for('admin.drip_campaign_toggle_status', campaign_id=campaign.id) }}" style="display:inline;">
+    {% if campaign.status == 'active' %}
+      <button type="submit" class="btn btn-secondary">⏸ Pause Campaign</button>
+    {% elif campaign.status == 'paused' %}
+      <button type="submit" class="btn btn-primary">▶ Resume Campaign</button>
+    {% endif %}
+  </form>
+  <a href="{{ url_for('admin.drip_campaign_export_latest', campaign_id=campaign.id) }}" class="btn btn-secondary">⬇ Export Latest List</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Campaign Header -->
+<div class="card" style="margin-bottom: 20px;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+    <div>
+      <div style="font-size:22px; font-weight:700; color:#1a1a2e;">{{ campaign.name }}</div>
+      <div style="font-size:14px; color:#888; margin-top:4px;">
+        Client: <strong>{{ campaign.client_name or '—' }}</strong>
+        &nbsp;·&nbsp;
+        Max Months: <strong>{{ campaign.max_months }}</strong>
+        {% if campaign.tier_filter %}
+          &nbsp;·&nbsp; Tier: <strong>{{ campaign.tier_filter }}</strong>
+        {% endif %}
+        {% if subdivisions_display %}
+          &nbsp;·&nbsp; Subdivisions: <strong>{{ subdivisions_display }}</strong>
+        {% endif %}
+        {% if campaign.verified_only %}
+          &nbsp;·&nbsp; <span class="badge badge-blue">Verified Only</span>
+        {% endif %}
+      </div>
+    </div>
+    <div>
+      {% if campaign.status == 'active' %}
+        <span class="badge badge-green" style="font-size:13px; padding:5px 14px;">● Active</span>
+      {% elif campaign.status == 'paused' %}
+        <span class="badge badge-yellow" style="font-size:13px; padding:5px 14px;">⏸ Paused</span>
+      {% else %}
+        <span class="badge badge-red" style="font-size:13px; padding:5px 14px;">{{ campaign.status | capitalize }}</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Stats Row -->
+<div class="stats-grid" style="grid-template-columns: repeat(4, 1fr);">
+  <div class="stat-card">
+    <div class="stat-label">Active Movers</div>
+    <div class="stat-value blue">{{ stats.total_in_pool }}</div>
+    <div class="stat-sub">In campaign pool</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Mailed This Month</div>
+    <div class="stat-value">{{ stats.mailed_this_month }}</div>
+    <div class="stat-sub">Current month</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Aged Out</div>
+    <div class="stat-value red">{{ stats.aged_out }}</div>
+    <div class="stat-sub">Completed {{ campaign.max_months }} months</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Monthly Cap</div>
+    <div class="stat-value">{{ campaign.monthly_cap if campaign.monthly_cap else '∞' }}</div>
+    <div class="stat-sub">Max per run</div>
+  </div>
+</div>
+
+<!-- Generate Button -->
+<div class="card" style="margin-bottom: 20px;">
+  <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+    <div>
+      <div style="font-weight:600; font-size:15px;">Generate This Month's List</div>
+      <div style="font-size:13px; color:#888; margin-top:2px;">Find qualifying movers, log mailings, and produce an export CSV.</div>
+    </div>
+    <button id="generateBtn" class="btn btn-primary" onclick="generateList()">🚀 Generate Now</button>
+    <a href="{{ url_for('admin.drip_campaign_export_latest', campaign_id=campaign.id) }}" class="btn btn-secondary">⬇ Export Latest</a>
+  </div>
+  <div id="generateResult" style="display:none; margin-top:16px; padding:14px; background:#f4f9f4; border:1px solid #c8e6c9; border-radius:8px; font-size:14px;"></div>
+</div>
+
+<!-- Mover Pool Table -->
+<div class="card">
+  <div class="card-title">Current Campaign Pool ({{ movers | length }} active movers)</div>
+  {% if movers %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Address</th>
+          <th>City</th>
+          <th>Zip</th>
+          <th>Tier</th>
+          <th>Sale Price</th>
+          <th>Month #</th>
+          <th>Neighborhood</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in movers %}
+        <tr>
+          <td>{{ m.address }}</td>
+          <td>{{ m.city }}</td>
+          <td>{{ m.zip }}</td>
+          <td>
+            {% if m.tier == 'Ultra-Premium' %}
+              <span class="badge badge-red">{{ m.tier }}</span>
+            {% elif m.tier == 'Premium' %}
+              <span class="badge badge-blue">{{ m.tier }}</span>
+            {% else %}
+              <span class="badge badge-gray">{{ m.tier }}</span>
+            {% endif %}
+          </td>
+          <td>{{ m.sale_price }}</td>
+          <td><strong>{{ m.month_number }}</strong> / {{ campaign.max_months }}</td>
+          <td style="font-size:12px; color:#888;">{{ m.neighborhood or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">📭</div>
+    <p>No movers in this campaign yet. Click "Generate Now" to build the first mailing list.</p>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+async function generateList() {
+  const btn = document.getElementById('generateBtn');
+  const result = document.getElementById('generateResult');
+  btn.disabled = true;
+  btn.textContent = '⏳ Generating...';
+  result.style.display = 'none';
+
+  try {
+    const resp = await fetch('{{ url_for("admin.drip_campaign_generate", campaign_id=campaign.id) }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await resp.json();
+
+    if (data.success) {
+      result.style.display = 'block';
+      result.style.background = '#f4f9f4';
+      result.style.borderColor = '#c8e6c9';
+      result.innerHTML = `
+        <strong>✅ Generation complete!</strong><br>
+        <span>📬 <strong>${data.generated}</strong> mailers generated this run</span> &nbsp;·&nbsp;
+        <span>🆕 <strong>${data.new_movers_added}</strong> new movers (month 1)</span> &nbsp;·&nbsp;
+        <span>📤 <strong>${data.aged_out}</strong> movers aged out</span><br>
+        <span style="color:#888; font-size:12px; margin-top:6px; display:block;">CSV saved: ${data.csv_file}</span>
+      `;
+      // Reload page to refresh stats and table
+      setTimeout(() => location.reload(), 2000);
+    } else {
+      result.style.display = 'block';
+      result.style.background = '#ffebee';
+      result.style.borderColor = '#ffcdd2';
+      result.innerHTML = `<strong>❌ Error:</strong> ${data.error || 'Unknown error'}`;
+    }
+  } catch (e) {
+    result.style.display = 'block';
+    result.style.background = '#ffebee';
+    result.style.borderColor = '#ffcdd2';
+    result.innerHTML = `<strong>❌ Request failed:</strong> ${e.message}`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = '🚀 Generate Now';
+}
+</script>
+{% endblock %}

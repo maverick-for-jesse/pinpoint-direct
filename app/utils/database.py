@@ -275,6 +275,31 @@ if DATABASE_URL:
                         created_at    TIMESTAMP DEFAULT NOW()
                     )
                 """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS drip_campaigns (
+                        id              SERIAL PRIMARY KEY,
+                        client_id       INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+                        name            TEXT NOT NULL,
+                        status          TEXT DEFAULT 'active',
+                        max_months      INTEGER DEFAULT 7,
+                        monthly_cap     INTEGER,
+                        tier_filter     TEXT,
+                        verified_only   BOOLEAN DEFAULT FALSE,
+                        subdivisions    TEXT,
+                        created_at      TIMESTAMP DEFAULT NOW(),
+                        updated_at      TIMESTAMP DEFAULT NOW()
+                    )
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS drip_mailings (
+                        id              SERIAL PRIMARY KEY,
+                        campaign_id     INTEGER REFERENCES drip_campaigns(id) ON DELETE CASCADE,
+                        mover_id        INTEGER REFERENCES new_movers(id) ON DELETE CASCADE,
+                        month_number    INTEGER NOT NULL,
+                        mailed_at       TIMESTAMP DEFAULT NOW(),
+                        UNIQUE(campaign_id, mover_id, month_number)
+                    )
+                """)
             conn.commit()
 
 else:
@@ -420,6 +445,27 @@ else:
                     phone         TEXT,
                     message       TEXT,
                     created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS drip_campaigns (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    client_id       INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+                    name            TEXT NOT NULL,
+                    status          TEXT DEFAULT 'active',
+                    max_months      INTEGER DEFAULT 7,
+                    monthly_cap     INTEGER,
+                    tier_filter     TEXT,
+                    verified_only   INTEGER DEFAULT 0,
+                    subdivisions    TEXT,
+                    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS drip_mailings (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    campaign_id     INTEGER REFERENCES drip_campaigns(id) ON DELETE CASCADE,
+                    mover_id        INTEGER REFERENCES new_movers(id) ON DELETE CASCADE,
+                    month_number    INTEGER NOT NULL,
+                    mailed_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(campaign_id, mover_id, month_number)
                 );
             """)
             # Add verify columns to existing SQLite tables (idempotent)

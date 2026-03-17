@@ -1588,6 +1588,488 @@ def lead_delete(lead_id):
     return redirect(url_for('admin.leads'))
 
 
+# ── Drip Campaigns ────────────────────────────────────────────────────────────
+
+@admin_bp.route('/drip-campaigns')
+@login_required
+@admin_required
+def drip_campaigns():
+    from app.utils.database import get_db, get_db_type, init_db
+    init_db()
+    db_type = get_db_type()
+    ph = '%s' if db_type == 'postgres' else '?'
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute("""
+                    SELECT dc.*,
+                           c.company_name AS client_name,
+                           (SELECT COUNT(DISTINCT dm.mover_id)
+                            FROM drip_mailings dm
+                            WHERE dm.campaign_id = dc.id
+                            GROUP BY dm.campaign_id
+                            HAVING COUNT(dm.id) < dc.max_months
+                           ) AS active_movers_raw,
+                           (SELECT MAX(dm.mailed_at) FROM drip_mailings dm WHERE dm.campaign_id = dc.id) AS last_run
+                    FROM drip_campaigns dc
+                    LEFT JOIN clients c ON c.id = dc.client_id
+                    ORDER BY dc.created_at DESC
+                """)
+                campaigns_raw = [dict(r) for r in cur.fetchall()]
+                # active_movers_raw subquery workaround — simpler count approach
+                for camp in campaigns_raw:
+                    cur.execute("""
+                        SELECT COUNT(DISTINCT mover_id) as cnt
+                        FROM drip_mailings
+                        WHERE campaign_id = %s
+                        GROUP BY mover_id
+                        HAVING COUNT(id) < (SELECT max_months FROM drip_campaigns WHERE id = %s)
+                    """, (camp['id'], camp['id']))
+                    rows = cur.fetchall()
+                    camp['active_movers'] = len(rows)
+        else:
+            rows = db.execute("""
+                SELECT dc.*, c.company_name AS client_name,
+                       (SELECT MAX(dm.mailed_at) FROM drip_mailings dm WHERE dm.campaign_id = dc.id) AS last_run
+                FROM drip_campaigns dc
+                LEFT JOIN clients c ON c.id = dc.client_id
+                ORDER BY dc.created_at DESC
+            """).fetchall()
+            campaigns_raw = [dict(r) for r in rows]
+            for camp in campaigns_raw:
+                sub = db.execute("""
+                    SELECT COUNT(*) as cnt FROM (
+                        SELECT mover_id FROM drip_mailings
+                        WHERE campaign_id = ?
+                        GROUP BY mover_id
+                        HAVING COUNT(id) < ?
+                    )
+                """, (camp['id'], camp['max_months'])).fetchone()
+                camp['active_movers'] = sub['cnt'] if sub else 0
+    return render_template('admin/drip_campaigns.html', campaigns=campaigns_raw)
+
+
+@admin_bp.route('/drip-campaigns/new', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def drip_campaign_new():
+    from app.utils.database import get_db, get_db_type, init_db
+    init_db()
+    db_type = get_db_type()
+    ph = '%s' if db_type == 'postgres' else '?'
+
+    if request.method == 'POST':
+        name         = request.form.get('name', '').strip()
+        client_id    = request.form.get('client_id', '').strip() or None
+        max_months   = int(request.form.get('max_months', 7) or 7)
+        monthly_cap  = request.form.get('monthly_cap', '').strip() or None
+        tier_filter  = request.form.get('tier_filter', '').strip() or None
+        verified_only = 1 if request.form.get('verified_only') else 0
+        subdivisions_list = request.form.getlist('subdivisions')
+        subdivisions = None
+        if subdivisions_list:
+            import json
+            subdivisions = json.dumps(subdivisions_list)
+
+        if monthly_cap:
+            monthly_cap = int(monthly_cap)
+        if client_id:
+            client_id = int(client_id)
+
+        with get_db() as db:
+            if db_type == 'postgres':
+                with db.cursor() as cur:
+                    cur.execute(f"""
+                        INSERT INTO drip_campaigns (client_id, name, max_months, monthly_cap, tier_filter, verified_only, subdivisions)
+                        VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph}) RETURNING id
+                    """, (client_id, name, max_months, monthly_cap, tier_filter, verified_only, subdivisions))
+                    new_id = cur.fetchone()['id']
+            else:
+                cur = db.execute(f"""
+                    INSERT INTO drip_campaigns (client_id, name, max_months, monthly_cap, tier_filter, verified_only, subdivisions)
+                    VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph})
+                """, (client_id, name, max_months, monthly_cap, tier_filter, verified_only, subdivisions))
+                new_id = cur.lastrowid
+            db.commit()
+        flash(f"Drip campaign '{name}' created.", 'success')
+        return redirect(url_for('admin.drip_campaign_detail', campaign_id=new_id))
+
+    # GET — load clients and subdivisions
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute("SELECT id, company_name FROM clients ORDER BY company_name")
+                clients = [dict(r) for r in cur.fetchall()]
+                cur.execute("SELECT DISTINCT neighborhood FROM new_movers WHERE neighborhood IS NOT NULL AND neighborhood != '' ORDER BY neighborhood")
+                neighborhoods = [r['neighborhood'] for r in cur.fetchall()]
+        else:
+            clients = [dict(r) for r in db.execute("SELECT id, company_name FROM clients ORDER BY company_name").fetchall()]
+            neighborhoods = [r[0] for r in db.execute("SELECT DISTINCT neighborhood FROM new_movers WHERE neighborhood IS NOT NULL AND neighborhood != '' ORDER BY neighborhood").fetchall()]
+
+    return render_template('admin/drip_campaign_form.html', clients=clients, neighborhoods=neighborhoods)
+
+
+@admin_bp.route('/drip-campaigns/<int:campaign_id>')
+@login_required
+@admin_required
+def drip_campaign_detail(campaign_id):
+    from app.utils.database import get_db, get_db_type, init_db
+    import json
+    init_db()
+    db_type = get_db_type()
+    ph = '%s' if db_type == 'postgres' else '?'
+
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"""
+                    SELECT dc.*, c.company_name AS client_name
+                    FROM drip_campaigns dc
+                    LEFT JOIN clients c ON c.id = dc.client_id
+                    WHERE dc.id = {ph}
+                """, (campaign_id,))
+                campaign = dict(cur.fetchone())
+
+                # Stats
+                cur.execute(f"""
+                    SELECT COUNT(DISTINCT mover_id) as total_in_pool
+                    FROM drip_mailings WHERE campaign_id = {ph}
+                """, (campaign_id,))
+                total_in_pool = cur.fetchone()['total_in_pool']
+
+                cur.execute(f"""
+                    SELECT COUNT(*) as mailed_this_month
+                    FROM drip_mailings
+                    WHERE campaign_id = {ph}
+                    AND DATE_TRUNC('month', mailed_at) = DATE_TRUNC('month', NOW())
+                """, (campaign_id,))
+                mailed_this_month = cur.fetchone()['mailed_this_month']
+
+                cur.execute(f"""
+                    SELECT COUNT(DISTINCT mover_id) as aged_out
+                    FROM drip_mailings WHERE campaign_id = {ph}
+                    GROUP BY mover_id
+                    HAVING COUNT(id) >= {ph}
+                """, (campaign_id, campaign['max_months']))
+                aged_out = len(cur.fetchall())
+
+                # Mover pool with month numbers
+                cur.execute(f"""
+                    SELECT nm.address, nm.city, nm.zip, nm.tier, nm.sale_price,
+                           nm.sale_date, nm.neighborhood, nm.id as mover_id,
+                           COUNT(dm.id) as month_number
+                    FROM drip_mailings dm
+                    JOIN new_movers nm ON nm.id = dm.mover_id
+                    WHERE dm.campaign_id = {ph}
+                    GROUP BY nm.id, nm.address, nm.city, nm.zip, nm.tier, nm.sale_price, nm.sale_date, nm.neighborhood
+                    HAVING COUNT(dm.id) < {ph}
+                    ORDER BY COUNT(dm.id) ASC, nm.sale_date ASC
+                """, (campaign_id, campaign['max_months']))
+                movers = [dict(r) for r in cur.fetchall()]
+        else:
+            row = db.execute(f"""
+                SELECT dc.*, c.company_name AS client_name
+                FROM drip_campaigns dc
+                LEFT JOIN clients c ON c.id = dc.client_id
+                WHERE dc.id = {ph}
+            """, (campaign_id,)).fetchone()
+            campaign = dict(row)
+
+            total_in_pool = db.execute(f"SELECT COUNT(DISTINCT mover_id) FROM drip_mailings WHERE campaign_id = {ph}", (campaign_id,)).fetchone()[0]
+            mailed_this_month = db.execute(f"""
+                SELECT COUNT(*) FROM drip_mailings
+                WHERE campaign_id = {ph} AND strftime('%Y-%m', mailed_at) = strftime('%Y-%m', 'now')
+            """, (campaign_id,)).fetchone()[0]
+            aged_rows = db.execute(f"""
+                SELECT mover_id FROM drip_mailings WHERE campaign_id = {ph}
+                GROUP BY mover_id HAVING COUNT(id) >= {ph}
+            """, (campaign_id, campaign['max_months'])).fetchall()
+            aged_out = len(aged_rows)
+
+            movers = [dict(r) for r in db.execute(f"""
+                SELECT nm.address, nm.city, nm.zip, nm.tier, nm.sale_price,
+                       nm.sale_date, nm.neighborhood, nm.id as mover_id,
+                       COUNT(dm.id) as month_number
+                FROM drip_mailings dm
+                JOIN new_movers nm ON nm.id = dm.mover_id
+                WHERE dm.campaign_id = {ph}
+                GROUP BY nm.id
+                HAVING COUNT(dm.id) < {ph}
+                ORDER BY COUNT(dm.id) ASC, nm.sale_date ASC
+            """, (campaign_id, campaign['max_months'])).fetchall()]
+
+    stats = {
+        'total_in_pool': total_in_pool,
+        'mailed_this_month': mailed_this_month,
+        'aged_out': aged_out,
+    }
+
+    # Decode subdivisions for display
+    subdivisions_display = ''
+    if campaign.get('subdivisions'):
+        try:
+            subdivisions_display = ', '.join(json.loads(campaign['subdivisions']))
+        except Exception:
+            subdivisions_display = campaign['subdivisions']
+
+    return render_template('admin/drip_campaign_detail.html',
+                           campaign=campaign,
+                           stats=stats,
+                           movers=movers,
+                           subdivisions_display=subdivisions_display)
+
+
+@admin_bp.route('/drip-campaigns/<int:campaign_id>/generate', methods=['POST'])
+@login_required
+@admin_required
+def drip_campaign_generate(campaign_id):
+    from app.utils.database import get_db, get_db_type, init_db
+    import json, csv, io, os
+    from datetime import datetime
+    init_db()
+    db_type = get_db_type()
+    ph = '%s' if db_type == 'postgres' else '?'
+
+    with get_db() as db:
+        # Load campaign
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"SELECT * FROM drip_campaigns WHERE id = {ph}", (campaign_id,))
+                campaign = dict(cur.fetchone())
+        else:
+            campaign = dict(db.execute(f"SELECT * FROM drip_campaigns WHERE id = {ph}", (campaign_id,)).fetchone())
+
+        max_months  = campaign['max_months']
+        monthly_cap = campaign['monthly_cap']
+        tier_filter = campaign.get('tier_filter')
+        verified_only = campaign.get('verified_only') or False
+        subdivisions_raw = campaign.get('subdivisions')
+        subdivisions = None
+        if subdivisions_raw:
+            try:
+                subdivisions = json.loads(subdivisions_raw)
+            except Exception:
+                subdivisions = None
+
+        # Build filter query for qualifying movers
+        conditions = []
+        params = []
+        if tier_filter:
+            if tier_filter == 'Premium + Ultra-Premium':
+                conditions.append(f"nm.tier IN ({ph},{ph})")
+                params.extend(['Premium', 'Ultra-Premium'])
+            else:
+                conditions.append(f"nm.tier = {ph}")
+                params.append(tier_filter)
+        if verified_only:
+            conditions.append("nm.verify_status = 'verified'")
+        if subdivisions:
+            placeholders = ','.join([ph] * len(subdivisions))
+            conditions.append(f"nm.neighborhood IN ({placeholders})")
+            params.extend(subdivisions)
+
+        where_clause = ('WHERE ' + ' AND '.join(conditions)) if conditions else ''
+
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"""
+                    SELECT nm.id, nm.address, nm.city, nm.state, nm.zip,
+                           nm.tier, nm.sale_price, nm.sale_date, nm.neighborhood,
+                           COALESCE(mail_counts.cnt, 0) AS times_mailed
+                    FROM new_movers nm
+                    LEFT JOIN (
+                        SELECT mover_id, COUNT(*) as cnt
+                        FROM drip_mailings WHERE campaign_id = {ph}
+                        GROUP BY mover_id
+                    ) mail_counts ON mail_counts.mover_id = nm.id
+                    {where_clause}
+                    ORDER BY nm.sale_date ASC
+                """, [campaign_id] + params)
+                all_movers = [dict(r) for r in cur.fetchall()]
+        else:
+            all_movers = [dict(r) for r in db.execute(f"""
+                SELECT nm.id, nm.address, nm.city, nm.state, nm.zip,
+                       nm.tier, nm.sale_price, nm.sale_date, nm.neighborhood,
+                       COALESCE(mail_counts.cnt, 0) AS times_mailed
+                FROM new_movers nm
+                LEFT JOIN (
+                    SELECT mover_id, COUNT(*) as cnt
+                    FROM drip_mailings WHERE campaign_id = {ph}
+                    GROUP BY mover_id
+                ) mail_counts ON mail_counts.mover_id = nm.id
+                {where_clause}
+                ORDER BY nm.sale_date ASC
+            """, [campaign_id] + params).fetchall()]
+
+        # Separate eligible vs aged out (already at max)
+        eligible = [m for m in all_movers if m['times_mailed'] < max_months]
+        aged_out_movers = [m for m in all_movers if m['times_mailed'] >= max_months]
+        aged_out_count = len(aged_out_movers)
+
+        # Apply monthly cap
+        if monthly_cap and len(eligible) > monthly_cap:
+            eligible = eligible[:monthly_cap]
+
+        new_movers_added = sum(1 for m in eligible if m['times_mailed'] == 0)
+
+        # Insert drip_mailings records
+        now = datetime.utcnow()
+        inserted = 0
+        for mover in eligible:
+            next_month = mover['times_mailed'] + 1
+            try:
+                if db_type == 'postgres':
+                    with db.cursor() as cur:
+                        cur.execute(f"""
+                            INSERT INTO drip_mailings (campaign_id, mover_id, month_number, mailed_at)
+                            VALUES ({ph},{ph},{ph},{ph})
+                            ON CONFLICT (campaign_id, mover_id, month_number) DO NOTHING
+                        """, (campaign_id, mover['id'], next_month, now))
+                else:
+                    db.execute(f"""
+                        INSERT OR IGNORE INTO drip_mailings (campaign_id, mover_id, month_number, mailed_at)
+                        VALUES ({ph},{ph},{ph},{ph})
+                    """, (campaign_id, mover['id'], next_month, now))
+                inserted += 1
+            except Exception:
+                pass
+
+        db.commit()
+
+    # Build CSV export
+    exports_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'exports')
+    os.makedirs(exports_dir, exist_ok=True)
+    ts = now.strftime('%Y%m%d_%H%M%S')
+    csv_filename = f"drip_{campaign_id}_month_{ts}.csv"
+    csv_path = os.path.join(exports_dir, csv_filename)
+
+    with open(csv_path, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['First Name', 'Last Name', 'Address', 'City', 'State', 'Zip',
+                         'Tier', 'Sale Price', 'Month Number', 'Neighborhood'])
+        for mover in eligible:
+            writer.writerow([
+                '', '',
+                mover.get('address', ''), mover.get('city', ''), mover.get('state', ''), mover.get('zip', ''),
+                mover.get('tier', ''), mover.get('sale_price', ''),
+                mover['times_mailed'] + 1,
+                mover.get('neighborhood', '')
+            ])
+
+    return jsonify({
+        'success': True,
+        'generated': inserted,
+        'aged_out': aged_out_count,
+        'new_movers_added': new_movers_added,
+        'csv_file': csv_filename,
+    })
+
+
+@admin_bp.route('/drip-campaigns/<int:campaign_id>/export-latest')
+@login_required
+@admin_required
+def drip_campaign_export_latest(campaign_id):
+    from app.utils.database import get_db, get_db_type
+    import csv, io
+    from flask import Response
+
+    db_type = get_db_type()
+    ph = '%s' if db_type == 'postgres' else '?'
+
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                # Get the most recent generation timestamp
+                cur.execute(f"""
+                    SELECT DATE_TRUNC('minute', MAX(mailed_at)) as last_gen
+                    FROM drip_mailings WHERE campaign_id = {ph}
+                """, (campaign_id,))
+                row = cur.fetchone()
+                last_gen = row['last_gen'] if row else None
+
+                if not last_gen:
+                    flash('No mailings generated yet.', 'error')
+                    return redirect(url_for('admin.drip_campaign_detail', campaign_id=campaign_id))
+
+                cur.execute(f"""
+                    SELECT nm.address, nm.city, nm.state, nm.zip,
+                           nm.tier, nm.sale_price, nm.neighborhood,
+                           dm.month_number
+                    FROM drip_mailings dm
+                    JOIN new_movers nm ON nm.id = dm.mover_id
+                    WHERE dm.campaign_id = {ph}
+                    AND DATE_TRUNC('minute', dm.mailed_at) = {ph}
+                    ORDER BY dm.month_number ASC, nm.sale_date ASC
+                """, (campaign_id, last_gen))
+                records = [dict(r) for r in cur.fetchall()]
+        else:
+            row = db.execute(f"""
+                SELECT strftime('%Y-%m-%d %H:%M', MAX(mailed_at)) as last_gen
+                FROM drip_mailings WHERE campaign_id = {ph}
+            """, (campaign_id,)).fetchone()
+            last_gen = row['last_gen'] if row else None
+
+            if not last_gen:
+                flash('No mailings generated yet.', 'error')
+                return redirect(url_for('admin.drip_campaign_detail', campaign_id=campaign_id))
+
+            records = [dict(r) for r in db.execute(f"""
+                SELECT nm.address, nm.city, nm.state, nm.zip,
+                       nm.tier, nm.sale_price, nm.neighborhood,
+                       dm.month_number
+                FROM drip_mailings dm
+                JOIN new_movers nm ON nm.id = dm.mover_id
+                WHERE dm.campaign_id = {ph}
+                AND strftime('%Y-%m-%d %H:%M', dm.mailed_at) = {ph}
+                ORDER BY dm.month_number ASC, nm.sale_date ASC
+            """, (campaign_id, last_gen)).fetchall()]
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['First Name', 'Last Name', 'Address', 'City', 'State', 'Zip',
+                     'Tier', 'Sale Price', 'Month Number', 'Neighborhood'])
+    for r in records:
+        writer.writerow([
+            '', '',
+            r.get('address', ''), r.get('city', ''), r.get('state', ''), r.get('zip', ''),
+            r.get('tier', ''), r.get('sale_price', ''), r.get('month_number', ''),
+            r.get('neighborhood', '')
+        ])
+
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename="drip_campaign_{campaign_id}_latest.csv"'}
+    )
+
+
+@admin_bp.route('/drip-campaigns/<int:campaign_id>/toggle-status', methods=['POST'])
+@login_required
+@admin_required
+def drip_campaign_toggle_status(campaign_id):
+    from app.utils.database import get_db, get_db_type
+    db_type = get_db_type()
+    ph = '%s' if db_type == 'postgres' else '?'
+
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"SELECT status FROM drip_campaigns WHERE id = {ph}", (campaign_id,))
+                row = cur.fetchone()
+                current = row['status'] if row else 'active'
+                new_status = 'paused' if current == 'active' else 'active'
+                cur.execute(f"UPDATE drip_campaigns SET status = {ph} WHERE id = {ph}", (new_status, campaign_id))
+        else:
+            row = db.execute(f"SELECT status FROM drip_campaigns WHERE id = {ph}", (campaign_id,)).fetchone()
+            current = row['status'] if row else 'active'
+            new_status = 'paused' if current == 'active' else 'active'
+            db.execute(f"UPDATE drip_campaigns SET status = {ph} WHERE id = {ph}", (new_status, campaign_id))
+        db.commit()
+
+    flash(f"Campaign {'paused' if new_status == 'paused' else 'resumed'}.", 'success')
+    return redirect(url_for('admin.drip_campaign_detail', campaign_id=campaign_id))
+
+
 @admin_bp.route('/invoices/<int:record_id>/action', methods=['POST'])
 @login_required
 @admin_required

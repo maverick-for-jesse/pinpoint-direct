@@ -1,0 +1,77 @@
+{% extends "admin/base.html" %}
+
+{% block title %}New Drip Campaign{% endblock %}
+{% block page_title %}New Drip Campaign{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 700px;">
+  <form method="POST">
+    <div class="form-group">
+      <label class="form-label">Campaign Name *</label>
+      <input type="text" name="name" class="form-control" placeholder="e.g. Coweta 7-Month Standard" required>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Client</label>
+      <select name="client_id" class="form-control">
+        <option value="">— No client assigned —</option>
+        {% for client in clients %}
+          <option value="{{ client.id }}">{{ client.company_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Max Months</label>
+        <input type="number" name="max_months" class="form-control" value="7" min="1" max="24">
+        <p class="form-hint">How many consecutive months each mover receives a mailer.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Monthly Cap</label>
+        <input type="number" name="monthly_cap" class="form-control" placeholder="Leave blank for no cap" min="1">
+        <p class="form-hint">Max mailers to generate per run (oldest movers prioritized).</p>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Tier Filter</label>
+      <select name="tier_filter" class="form-control">
+        <option value="">All Tiers</option>
+        <option value="Standard">Standard only</option>
+        <option value="Premium">Premium only</option>
+        <option value="Ultra-Premium">Ultra-Premium only</option>
+        <option value="Premium + Ultra-Premium">Premium + Ultra-Premium</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <input type="checkbox" name="verified_only" value="1" style="width:auto;">
+        Verified Addresses Only
+      </label>
+      <p class="form-hint">Only include movers whose addresses have passed USPS verification.</p>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Subdivisions / Neighborhoods</label>
+      {% if neighborhoods %}
+        <select name="subdivisions" class="form-control" multiple style="height: 150px;">
+          {% for n in neighborhoods %}
+            <option value="{{ n }}">{{ n }}</option>
+          {% endfor %}
+        </select>
+        <p class="form-hint">Hold Ctrl/Cmd to select multiple. Leave blank for all subdivisions.</p>
+      {% else %}
+        <input type="text" name="subdivisions" class="form-control" placeholder="No neighborhoods in database yet">
+        <p class="form-hint">Neighborhoods will appear here once mover data is uploaded.</p>
+      {% endif %}
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:24px;">
+      <button type="submit" class="btn btn-primary">Create Campaign</button>
+      <a href="{{ url_for('admin.drip_campaigns') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

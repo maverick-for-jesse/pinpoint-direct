@@ -277,8 +277,11 @@
       <a href="{{ url_for('admin.invoices') }}" class="nav-item {% if 'invoice' in request.endpoint %}active{% endif %}">
         <span class="icon">💰</span> Invoices
       </a>
-      <a href="{{ url_for('admin.leads') }}" class="nav-item {% if 'lead' in request.endpoint %}active{% endif %}">
+      <a href="{{ url_for('admin.leads') }}" class="nav-item {% if request.endpoint == 'admin.leads' or request.endpoint == 'admin.lead_delete' %}active{% endif %}">
         <span class="icon">🎯</span> Leads
+      </a>
+      <a href="{{ url_for('admin.drip_campaigns') }}" class="nav-item {% if 'drip' in request.endpoint %}active{% endif %}">
+        <span class="icon">📋</span> Drip Campaigns
       </a>
     </div>
 
