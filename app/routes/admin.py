@@ -1543,6 +1543,51 @@ def new_movers_export():
                     headers={'Content-Disposition': f'attachment; filename="{filename}"'})
 
 
+# ── Leads ─────────────────────────────────────────────────────────────────────
+
+@admin_bp.route('/leads')
+@login_required
+@admin_required
+def leads():
+    from app.utils.database import get_db, get_db_type
+    db_type = get_db_type()
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute("""
+                    SELECT id, name, email, business_name, phone, message, created_at
+                    FROM leads
+                    ORDER BY created_at DESC
+                """)
+                all_leads = [dict(r) for r in cur.fetchall()]
+        else:
+            rows = db.execute("""
+                SELECT id, name, email, business_name, phone, message, created_at
+                FROM leads
+                ORDER BY created_at DESC
+            """).fetchall()
+            all_leads = [dict(r) for r in rows]
+    return render_template('admin/leads.html', leads=all_leads)
+
+
+@admin_bp.route('/leads/<int:lead_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def lead_delete(lead_id):
+    from app.utils.database import get_db, get_db_type
+    db_type = get_db_type()
+    ph = '%s' if db_type == 'postgres' else '?'
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"DELETE FROM leads WHERE id = {ph}", (lead_id,))
+        else:
+            db.execute(f"DELETE FROM leads WHERE id = {ph}", (lead_id,))
+        db.commit()
+    flash('Lead deleted.', 'success')
+    return redirect(url_for('admin.leads'))
+
+
 @admin_bp.route('/invoices/<int:record_id>/action', methods=['POST'])
 @login_required
 @admin_required

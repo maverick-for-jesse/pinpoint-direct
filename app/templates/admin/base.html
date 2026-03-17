@@ -277,6 +277,9 @@
       <a href="{{ url_for('admin.invoices') }}" class="nav-item {% if 'invoice' in request.endpoint %}active{% endif %}">
         <span class="icon">💰</span> Invoices
       </a>
+      <a href="{{ url_for('admin.leads') }}" class="nav-item {% if 'lead' in request.endpoint %}active{% endif %}">
+        <span class="icon">🎯</span> Leads
+      </a>
     </div>
 
     <div class="sidebar-footer">

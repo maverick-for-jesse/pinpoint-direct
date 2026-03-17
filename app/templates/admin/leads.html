@@ -1,0 +1,79 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Leads{% endblock %}
+{% block page_title %}Leads{% endblock %}
+
+{% block content %}
+
+<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+  <div class="stat-card blue">
+    <div class="stat-label">Total Leads</div>
+    <div class="stat-value">{{ leads | length }}</div>
+    <div class="stat-sub">All time</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">Website Leads</div>
+  {% if leads %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Name</th>
+            <th>Business</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Message</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lead in leads %}
+          <tr>
+            <td style="white-space: nowrap; color: #888; font-size: 13px;">
+              {% if lead.created_at %}
+                {{ lead.created_at.strftime('%b %d, %Y') if lead.created_at.strftime is defined else lead.created_at | string | truncate(10, True, '') }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td style="font-weight: 600;">{{ lead.name or '—' }}</td>
+            <td>{{ lead.business_name or '—' }}</td>
+            <td>
+              {% if lead.email %}
+                <a href="mailto:{{ lead.email }}" style="color: #e63946;">{{ lead.email }}</a>
+              {% else %}—{% endif %}
+            </td>
+            <td style="white-space: nowrap;">{{ lead.phone or '—' }}</td>
+            <td style="max-width: 260px; font-size: 13px; color: #666;">
+              {% if lead.message %}
+                <span title="{{ lead.message }}">{{ lead.message | truncate(80) }}</span>
+              {% else %}
+                <span style="color: #ccc;">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <form method="POST" action="{{ url_for('admin.lead_delete', lead_id=lead.id) }}"
+                    onsubmit="return confirm('Delete this lead?');" style="display:inline;">
+                <button type="submit" class="btn btn-secondary"
+                        style="padding: 5px 12px; font-size: 12px; color: #c62828; background: #ffebee; border: 1px solid #ffcdd2;">
+                  Delete
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <p>No leads yet. They'll appear here once someone submits the Get Started form.</p>
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}

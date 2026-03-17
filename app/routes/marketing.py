@@ -2,11 +2,7 @@
 marketing.py — Public-facing marketing site blueprint.
 Routes: / | /how-it-works | /pricing | /get-started
 """
-import os
-import json
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
 
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import current_user
@@ -15,66 +11,81 @@ from app.utils.database import get_db, get_db_type
 
 marketing_bp = Blueprint('marketing', __name__)
 
+AGENTMAIL_API_KEY = 'am_us_96c61f9a09f2fd38ea048790b4cd69750020ca68e31751204805915dacf55fbb'
+AGENTMAIL_FROM    = 'info@pinpointdirect.io'
+LEAD_NOTIFY_TO    = 'jesse@bluealpha.us'
+
 
 # ── helpers ─────────────────────────────────────────────────────────────────
 
 def _send_lead_notification(lead: dict):
-    """Send a notification email to jesse@bluealpha.us with the lead details."""
-    # Try config/gmail.json first, then fall back to env vars
-    gmail_user = None
-    gmail_pass = None
-
-    gmail_config_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-        'config', 'gmail.json'
-    )
-    if os.path.exists(gmail_config_path):
-        try:
-            with open(gmail_config_path) as f:
-                cfg = json.load(f)
-                gmail_user = cfg.get('email') or cfg.get('user') or cfg.get('gmail_user')
-                gmail_pass = cfg.get('password') or cfg.get('app_password') or cfg.get('gmail_app_password')
-        except Exception:
-            pass
-
-    if not gmail_user:
-        gmail_user = os.getenv('GMAIL_USER')
-    if not gmail_pass:
-        gmail_pass = os.getenv('GMAIL_APP_PASSWORD')
-
-    if not gmail_user or not gmail_pass:
-        print("WARNING: Gmail credentials not configured — skipping lead notification email.")
-        return
-
-    recipient = 'jesse@bluealpha.us'
+    """Send a lead notification email via the AgentMail API."""
     subject = f"🎯 New Lead: {lead.get('name', 'Unknown')} — {lead.get('business_name', '')}"
 
-    body = f"""New lead from Pinpoint Direct website!
-
-Name:          {lead.get('name', '')}
-Business:      {lead.get('business_name', '')}
-Email:         {lead.get('email', '')}
-Phone:         {lead.get('phone', '')}
-
-Message:
-{lead.get('message', '(none)')}
-
----
-View all leads in the admin portal.
+    html_body = f"""
+<html>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a2e; background: #f4f5f7; margin: 0; padding: 0;">
+  <div style="max-width: 560px; margin: 32px auto; background: white; border-radius: 12px;
+              box-shadow: 0 2px 12px rgba(0,0,0,0.08); overflow: hidden;">
+    <div style="background: #1a1a2e; padding: 24px 32px;">
+      <h1 style="color: white; font-size: 20px; margin: 0;">🎯 New Lead — Pinpoint Direct</h1>
+    </div>
+    <div style="padding: 32px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+        <tr>
+          <td style="padding: 10px 0; color: #888; font-weight: 600; width: 120px;">Name</td>
+          <td style="padding: 10px 0; color: #1a1a2e; font-weight: 700;">{lead.get('name', '—')}</td>
+        </tr>
+        <tr style="background: #f8f8f8;">
+          <td style="padding: 10px 8px; color: #888; font-weight: 600;">Business</td>
+          <td style="padding: 10px 8px; color: #1a1a2e;">{lead.get('business_name', '—')}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; color: #888; font-weight: 600;">Email</td>
+          <td style="padding: 10px 0;"><a href="mailto:{lead.get('email', '')}" style="color: #e63946;">{lead.get('email', '—')}</a></td>
+        </tr>
+        <tr style="background: #f8f8f8;">
+          <td style="padding: 10px 8px; color: #888; font-weight: 600;">Phone</td>
+          <td style="padding: 10px 8px; color: #1a1a2e;">{lead.get('phone', '—') or '—'}</td>
+        </tr>
+      </table>
+      {"<div style='margin-top: 24px; padding: 16px; background: #f4f5f7; border-radius: 8px; font-size: 14px; color: #444; line-height: 1.6;'><strong style='display:block; margin-bottom:8px; color:#1a1a2e;'>Message:</strong>" + lead.get('message', '') + "</div>" if lead.get('message') else ""}
+      <div style="margin-top: 28px; text-align: center;">
+        <a href="https://admin.pinpointdirect.io/admin/leads"
+           style="display: inline-block; padding: 12px 28px; background: #e63946; color: white;
+                  border-radius: 8px; font-weight: 700; font-size: 14px; text-decoration: none;">
+          View All Leads →
+        </a>
+      </div>
+    </div>
+    <div style="padding: 16px 32px; border-top: 1px solid #eee; font-size: 12px; color: #aaa; text-align: center;">
+      Pinpoint Direct · 35 Andrew St, Newnan, GA 30263
+    </div>
+  </div>
+</body>
+</html>
 """
-    msg = MIMEMultipart()
-    msg['From'] = gmail_user
-    msg['To'] = recipient
-    msg['Subject'] = subject
-    msg.attach(MIMEText(body, 'plain'))
 
     try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(gmail_user, gmail_pass)
-            server.sendmail(gmail_user, recipient, msg.as_string())
-        print(f"Lead notification email sent to {recipient}")
+        resp = requests.post(
+            f'https://api.agentmail.to/v0/inboxes/{AGENTMAIL_FROM}/messages',
+            headers={
+                'Authorization': f'Bearer {AGENTMAIL_API_KEY}',
+                'Content-Type': 'application/json',
+            },
+            json={
+                'to': [LEAD_NOTIFY_TO],
+                'subject': subject,
+                'html': html_body,
+            },
+            timeout=10,
+        )
+        if resp.status_code in (200, 201, 202):
+            print(f"Lead notification sent to {LEAD_NOTIFY_TO} via AgentMail.")
+        else:
+            print(f"WARNING: AgentMail returned {resp.status_code}: {resp.text}")
     except Exception as e:
-        print(f"WARNING: Failed to send lead notification email: {e}")
+        print(f"WARNING: Failed to send lead notification via AgentMail: {e}")
 
 
 def _save_lead(name, email, business_name, phone, message):
