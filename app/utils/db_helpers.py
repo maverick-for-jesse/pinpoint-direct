@@ -557,14 +557,31 @@ def delete_record(table, record_id):
 
 
 def create_records_batch(table, records_list):
-    """Create multiple records. Returns list of created records."""
+    """Create multiple records. Returns list of created record IDs (lightweight — no re-fetch)."""
     created = []
-    for fields in records_list:
-        try:
-            rec = create_record(table, fields)
-            created.append(rec)
-        except Exception:
-            pass
+    init_db()
+    ph = PH
+    with get_db() as db:
+        for fields in records_list:
+            try:
+                pg = _fields_to_pg(table, fields, db)
+                if not pg:
+                    continue
+                cols = list(pg.keys())
+                vals = [pg[c] for c in cols]
+                placeholders = ', '.join([ph] * len(cols))
+                col_str = ', '.join(cols)
+                if get_db_type() == 'postgres':
+                    sql = f"INSERT INTO {table} ({col_str}) VALUES ({placeholders}) RETURNING id"
+                    result = _execute(db, sql, vals)
+                    created.append(result['id'])
+                else:
+                    sql = f"INSERT INTO {table} ({col_str}) VALUES ({placeholders})"
+                    result = _execute(db, sql, vals)
+                    created.append(result['id'])
+            except Exception:
+                pass
+        db.commit()
     return created
 
 

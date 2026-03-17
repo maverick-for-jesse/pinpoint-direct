@@ -962,14 +962,22 @@ def _new_movers_upload_inner():
             pass
 
     # Build a set of (address, sale_date) already in Postgres to prevent duplicates on re-upload
-    from app.utils.db_helpers import create_records_batch, get_records
+    # Use direct SQL for performance — get_records loads all fields which is slow at scale
+    from app.utils.db_helpers import create_records_batch
+    from app.utils.database import get_db, get_db_type
     existing_keys = set()
     try:
-        existing = get_records('new_movers', fields=['Address', 'Sale Date'])
-        for r in existing:
-            f = r.get('fields', {})
-            key = (f.get('Address', '').strip().upper(), f.get('Sale Date', '').strip())
-            existing_keys.add(key)
+        db_type = get_db_type()
+        with get_db() as db:
+            sql = "SELECT UPPER(address) as addr, sale_date FROM new_movers"
+            if db_type == 'postgres':
+                with db.cursor() as cur:
+                    cur.execute(sql)
+                    for row in cur.fetchall():
+                        existing_keys.add((row['addr'] or '', row['sale_date'] or ''))
+            else:
+                for row in db.execute(sql).fetchall():
+                    existing_keys.add((row[0] or '', row[1] or ''))
     except Exception:
         pass  # If we can't fetch, proceed without dedup check (better than blocking upload)
 
