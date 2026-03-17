@@ -10,294 +10,364 @@
     text-align: center;
   }
   .page-hero h1 {
-    font-size: clamp(28px, 4vw, 48px);
+    font-size: clamp(32px, 5vw, 56px);
     font-weight: 900;
     color: white;
     margin-bottom: 14px;
-    letter-spacing: -0.5px;
+    letter-spacing: -1px;
+    line-height: 1.1;
   }
-  .page-hero p { font-size: 18px; color: rgba(255,255,255,0.75); max-width: 500px; margin: 0 auto; line-height: 1.7; }
+  .page-hero h1 .accent { color: var(--orange); }
+  .page-hero p { font-size: 18px; color: rgba(255,255,255,0.75); max-width: 520px; margin: 0 auto 32px; line-height: 1.7; }
 
-  /* ── PRICING GRID ── */
-  .pricing-section { background: var(--gray-50); }
-  .pricing-grid {
+  .big-price {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    background: rgba(255,255,255,0.1);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 16px;
+    padding: 20px 40px;
+    margin-bottom: 24px;
+  }
+  .big-price .dollar { font-size: 36px; font-weight: 700; color: var(--orange); align-self: flex-start; margin-top: 10px; }
+  .big-price .amount { font-size: 80px; font-weight: 900; color: white; line-height: 1; }
+  .big-price .unit { font-size: 20px; color: rgba(255,255,255,0.6); align-self: flex-end; margin-bottom: 8px; }
+
+  /* Included section */
+  .included-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 28px;
+    gap: 20px;
     margin-top: 48px;
-    align-items: start;
   }
-  .pricing-card {
+  .included-card {
     background: white;
-    border-radius: 16px;
-    border: 2px solid var(--gray-200);
-    padding: 36px 32px;
-    position: relative;
-    transition: transform 0.18s, box-shadow 0.18s;
+    border-radius: 14px;
+    padding: 28px;
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow);
   }
-  .pricing-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
-  .pricing-card.featured {
-    border-color: var(--orange);
-    transform: translateY(-8px);
-    box-shadow: 0 12px 40px rgba(249,115,22,0.2);
-  }
-  .pricing-card.featured:hover { transform: translateY(-12px); }
-  .featured-badge {
+  .included-card .icon { font-size: 32px; margin-bottom: 14px; }
+  .included-card h3 { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+  .included-card p { font-size: 14px; color: var(--gray-600); line-height: 1.6; }
+
+  /* Timeline */
+  .timeline { margin-top: 48px; position: relative; }
+  .timeline::before {
+    content: '';
     position: absolute;
-    top: -14px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--orange);
-    color: white;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    padding: 5px 18px;
-    border-radius: 20px;
-    white-space: nowrap;
+    left: 28px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--gray-200);
   }
-  .plan-name { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--orange); margin-bottom: 8px; }
-  .plan-price { display: flex; align-items: baseline; gap: 4px; margin-bottom: 6px; }
-  .plan-price .dollar { font-size: 28px; font-weight: 700; color: var(--navy); align-self: flex-start; margin-top: 8px; }
-  .plan-price .amount { font-size: 56px; font-weight: 900; color: var(--navy); line-height: 1; }
-  .plan-price .period { font-size: 16px; color: var(--gray-400); }
-  .plan-desc { font-size: 14px; color: var(--gray-600); margin-bottom: 28px; line-height: 1.5; }
-  .plan-features { list-style: none; margin-bottom: 32px; display: flex; flex-direction: column; gap: 10px; }
-  .plan-features li {
+  .timeline-item {
     display: flex;
-    align-items: flex-start;
-    gap: 10px;
+    gap: 24px;
+    margin-bottom: 32px;
+    position: relative;
+  }
+  .timeline-dot {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
     font-size: 14px;
-    color: var(--gray-600);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
   }
-  .plan-features li .check { color: var(--orange); font-weight: 700; flex-shrink: 0; }
-  .plan-divider { border: none; border-top: 1px solid var(--gray-200); margin: 20px 0; }
-  .plan-btn {
-    display: block;
-    width: 100%;
-    text-align: center;
-    padding: 14px;
-    font-size: 15px;
-    font-weight: 700;
-    border-radius: 10px;
-    transition: all 0.18s;
+  .timeline-dot.muted { background: var(--gray-100); color: var(--gray-400); border: 2px solid var(--gray-200); }
+  .timeline-dot.active { background: var(--orange); color: white; }
+  .timeline-dot.strong { background: var(--navy); color: white; }
+  .timeline-body { padding-top: 12px; }
+  .timeline-body h4 { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+  .timeline-body p { font-size: 14px; color: var(--gray-600); line-height: 1.6; }
+
+  /* ROI example */
+  .roi-section { background: var(--navy); color: white; }
+  .roi-card {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    padding: 36px;
+    max-width: 720px;
+    margin: 48px auto 0;
   }
-  .plan-btn-outline {
-    background: transparent;
-    color: var(--navy);
-    border: 2px solid var(--navy);
-  }
-  .plan-btn-outline:hover { background: var(--navy); color: white; }
-  .plan-btn-primary {
+  .roi-label { font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #fdba74; margin-bottom: 8px; }
+  .roi-title { font-size: 22px; font-weight: 800; color: white; margin-bottom: 24px; }
+  .roi-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 15px; }
+  .roi-row:last-child { border-bottom: none; }
+  .roi-row .label { color: rgba(255,255,255,0.65); }
+  .roi-row .value { font-weight: 700; color: white; }
+  .roi-row .value.green { color: #68d391; font-size: 18px; }
+
+  /* Commitment */
+  .commit-box {
     background: var(--orange);
-    color: white;
-    border: 2px solid var(--orange);
-  }
-  .plan-btn-primary:hover { background: var(--orange-dark); border-color: var(--orange-dark); transform: translateY(-1px); }
-
-  /* ── COMPARISON TABLE ── */
-  .compare-section { background: white; }
-  .compare-table { width: 100%; border-collapse: collapse; margin-top: 40px; }
-  .compare-table th, .compare-table td { padding: 14px 20px; text-align: left; font-size: 14px; border-bottom: 1px solid var(--gray-200); }
-  .compare-table th { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-400); background: var(--gray-50); }
-  .compare-table th:first-child { color: var(--navy); }
-  .compare-table td:not(:first-child) { text-align: center; }
-  .compare-table th:not(:first-child) { text-align: center; }
-  .compare-table tr:last-child td { border-bottom: none; }
-  .compare-table tr:hover td { background: var(--gray-50); }
-  .compare-table .feature-name { font-weight: 600; color: var(--navy); }
-  .check-yes { color: var(--orange); font-size: 18px; }
-  .check-no { color: var(--gray-200); font-size: 18px; }
-  .col-featured { background: rgba(249,115,22,0.04); }
-
-  /* ── CUSTOM CTA ── */
-  .custom-section {
-    background: var(--navy);
-    padding: 72px 40px;
+    border-radius: 16px;
+    padding: 40px;
     text-align: center;
+    color: white;
+    margin-top: 48px;
   }
-  .custom-section h2 { font-size: clamp(24px, 3.5vw, 38px); font-weight: 800; color: white; margin-bottom: 12px; }
-  .custom-section p { font-size: 17px; color: rgba(255,255,255,0.7); margin-bottom: 32px; max-width: 480px; margin-left: auto; margin-right: auto; }
+  .commit-box h3 { font-size: 26px; font-weight: 900; margin-bottom: 12px; }
+  .commit-box p { font-size: 16px; color: rgba(255,255,255,0.85); max-width: 560px; margin: 0 auto 24px; line-height: 1.7; }
+
+  /* Beta */
+  .beta-box {
+    background: var(--gray-50);
+    border: 2px dashed var(--orange);
+    border-radius: 16px;
+    padding: 36px;
+    text-align: center;
+    margin-top: 48px;
+  }
 
   @media (max-width: 900px) {
     .page-hero { padding: 52px 20px 48px; }
-    .pricing-grid { grid-template-columns: 1fr; }
-    .pricing-card.featured { transform: none; }
-    .pricing-card.featured:hover { transform: translateY(-4px); }
-    .compare-section { overflow-x: auto; }
-    .custom-section { padding: 56px 20px; }
+    .big-price { padding: 16px 28px; }
+    .big-price .amount { font-size: 60px; }
+    .included-grid { grid-template-columns: 1fr; }
+    .roi-card { padding: 24px; }
+    .commit-box, .beta-box { padding: 28px 20px; }
   }
   @media (min-width: 600px) and (max-width: 900px) {
-    .pricing-grid { grid-template-columns: 1fr 1fr; }
+    .included-grid { grid-template-columns: repeat(2, 1fr); }
   }
 </style>
 {% endblock %}
 
 {% block content %}
 
+<!-- ── HERO ── -->
 <section class="page-hero">
-  <span class="section-label" style="color:#fdba74;">Transparent Pricing</span>
-  <h1>Simple Plans, Predictable Costs</h1>
-  <p>No per-piece fees. No design charges. Just flat monthly plans that include everything you need to grow.</p>
+  <span class="section-label" style="color:#fdba74;">Simple, Transparent Pricing</span>
+  <h1>One Price.<br><span class="accent">No Surprises.</span></h1>
+  <p>Direct mail doesn't have to be complicated. We charge one flat rate and handle everything else.</p>
+  <div class="big-price">
+    <span class="dollar">$</span>
+    <span class="amount">1</span>
+    <span class="unit">per postcard</span>
+  </div>
+  <div style="font-size:14px; color:rgba(255,255,255,0.5);">Design · Printing · Mailing · List — all included</div>
 </section>
 
-<!-- ── PRICING CARDS ── -->
-<section class="section pricing-section">
+<!-- ── WHAT'S INCLUDED ── -->
+<section class="section" style="background:var(--gray-50);">
   <div class="section-inner">
-    <div class="pricing-grid">
-
-      <!-- STARTER -->
-      <div class="pricing-card">
-        <div class="plan-name">Starter</div>
-        <div class="plan-price">
-          <span class="dollar">$</span>
-          <span class="amount">299</span>
-          <span class="period">/mo</span>
-        </div>
-        <p class="plan-desc">Perfect for local businesses ready to try direct mail for the first time.</p>
-        <ul class="plan-features">
-          <li><span class="check">✓</span> Up to 500 postcards/month</li>
-          <li><span class="check">✓</span> 1 active campaign at a time</li>
-          <li><span class="check">✓</span> Professional postcard design</li>
-          <li><span class="check">✓</span> Targeted mailing list included</li>
-          <li><span class="check">✓</span> Client portal access</li>
-          <li><span class="check">✓</span> Email support</li>
-        </ul>
-        <a href="{{ url_for('marketing.get_started') }}" class="plan-btn plan-btn-outline">Get Started</a>
+    <div style="text-align:center;">
+      <span class="section-label">Everything Included</span>
+      <h2 class="section-title">One Dollar Does It All</h2>
+      <p class="section-sub" style="margin:0 auto;">No add-ons, no design fees, no list fees. $1/postcard covers the whole process end to end.</p>
+    </div>
+    <div class="included-grid">
+      <div class="included-card">
+        <div class="icon">🎯</div>
+        <h3>Hyper-Targeted List</h3>
+        <p>We pull from our own Coweta County new mover database — built from official property transfer records, not recycled broker lists.</p>
       </div>
-
-      <!-- GROWTH (FEATURED) -->
-      <div class="pricing-card featured">
-        <div class="featured-badge">Most Popular</div>
-        <div class="plan-name">Growth</div>
-        <div class="plan-price">
-          <span class="dollar">$</span>
-          <span class="amount">599</span>
-          <span class="period">/mo</span>
-        </div>
-        <p class="plan-desc">For established local businesses scaling their marketing with consistent campaigns.</p>
-        <ul class="plan-features">
-          <li><span class="check">✓</span> Up to 1,500 postcards/month</li>
-          <li><span class="check">✓</span> 3 active campaigns at a time</li>
-          <li><span class="check">✓</span> Professional postcard design</li>
-          <li><span class="check">✓</span> Targeted mailing lists included</li>
-          <li><span class="check">✓</span> Client portal + campaign tracking</li>
-          <li><span class="check">✓</span> Priority email support</li>
-          <li><span class="check">✓</span> Dedicated account rep</li>
-        </ul>
-        <a href="{{ url_for('marketing.get_started') }}" class="plan-btn plan-btn-primary">Get Started</a>
+      <div class="included-card">
+        <div class="icon">🎨</div>
+        <h3>Professional Design</h3>
+        <p>We design your postcard from scratch based on your business and offer. You review and approve before anything prints.</p>
       </div>
-
-      <!-- PRO -->
-      <div class="pricing-card">
-        <div class="plan-name">Pro</div>
-        <div class="plan-price">
-          <span class="dollar">$</span>
-          <span class="amount">999</span>
-          <span class="period">/mo</span>
-        </div>
-        <p class="plan-desc">For high-volume businesses or agencies that need full-service white-glove support.</p>
-        <ul class="plan-features">
-          <li><span class="check">✓</span> Unlimited postcards</li>
-          <li><span class="check">✓</span> Unlimited active campaigns</li>
-          <li><span class="check">✓</span> Professional design + manual review</li>
-          <li><span class="check">✓</span> Custom mailing lists</li>
-          <li><span class="check">✓</span> Full campaign tracking & reporting</li>
-          <li><span class="check">✓</span> White-glove service</li>
-          <li><span class="check">✓</span> Phone + priority support</li>
-        </ul>
-        <a href="{{ url_for('marketing.get_started') }}" class="plan-btn plan-btn-outline">Get Started</a>
+      <div class="included-card">
+        <div class="icon">🖨️</div>
+        <h3>Printing & Mailing</h3>
+        <p>We handle professional printing and hand-off to USPS. You don't touch a single envelope.</p>
       </div>
-
+      <div class="included-card">
+        <div class="icon">📊</div>
+        <h3>Campaign Dashboard</h3>
+        <p>Track your campaigns, review artwork, and manage invoices — all in one clean client portal.</p>
+      </div>
+      <div class="included-card">
+        <div class="icon">🔄</div>
+        <h3>Monthly Cadence</h3>
+        <p>We mail consistently on your behalf each month. Repetition is the secret to direct mail success — we make it automatic.</p>
+      </div>
+      <div class="included-card">
+        <div class="icon">🤝</div>
+        <h3>Dedicated Support</h3>
+        <p>You'll have a real person to talk to. We're a local Newnan business — not a faceless platform.</p>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- ── COMPARISON TABLE ── -->
-<section class="section compare-section">
-  <div class="section-inner">
-    <span class="section-label">Compare Plans</span>
-    <h2 class="section-title">Feature Breakdown</h2>
-    <div style="overflow-x:auto;">
-      <table class="compare-table">
-        <thead>
-          <tr>
-            <th>Feature</th>
-            <th>Starter</th>
-            <th class="col-featured" style="color:var(--orange);">Growth</th>
-            <th>Pro</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="feature-name">Monthly postcards</td>
-            <td>Up to 500</td>
-            <td class="col-featured">Up to 1,500</td>
-            <td>Unlimited</td>
-          </tr>
-          <tr>
-            <td class="feature-name">Active campaigns</td>
-            <td>1</td>
-            <td class="col-featured">3</td>
-            <td>Unlimited</td>
-          </tr>
-          <tr>
-            <td class="feature-name">Professional design</td>
-            <td><span class="check-yes">✓</span></td>
-            <td class="col-featured"><span class="check-yes">✓</span></td>
-            <td><span class="check-yes">✓</span></td>
-          </tr>
-          <tr>
-            <td class="feature-name">Targeted mailing list</td>
-            <td><span class="check-yes">✓</span></td>
-            <td class="col-featured"><span class="check-yes">✓</span></td>
-            <td><span class="check-yes">✓</span></td>
-          </tr>
-          <tr>
-            <td class="feature-name">Client portal</td>
-            <td><span class="check-yes">✓</span></td>
-            <td class="col-featured"><span class="check-yes">✓</span></td>
-            <td><span class="check-yes">✓</span></td>
-          </tr>
-          <tr>
-            <td class="feature-name">Campaign tracking</td>
-            <td><span class="check-yes">✓</span></td>
-            <td class="col-featured"><span class="check-yes">✓</span></td>
-            <td><span class="check-yes">✓</span></td>
-          </tr>
-          <tr>
-            <td class="feature-name">Dedicated account rep</td>
-            <td><span class="check-no">—</span></td>
-            <td class="col-featured"><span class="check-yes">✓</span></td>
-            <td><span class="check-yes">✓</span></td>
-          </tr>
-          <tr>
-            <td class="feature-name">Phone support</td>
-            <td><span class="check-no">—</span></td>
-            <td class="col-featured"><span class="check-no">—</span></td>
-            <td><span class="check-yes">✓</span></td>
-          </tr>
-          <tr>
-            <td class="feature-name">White-glove service</td>
-            <td><span class="check-no">—</span></td>
-            <td class="col-featured"><span class="check-no">—</span></td>
-            <td><span class="check-yes">✓</span></td>
-          </tr>
-        </tbody>
-      </table>
+<!-- ── ROI EXAMPLE ── -->
+<section class="section roi-section">
+  <div class="section-inner" style="text-align:center;">
+    <span class="section-label" style="color:#fdba74;">Real Numbers</span>
+    <h2 class="section-title" style="color:white;">What Does $1/Postcard Actually Get You?</h2>
+    <p style="color:rgba(255,255,255,0.7); max-width:520px; margin:0 auto; font-size:17px;">New movers respond at 3–5x the rate of generic mail. Here's what that looks like for a concrete coating company:</p>
+
+    <div class="roi-card">
+      <div class="roi-label">Example — Concrete Coating Company</div>
+      <div class="roi-title">500 postcards/month to new Coweta County homeowners</div>
+      <div class="roi-row">
+        <span class="label">Monthly spend</span>
+        <span class="value">$500</span>
+      </div>
+      <div class="roi-row">
+        <span class="label">New mover response rate (industry avg)</span>
+        <span class="value">3–5%</span>
+      </div>
+      <div class="roi-row">
+        <span class="label">Estimated leads/month</span>
+        <span class="value">15–25 inquiries</span>
+      </div>
+      <div class="roi-row">
+        <span class="label">Close rate (conservative 20%)</span>
+        <span class="value">3–5 new jobs</span>
+      </div>
+      <div class="roi-row">
+        <span class="label">Avg job value (concrete coating)</span>
+        <span class="value">$3,000–$5,000</span>
+      </div>
+      <div class="roi-row">
+        <span class="label">Estimated monthly revenue from mail</span>
+        <span class="value green">$9,000–$25,000</span>
+      </div>
+      <div style="margin-top:16px; padding:16px; background:rgba(104,211,145,0.1); border-radius:10px; border:1px solid rgba(104,211,145,0.2);">
+        <span style="color:#68d391; font-weight:800; font-size:18px;">18x–50x return on a $500 investment.</span>
+        <div style="font-size:12px; color:rgba(255,255,255,0.4); margin-top:4px;">Based on industry response rate data from USPS & DMA. Your results will vary by business type, offer, and market conditions.</div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- ── CUSTOM ── -->
-<section class="custom-section">
-  <span class="section-label" style="color:#fdba74;">Custom Needs?</span>
-  <h2>Need Something Bigger?</h2>
-  <p>Running a multi-location business, franchise, or agency? We offer custom enterprise plans tailored to your volume and workflow.</p>
-  <a href="{{ url_for('marketing.get_started') }}" class="btn btn-white" style="font-size:16px; padding:14px 32px;">
-    Contact Us About Custom Plans
+<!-- ── CONSISTENCY SECTION ── -->
+<section class="section" style="background:white;">
+  <div class="section-inner" style="max-width:760px;">
+    <div style="text-align:center;">
+      <span class="section-label">Why Consistency Wins</span>
+      <h2 class="section-title">Direct Mail Rewards Repetition</h2>
+      <p class="section-sub" style="margin:0 auto 16px;">We won't pretend you'll see results overnight. Here's what a consistent campaign actually looks like:</p>
+    </div>
+
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="timeline-dot muted">Mo 1</div>
+        <div class="timeline-body">
+          <h4>Brand Introduction</h4>
+          <p>Your postcard lands in new homeowners' mailboxes. They're getting settled — most won't need you yet, but your name registers for the first time.</p>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot muted">Mo 2</div>
+        <div class="timeline-body">
+          <h4>Recognition Builds</h4>
+          <p>A second touch reinforces your brand. Some homeowners will start comparing you to competitors they've seen. Early inquiries may come in.</p>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot active">Mo 3</div>
+        <div class="timeline-body">
+          <h4>Momentum Starts</h4>
+          <p>By month 3, you're a familiar name. Homeowners who weren't ready before are now getting to projects. Response rates start climbing.</p>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot active">Mo 4–5</div>
+        <div class="timeline-body">
+          <h4>Consistent Lead Flow</h4>
+          <p>You've mailed the same pool multiple times. The homeowners ready to buy now know your name. Leads become more predictable month-over-month.</p>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot strong">Mo 6+</div>
+        <div class="timeline-body">
+          <h4>Compounding Returns</h4>
+          <p>Consistent mailers become the default choice in their category. Your cost-per-lead drops as brand recognition does the heavy lifting. This is where the real ROI kicks in.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="commit-box">
+      <h3>⏱️ We Require a 3-Month Minimum</h3>
+      <p>One mailer is a gamble. Three months is a strategy. We require a 3-month commitment because that's when direct mail starts working — and we only want clients who are set up to win.</p>
+      <a href="{{ url_for('marketing.get_started') }}" class="btn btn-white" style="font-size:16px; padding:14px 32px;">
+        Apply for Beta Access →
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ── BETA PRICING ── -->
+<section class="section" style="background:var(--gray-50);">
+  <div class="section-inner" style="max-width:720px;">
+    <div class="beta-box">
+      <span style="font-size:12px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--orange);">🚀 Beta Program</span>
+      <h3 style="font-size:26px; font-weight:900; color:var(--navy); margin:12px 0 14px;">Founding Customer Pricing</h3>
+      <p style="font-size:16px; color:var(--gray-600); line-height:1.7; margin-bottom:24px;">
+        We're onboarding our first beta customers in Coweta County at a <strong>discounted rate</strong> in exchange for honest feedback. Spots are limited — beta pricing is locked in for the duration of the program.
+      </p>
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:24px;">
+        <div style="background:white; border-radius:10px; padding:14px 24px; border:1px solid var(--gray-200);">
+          <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--gray-400); margin-bottom:4px;">Standard Rate</div>
+          <div style="font-size:22px; font-weight:900; color:var(--gray-400); text-decoration:line-through;">$1.00/postcard</div>
+        </div>
+        <div style="background:var(--orange); border-radius:10px; padding:14px 24px;">
+          <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:rgba(255,255,255,0.7); margin-bottom:4px;">Beta Rate</div>
+          <div style="font-size:22px; font-weight:900; color:white;">Contact us</div>
+        </div>
+      </div>
+      <a href="{{ url_for('marketing.get_started') }}" class="btn btn-primary" style="font-size:16px; padding:14px 36px;">
+        Apply for Beta Access →
+      </a>
+      <p style="margin-top:14px; font-size:13px; color:var(--gray-400);">Currently serving Coweta County, GA · 3-month minimum commitment</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── FAQ ── -->
+<section class="section" style="background:white;">
+  <div class="section-inner" style="max-width:720px;">
+    <div style="text-align:center; margin-bottom:40px;">
+      <span class="section-label">Questions</span>
+      <h2 class="section-title">Common Questions</h2>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:20px;">
+      <div style="border:1px solid var(--gray-200); border-radius:12px; padding:24px;">
+        <h4 style="font-weight:700; color:var(--navy); margin-bottom:8px;">How many postcards should I send per month?</h4>
+        <p style="font-size:14px; color:var(--gray-600); line-height:1.7;">That depends on your goals and budget. We'll help you figure out the right volume during onboarding. Most clients start with 200–500/month and scale from there as they see results.</p>
+      </div>
+      <div style="border:1px solid var(--gray-200); border-radius:12px; padding:24px;">
+        <h4 style="font-weight:700; color:var(--navy); margin-bottom:8px;">What's the 3-month minimum about?</h4>
+        <p style="font-size:14px; color:var(--gray-600); line-height:1.7;">Direct mail is a repetition game. One mailer is rarely enough — the results compound over time as your name becomes familiar. We require 3 months because we've seen what happens when businesses quit too early: they leave the results on the table.</p>
+      </div>
+      <div style="border:1px solid var(--gray-200); border-radius:12px; padding:24px;">
+        <h4 style="font-weight:700; color:var(--navy); margin-bottom:8px;">Where does the mailing list come from?</h4>
+        <p style="font-size:14px; color:var(--gray-600); line-height:1.7;">We build our own lists from official Coweta County property transfer records — updated monthly. You're reaching people who actually just bought a home, not recycled data from a broker who sold the same list to your competitors.</p>
+      </div>
+      <div style="border:1px solid var(--gray-200); border-radius:12px; padding:24px;">
+        <h4 style="font-weight:700; color:var(--navy); margin-bottom:8px;">Can I cancel after 3 months?</h4>
+        <p style="font-size:14px; color:var(--gray-600); line-height:1.7;">Yes — after your 3-month commitment, you can cancel anytime with 30 days notice. Most clients choose to keep going once they see the results building.</p>
+      </div>
+      <div style="border:1px solid var(--gray-200); border-radius:12px; padding:24px;">
+        <h4 style="font-weight:700; color:var(--navy); margin-bottom:8px;">What kinds of businesses is this best for?</h4>
+        <p style="font-size:14px; color:var(--gray-600); line-height:1.7;">Any local home services business with a solid job value — roofing, HVAC, concrete coatings, landscaping, pest control, cleaning, plumbing, and more. If new homeowners need your service and the job is worth $500+, direct mail to new movers makes sense.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FINAL CTA ── -->
+<section style="background:var(--navy); padding:80px 40px; text-align:center;">
+  <span class="section-label" style="color:#fdba74;">Ready to Start?</span>
+  <h2 style="font-size:clamp(28px,4vw,44px); font-weight:900; color:white; margin:12px 0 16px; letter-spacing:-0.5px;">$1 a postcard. Real homeowners.<br>Real results.</h2>
+  <p style="font-size:17px; color:rgba(255,255,255,0.7); max-width:480px; margin:0 auto 32px; line-height:1.7;">Apply for beta access and lock in founding customer pricing before we open to the public.</p>
+  <a href="{{ url_for('marketing.get_started') }}" class="btn btn-primary" style="font-size:17px; padding:18px 44px;">
+    Apply for Beta Access →
   </a>
+  <p style="margin-top:16px; font-size:13px; color:rgba(255,255,255,0.35);">3-month minimum · Coweta County, GA · Spots limited</p>
 </section>
 
 {% endblock %}
