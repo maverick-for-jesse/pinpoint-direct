@@ -1,0 +1,302 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ job.name }} — Production{% endblock %}
+{% block page_title %}{{ job.name }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.production_list') }}" class="btn btn-secondary">← All Jobs</a>
+{% endblock %}
+
+{% block content %}
+<style>
+  .status-pending        { background:#fff8e1; color:#f57f17; }
+  .status-processing     { background:#e3f2fd; color:#1565c0; }
+  .status-ready_to_print { background:#e8f5e9; color:#2e7d32; }
+  .status-mailed         { background:#f3e5f5; color:#6a1b9a; }
+
+  .progress-bar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 28px;
+    background: white;
+    border-radius: 10px;
+    padding: 18px 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    overflow-x: auto;
+  }
+  .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 90px;
+    position: relative;
+  }
+  .step-circle {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700;
+    background: #f0f0f0; color: #aaa;
+    border: 2px solid #e0e0e0;
+    z-index: 1;
+  }
+  .step-circle.done   { background:#e8f5e9; color:#2e7d32; border-color:#a5d6a7; }
+  .step-circle.active { background:#e3f2fd; color:#1565c0; border-color:#90caf9; }
+  .step-label {
+    font-size: 11px; color: #aaa; margin-top: 6px; text-align:center; font-weight: 600;
+  }
+  .step-label.done   { color: #2e7d32; }
+  .step-label.active { color: #1565c0; }
+  .step-connector {
+    flex: 1; height: 2px; background: #e0e0e0; min-width: 24px;
+  }
+  .step-connector.done { background: #a5d6a7; }
+
+  .action-card {
+    background: white; border-radius: 10px; padding: 20px 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 20px;
+  }
+  .action-card h3 { font-size: 14px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing:.5px; margin-bottom:12px; }
+  .action-row { display:flex; gap:10px; flex-wrap: wrap; align-items: center; }
+
+  .btn-action {
+    padding: 9px 18px; border-radius: 7px; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: none; transition: all .15s;
+  }
+  .btn-validate  { background:#e3f2fd; color:#1565c0; }
+  .btn-validate:hover  { background:#bbdefb; }
+  .btn-presort   { background:#fff8e1; color:#e65100; }
+  .btn-presort:hover   { background:#ffe0b2; }
+  .btn-genpdf    { background:#e8f5e9; color:#2e7d32; }
+  .btn-genpdf:hover    { background:#c8e6c9; }
+  .btn-mailed    { background:#f3e5f5; color:#6a1b9a; }
+  .btn-mailed:hover    { background:#e1bee7; }
+  .btn-download  { background:#f5f5f5; color:#333; text-decoration:none; display:inline-block;}
+  .btn-download:hover  { background:#e0e0e0; }
+
+  #status-msg { font-size:13px; color:#666; margin-top:8px; }
+
+  .cass-yes { color:#2e7d32; font-weight:600; }
+  .cass-no  { color:#c62828; }
+  .cass-skip{ color:#f57f17; }
+</style>
+
+{% set status = job.status %}
+
+{# ── Progress bar ── #}
+<div class="progress-bar">
+  {% set steps = [
+    ('validate', 'Validate', job.cass_validated),
+    ('presort',  'Presort',  job.presorted),
+    ('pdf',      'Gen PDF',  status in ('ready_to_print','mailed')),
+    ('print',    'Print',    status in ('ready_to_print','mailed')),
+    ('mailed',   'Mailed',   status == 'mailed'),
+  ] %}
+  {% for key, label, done in steps %}
+    {% if not loop.first %}
+      <div class="step-connector {% if done %}done{% endif %}"></div>
+    {% endif %}
+    <div class="step">
+      <div class="step-circle {% if done %}done{% endif %}">
+        {% if done %}✓{% else %}{{ loop.index }}{% endif %}
+      </div>
+      <div class="step-label {% if done %}done{% endif %}">{{ label }}</div>
+    </div>
+  {% endfor %}
+</div>
+
+{# ── Stats row ── #}
+<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+  <div class="stat-card">
+    <div class="stat-label">Status</div>
+    <div style="margin-top:8px;">
+      <span class="badge status-{{ status }}">{{ status | replace('_',' ') | title }}</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Pieces</div>
+    <div class="stat-value">{{ job.piece_count | default(0) | int | format_number }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Trays</div>
+    <div class="stat-value">{{ tray_count if tray_count else '—' }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">CASS</div>
+    <div style="margin-top:8px;">
+      {% if job.cass_validated %}
+        <span class="badge badge-green">Validated</span>
+      {% else %}
+        <span class="badge badge-yellow">Pending</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# ── Action buttons ── #}
+<div class="action-card">
+  <h3>Actions</h3>
+  <div class="action-row">
+    <button class="btn-action btn-validate" onclick="runAction('validate')">
+      🔍 Validate Addresses (CASS)
+    </button>
+    <button class="btn-action btn-presort" onclick="runAction('presort')">
+      📦 Presort Addresses
+    </button>
+    <button class="btn-action btn-genpdf" onclick="runAction('generate-pdf')">
+      📄 Generate Print Files
+    </button>
+    {% if job.pdf_path %}
+    <a href="{{ url_for('admin.production_download_pdf', job_id=job.id) }}" class="btn-action btn-download">
+      ⬇ Download Postcards PDF
+    </a>
+    {% endif %}
+    {% if job.tray_labels_path %}
+    <a href="{{ url_for('admin.production_download_trays', job_id=job.id) }}" class="btn-action btn-download">
+      ⬇ Download Tray Labels
+    </a>
+    {% endif %}
+    {% if status != 'mailed' %}
+    <button class="btn-action btn-mailed" onclick="markMailed()">
+      ✅ Mark as Mailed
+    </button>
+    {% else %}
+    <span class="badge badge-green" style="padding:8px 14px;font-size:13px;">✓ Mailed</span>
+    {% endif %}
+  </div>
+  <div id="status-msg"></div>
+</div>
+
+{# ── Job info ── #}
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-title">Job Info</div>
+  <table style="width:auto;border-collapse:collapse;">
+    <tr><td style="padding:4px 16px 4px 0;color:#888;font-size:13px;">Campaign</td>
+        <td style="padding:4px 0;font-size:14px;">{{ job.campaign_name or '—' }}</td></tr>
+    <tr><td style="padding:4px 16px 4px 0;color:#888;font-size:13px;">Permit #</td>
+        <td style="padding:4px 0;font-size:14px;">{{ job.permit_number or '—' }}</td></tr>
+    <tr><td style="padding:4px 16px 4px 0;color:#888;font-size:13px;">Mail Class</td>
+        <td style="padding:4px 0;font-size:14px;">{{ job.mail_class or 'Marketing Mail' }}</td></tr>
+    <tr><td style="padding:4px 16px 4px 0;color:#888;font-size:13px;">Presorted</td>
+        <td style="padding:4px 0;font-size:14px;">{{ 'Yes' if job.presorted else 'No' }}</td></tr>
+    {% if job.mailed_at %}
+    <tr><td style="padding:4px 16px 4px 0;color:#888;font-size:13px;">Mailed At</td>
+        <td style="padding:4px 0;font-size:14px;">{{ job.mailed_at | string | truncate(19, true, '') }}</td></tr>
+    {% endif %}
+  </table>
+</div>
+
+{# ── Address table ── #}
+{% if addresses %}
+<div class="card">
+  <div class="card-title">Addresses ({{ job.piece_count | default(0) | int | format_number }} total — showing first {{ addresses|length }})</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Address</th>
+          <th>City</th>
+          <th>State</th>
+          <th>ZIP</th>
+          <th>CASS</th>
+          <th>Tray</th>
+          <th>Seq</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for addr in addresses %}
+        <tr>
+          <td>{{ addr.address_std or addr.address or '—' }}</td>
+          <td>{{ addr.city_std or addr.city or '—' }}</td>
+          <td>{{ addr.state_std or addr.state or '—' }}</td>
+          <td>
+            {% set z5 = addr.zip5_std or addr.zip5 or '' %}
+            {% set z4 = addr.zip4_std or addr.zip4 or '' %}
+            {{ z5 }}{% if z4 %}-{{ z4 }}{% endif %}
+          </td>
+          <td>
+            {% if addr.cass_valid %}
+              <span class="cass-yes">✓</span>
+            {% elif job.cass_validated %}
+              <span class="cass-skip">skip</span>
+            {% else %}
+              <span class="cass-no">—</span>
+            {% endif %}
+          </td>
+          <td>{{ addr.tray_number or '—' }}</td>
+          <td>{{ addr.sequence_number or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">📭</div>
+  <p>No addresses in this job yet.</p>
+</div>
+{% endif %}
+
+<script>
+const JOB_ID = {{ job.id }};
+
+function setMsg(msg, color) {
+  const el = document.getElementById('status-msg');
+  el.textContent = msg;
+  el.style.color = color || '#666';
+}
+
+async function runAction(action) {
+  setMsg('⏳ Working...', '#1565c0');
+  try {
+    const resp = await fetch(`/admin/production/${JOB_ID}/${action}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'}
+    });
+    const data = await resp.json();
+    if (data.success) {
+      let msg = '';
+      if (action === 'validate') {
+        if (data.api_key_present) {
+          msg = `✅ CASS complete — ${data.validated} validated, ${data.failed} failed.`;
+        } else {
+          msg = `⚠️ ${data.message}`;
+        }
+      } else if (action === 'presort') {
+        msg = `✅ Presorted into ${data.tray_count} trays (${data.piece_count} pieces).`;
+      } else if (action === 'generate-pdf') {
+        msg = `✅ PDFs generated — ${data.page_count} postcards across ${data.tray_count} trays.`;
+      }
+      setMsg(msg, '#2e7d32');
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      setMsg('❌ ' + (data.error || 'Unknown error'), '#c62828');
+    }
+  } catch (err) {
+    setMsg('❌ Network error: ' + err.message, '#c62828');
+  }
+}
+
+async function markMailed() {
+  if (!confirm('Mark this job as mailed? This cannot be undone.')) return;
+  setMsg('⏳ Marking as mailed...', '#1565c0');
+  try {
+    const resp = await fetch(`/admin/production/${JOB_ID}/mark-mailed`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'}
+    });
+    const data = await resp.json();
+    if (data.success) {
+      setMsg('✅ Marked as mailed!', '#2e7d32');
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      setMsg('❌ ' + (data.error || 'Error'), '#c62828');
+    }
+  } catch (err) {
+    setMsg('❌ ' + err.message, '#c62828');
+  }
+}
+</script>
+{% endblock %}

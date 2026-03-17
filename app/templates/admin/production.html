@@ -1,0 +1,62 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Production{% endblock %}
+{% block page_title %}Production{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.production_new') }}" class="btn btn-primary">+ New Production Job</a>
+{% endblock %}
+
+{% block content %}
+<style>
+  .status-pending    { background:#fff8e1; color:#f57f17; }
+  .status-processing { background:#e3f2fd; color:#1565c0; }
+  .status-ready_to_print { background:#e8f5e9; color:#2e7d32; }
+  .status-mailed     { background:#f3e5f5; color:#6a1b9a; }
+</style>
+
+{% if jobs %}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Job Name</th>
+          <th>Campaign</th>
+          <th>Status</th>
+          <th>Pieces</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in jobs %}
+        <tr>
+          <td><strong>{{ job.name }}</strong></td>
+          <td>{{ job.campaign_name or '—' }}</td>
+          <td>
+            <span class="badge status-{{ job.status }}">
+              {{ job.status | replace('_', ' ') | title }}
+            </span>
+          </td>
+          <td>{{ job.piece_count | default(0) | int | format_number }}</td>
+          <td style="color:#888;font-size:13px;">
+            {{ job.created_at | string | truncate(16, true, '') if job.created_at else '—' }}
+          </td>
+          <td>
+            <a href="{{ url_for('admin.production_detail', job_id=job.id) }}" class="btn btn-secondary" style="font-size:12px;padding:5px 12px;">View</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">🖨️</div>
+  <p>No production jobs yet. Create one to start preparing a mail run.</p>
+  <a href="{{ url_for('admin.production_new') }}" class="btn btn-primary" style="margin-top:16px;display:inline-block;">+ New Production Job</a>
+</div>
+{% endif %}
+{% endblock %}

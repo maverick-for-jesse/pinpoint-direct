@@ -2070,6 +2070,762 @@ def drip_campaign_toggle_status(campaign_id):
     return redirect(url_for('admin.drip_campaign_detail', campaign_id=campaign_id))
 
 
+# ── Production ────────────────────────────────────────────────────────────────
+
+@admin_bp.route('/production')
+@login_required
+@admin_required
+def production_list():
+    from app.utils.database import get_db, get_db_type, init_db
+    init_db()
+    db_type = get_db_type()
+    ph = '%s' if db_type == 'postgres' else '?'
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute("""
+                    SELECT pj.*, dc.name AS campaign_name
+                    FROM production_jobs pj
+                    LEFT JOIN drip_campaigns dc ON dc.id = pj.campaign_id
+                    ORDER BY pj.created_at DESC
+                """)
+                jobs = [dict(r) for r in cur.fetchall()]
+        else:
+            rows = db.execute("""
+                SELECT pj.*, dc.name AS campaign_name
+                FROM production_jobs pj
+                LEFT JOIN drip_campaigns dc ON dc.id = pj.campaign_id
+                ORDER BY pj.created_at DESC
+            """).fetchall()
+            jobs = [dict(r) for r in rows]
+    return render_template('admin/production.html', jobs=jobs)
+
+
+@admin_bp.route('/production/new', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def production_new():
+    from app.utils.database import get_db, get_db_type, init_db
+    init_db()
+    db_type = get_db_type()
+    ph = '%s' if db_type == 'postgres' else '?'
+
+    if request.method == 'POST':
+        name          = request.form.get('name', '').strip()
+        campaign_id   = request.form.get('campaign_id', '').strip() or None
+        permit_number = request.form.get('permit_number', 'PERMIT #[PENDING]').strip()
+
+        if not name:
+            flash('Job name is required.', 'error')
+            return redirect(url_for('admin.production_new'))
+
+        if campaign_id:
+            campaign_id = int(campaign_id)
+
+        with get_db() as db:
+            # Create the production job
+            if db_type == 'postgres':
+                with db.cursor() as cur:
+                    cur.execute(f"""
+                        INSERT INTO production_jobs (campaign_id, name, permit_number, status)
+                        VALUES ({ph},{ph},{ph},'pending') RETURNING id
+                    """, (campaign_id, name, permit_number))
+                    job_id = cur.fetchone()['id']
+            else:
+                cur = db.execute(f"""
+                    INSERT INTO production_jobs (campaign_id, name, permit_number, status)
+                    VALUES ({ph},{ph},{ph},'pending')
+                """, (campaign_id, name, permit_number))
+                job_id = cur.lastrowid
+
+            # Pull addresses from campaign's latest drip_mailings
+            if campaign_id:
+                if db_type == 'postgres':
+                    with db.cursor() as cur:
+                        cur.execute(f"""
+                            SELECT DISTINCT nm.id, nm.address, nm.city, nm.state, nm.zip
+                            FROM drip_mailings dm
+                            JOIN new_movers nm ON nm.id = dm.mover_id
+                            WHERE dm.campaign_id = {ph}
+                        """, (campaign_id,))
+                        movers = [dict(r) for r in cur.fetchall()]
+                else:
+                    movers = [dict(r) for r in db.execute(f"""
+                        SELECT DISTINCT nm.id, nm.address, nm.city, nm.state, nm.zip
+                        FROM drip_mailings dm
+                        JOIN new_movers nm ON nm.id = dm.mover_id
+                        WHERE dm.campaign_id = {ph}
+                    """, (campaign_id,)).fetchall()]
+
+                # Insert addresses
+                for mover in movers:
+                    zip_raw = mover.get('zip', '') or ''
+                    zip5 = zip_raw[:5] if zip_raw else ''
+                    zip4 = zip_raw[6:10] if len(zip_raw) > 5 else ''
+                    if db_type == 'postgres':
+                        with db.cursor() as cur:
+                            cur.execute(f"""
+                                INSERT INTO production_job_addresses
+                                (job_id, mover_id, address, city, state, zip5, zip4)
+                                VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph})
+                            """, (job_id, mover['id'], mover.get('address',''),
+                                  mover.get('city',''), mover.get('state','GA'),
+                                  zip5, zip4))
+                    else:
+                        db.execute(f"""
+                            INSERT INTO production_job_addresses
+                            (job_id, mover_id, address, city, state, zip5, zip4)
+                            VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph})
+                        """, (job_id, mover['id'], mover.get('address',''),
+                              mover.get('city',''), mover.get('state','GA'),
+                              zip5, zip4))
+
+                # Update piece count
+                piece_count = len(movers)
+                if db_type == 'postgres':
+                    with db.cursor() as cur:
+                        cur.execute(f"UPDATE production_jobs SET piece_count = {ph} WHERE id = {ph}",
+                                    (piece_count, job_id))
+                else:
+                    db.execute(f"UPDATE production_jobs SET piece_count = {ph} WHERE id = {ph}",
+                               (piece_count, job_id))
+
+            db.commit()
+
+        flash(f"Production job '{name}' created.", 'success')
+        return redirect(url_for('admin.production_detail', job_id=job_id))
+
+    # GET — load drip campaigns
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute("SELECT id, name FROM drip_campaigns ORDER BY name")
+                campaigns = [dict(r) for r in cur.fetchall()]
+        else:
+            campaigns = [dict(r) for r in db.execute(
+                "SELECT id, name FROM drip_campaigns ORDER BY name").fetchall()]
+
+    return render_template('admin/production_new.html', campaigns=campaigns)
+
+
+@admin_bp.route('/production/<int:job_id>')
+@login_required
+@admin_required
+def production_detail(job_id):
+    from app.utils.database import get_db, get_db_type
+    db_type = get_db_type()
+    ph = '%s' if db_type == 'postgres' else '?'
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"""
+                    SELECT pj.*, dc.name AS campaign_name
+                    FROM production_jobs pj
+                    LEFT JOIN drip_campaigns dc ON dc.id = pj.campaign_id
+                    WHERE pj.id = {ph}
+                """, (job_id,))
+                job = dict(cur.fetchone())
+
+                cur.execute(f"""
+                    SELECT * FROM production_job_addresses
+                    WHERE job_id = {ph}
+                    ORDER BY tray_number ASC NULLS LAST, sequence_number ASC NULLS LAST
+                    LIMIT 500
+                """, (job_id,))
+                addresses = [dict(r) for r in cur.fetchall()]
+
+                cur.execute(f"""
+                    SELECT COUNT(DISTINCT tray_number) as tray_count
+                    FROM production_job_addresses
+                    WHERE job_id = {ph} AND tray_number IS NOT NULL
+                """, (job_id,))
+                tray_row = cur.fetchone()
+                tray_count = tray_row['tray_count'] if tray_row else 0
+        else:
+            row = db.execute(f"""
+                SELECT pj.*, dc.name AS campaign_name
+                FROM production_jobs pj
+                LEFT JOIN drip_campaigns dc ON dc.id = pj.campaign_id
+                WHERE pj.id = {ph}
+            """, (job_id,)).fetchone()
+            job = dict(row)
+
+            addresses = [dict(r) for r in db.execute(f"""
+                SELECT * FROM production_job_addresses
+                WHERE job_id = {ph}
+                ORDER BY tray_number ASC, sequence_number ASC
+                LIMIT 500
+            """, (job_id,)).fetchall()]
+
+            tray_row = db.execute(f"""
+                SELECT COUNT(DISTINCT tray_number) as tray_count
+                FROM production_job_addresses
+                WHERE job_id = {ph} AND tray_number IS NOT NULL
+            """, (job_id,)).fetchone()
+            tray_count = tray_row['tray_count'] if tray_row else 0
+
+    return render_template('admin/production_detail.html',
+                           job=job,
+                           addresses=addresses,
+                           tray_count=tray_count)
+
+
+@admin_bp.route('/production/<int:job_id>/validate', methods=['POST'])
+@login_required
+@admin_required
+def production_validate(job_id):
+    import json
+    from app.utils.database import get_db, get_db_type
+    db_type = get_db_type()
+    ph = '%s' if db_type == 'postgres' else '?'
+
+    # Check for SmartyStreets config
+    config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                               'config', 'smartystreets.json')
+    smarty_key = None
+    smarty_token = None
+    if os.path.exists(config_path):
+        try:
+            with open(config_path) as f:
+                cfg = json.load(f)
+            smarty_key = cfg.get('auth_id') or cfg.get('api_key')
+            smarty_token = cfg.get('auth_token') or cfg.get('token')
+        except Exception:
+            pass
+
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"SELECT * FROM production_job_addresses WHERE job_id = {ph}", (job_id,))
+                addresses = [dict(r) for r in cur.fetchall()]
+        else:
+            addresses = [dict(r) for r in db.execute(
+                f"SELECT * FROM production_job_addresses WHERE job_id = {ph}", (job_id,)).fetchall()]
+
+    validated_count = 0
+    failed_count = 0
+    skipped_count = 0
+
+    import requests as req_lib
+
+    for addr in addresses:
+        addr_line = addr.get('address') or ''
+        city = addr.get('city') or ''
+        state = addr.get('state') or 'GA'
+        zip5 = addr.get('zip5') or ''
+
+        if smarty_key:
+            # Call SmartyStreets
+            try:
+                params = {
+                    'street': addr_line,
+                    'city': city,
+                    'state': state,
+                    'zipcode': zip5,
+                    'candidates': 1,
+                }
+                if smarty_token:
+                    params['auth-id'] = smarty_key
+                    params['auth-token'] = smarty_token
+                else:
+                    params['key'] = smarty_key
+
+                resp = req_lib.get(
+                    'https://us-street.api.smartystreets.com/street-address',
+                    params=params,
+                    timeout=5
+                )
+                data = resp.json()
+                if data and isinstance(data, list) and len(data) > 0:
+                    result = data[0]
+                    components = result.get('components', {})
+                    delivery = result.get('delivery_info', {})
+                    analysis = result.get('analysis', {})
+
+                    address_std = result.get('delivery_line_1', addr_line)
+                    city_std = components.get('city_name', city)
+                    state_std = components.get('state_abbreviation', state)
+                    zip5_std = components.get('zipcode', zip5)
+                    zip4_std = components.get('plus4_code', '')
+                    dpbc = components.get('delivery_point_barcode', '')
+
+                    with get_db() as db:
+                        if db_type == 'postgres':
+                            with db.cursor() as cur:
+                                cur.execute(f"""
+                                    UPDATE production_job_addresses SET
+                                        address_std={ph}, city_std={ph}, state_std={ph},
+                                        zip5_std={ph}, zip4_std={ph}, dpbc={ph}, cass_valid=TRUE
+                                    WHERE id={ph}
+                                """, (address_std, city_std, state_std, zip5_std, zip4_std, dpbc, addr['id']))
+                        else:
+                            db.execute(f"""
+                                UPDATE production_job_addresses SET
+                                    address_std={ph}, city_std={ph}, state_std={ph},
+                                    zip5_std={ph}, zip4_std={ph}, dpbc={ph}, cass_valid=1
+                                WHERE id={ph}
+                            """, (address_std, city_std, state_std, zip5_std, zip4_std, dpbc, addr['id']))
+                        db.commit()
+                    validated_count += 1
+                else:
+                    with get_db() as db:
+                        if db_type == 'postgres':
+                            with db.cursor() as cur:
+                                cur.execute(f"UPDATE production_job_addresses SET cass_valid=FALSE WHERE id={ph}",
+                                            (addr['id'],))
+                        else:
+                            db.execute(f"UPDATE production_job_addresses SET cass_valid=0 WHERE id={ph}",
+                                       (addr['id'],))
+                        db.commit()
+                    failed_count += 1
+            except Exception:
+                failed_count += 1
+        else:
+            # No API key — mark as skipped (copy input data to std fields)
+            with get_db() as db:
+                if db_type == 'postgres':
+                    with db.cursor() as cur:
+                        cur.execute(f"""
+                            UPDATE production_job_addresses SET
+                                address_std={ph}, city_std={ph}, state_std={ph},
+                                zip5_std={ph}, cass_valid=FALSE
+                            WHERE id={ph}
+                        """, (addr_line, city, state, zip5, addr['id']))
+                else:
+                    db.execute(f"""
+                        UPDATE production_job_addresses SET
+                            address_std={ph}, city_std={ph}, state_std={ph},
+                            zip5_std={ph}, cass_valid=0
+                        WHERE id={ph}
+                    """, (addr_line, city, state, zip5, addr['id']))
+                db.commit()
+            skipped_count += 1
+
+    # Mark job as cass_validated
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"UPDATE production_jobs SET cass_validated=TRUE WHERE id={ph}", (job_id,))
+        else:
+            db.execute(f"UPDATE production_jobs SET cass_validated=1 WHERE id={ph}", (job_id,))
+        db.commit()
+
+    return jsonify({
+        'success': True,
+        'validated': validated_count,
+        'failed': failed_count,
+        'skipped': skipped_count,
+        'api_key_present': bool(smarty_key),
+        'message': 'Validation complete.' if smarty_key else
+                   'No SmartyStreets API key found (config/smartystreets.json). Addresses copied as-is. Add auth_id/auth_token to enable CASS validation.'
+    })
+
+
+@admin_bp.route('/production/<int:job_id>/presort', methods=['POST'])
+@login_required
+@admin_required
+def production_presort(job_id):
+    from app.utils.database import get_db, get_db_type
+    from collections import defaultdict
+    db_type = get_db_type()
+    ph = '%s' if db_type == 'postgres' else '?'
+
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"SELECT * FROM production_job_addresses WHERE job_id = {ph}", (job_id,))
+                addresses = [dict(r) for r in cur.fetchall()]
+        else:
+            addresses = [dict(r) for r in db.execute(
+                f"SELECT * FROM production_job_addresses WHERE job_id = {ph}", (job_id,)).fetchall()]
+
+    # Sort: use standardized fields if available, fall back to raw
+    def get_sort_key(addr):
+        zip5 = addr.get('zip5_std') or addr.get('zip5') or ''
+        zip4 = addr.get('zip4_std') or addr.get('zip4') or ''
+        address = addr.get('address_std') or addr.get('address') or ''
+        return (zip5, zip4, address)
+
+    addresses.sort(key=get_sort_key)
+
+    # Group by ZIP5
+    by_zip5 = defaultdict(list)
+    for addr in addresses:
+        z = addr.get('zip5_std') or addr.get('zip5') or 'XXXXX'
+        by_zip5[z].append(addr)
+
+    # Build trays: 5-digit (150+), 3-digit (150+), else mixed
+    TRAY_MIN = 150
+    BUNDLE_SIZE = 50
+
+    tray_assignments = []  # list of (tray_type, zip_key, [addr_ids])
+    leftover = []
+
+    for zip5, addrs in sorted(by_zip5.items()):
+        if len(addrs) >= TRAY_MIN:
+            tray_assignments.append(('5-digit', zip5, addrs))
+        else:
+            leftover.extend(addrs)
+
+    # Group leftover by 3-digit prefix
+    by_3digit = defaultdict(list)
+    for addr in leftover:
+        z = addr.get('zip5_std') or addr.get('zip5') or 'XXX'
+        prefix = z[:3]
+        by_3digit[prefix].append(addr)
+
+    leftover2 = []
+    for prefix, addrs in sorted(by_3digit.items()):
+        if len(addrs) >= TRAY_MIN:
+            tray_assignments.append(('3-digit', prefix, addrs))
+        else:
+            leftover2.extend(addrs)
+
+    # Remaining go in mixed/ADC tray(s)
+    if leftover2:
+        # Chunk into trays of max ~1000 pieces (standard flat tray limit)
+        chunk_size = 1000
+        for i in range(0, len(leftover2), chunk_size):
+            tray_assignments.append(('mixed', 'ADC', leftover2[i:i + chunk_size]))
+
+    # Assign tray/bundle/sequence numbers and build sort_key
+    tray_summary = []
+    updates = []  # (tray_number, bundle_number, sequence_number, sort_key, addr_id)
+
+    for tray_idx, (tray_type, zip_key, addrs) in enumerate(tray_assignments, start=1):
+        seq = 0
+        for addr in addrs:
+            seq += 1
+            bundle = ((seq - 1) // BUNDLE_SIZE) + 1
+            z5 = addr.get('zip5_std') or addr.get('zip5') or ''
+            z4 = addr.get('zip4_std') or addr.get('zip4') or ''
+            a = addr.get('address_std') or addr.get('address') or ''
+            sort_key = f"{z5}{z4}{a}"
+            updates.append((tray_idx, bundle, seq, sort_key, addr['id']))
+        tray_summary.append({
+            'tray_number': tray_idx,
+            'tray_type': tray_type,
+            'zip': zip_key,
+            'piece_count': len(addrs),
+            'bundles': ((len(addrs) - 1) // BUNDLE_SIZE) + 1,
+        })
+
+    # Write updates to DB
+    with get_db() as db:
+        for tray_number, bundle_number, sequence_number, sort_key, addr_id in updates:
+            if db_type == 'postgres':
+                with db.cursor() as cur:
+                    cur.execute(f"""
+                        UPDATE production_job_addresses
+                        SET tray_number={ph}, bundle_number={ph}, sequence_number={ph}, sort_key={ph}
+                        WHERE id={ph}
+                    """, (tray_number, bundle_number, sequence_number, sort_key, addr_id))
+            else:
+                db.execute(f"""
+                    UPDATE production_job_addresses
+                    SET tray_number={ph}, bundle_number={ph}, sequence_number={ph}, sort_key={ph}
+                    WHERE id={ph}
+                """, (tray_number, bundle_number, sequence_number, sort_key, addr_id))
+
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"UPDATE production_jobs SET presorted=TRUE WHERE id={ph}", (job_id,))
+        else:
+            db.execute(f"UPDATE production_jobs SET presorted=1 WHERE id={ph}", (job_id,))
+        db.commit()
+
+    return jsonify({
+        'success': True,
+        'tray_count': len(tray_assignments),
+        'piece_count': len(addresses),
+        'trays': tray_summary,
+    })
+
+
+@admin_bp.route('/production/<int:job_id>/generate-pdf', methods=['POST'])
+@login_required
+@admin_required
+def production_generate_pdf(job_id):
+    from app.utils.database import get_db, get_db_type
+    from collections import defaultdict
+    db_type = get_db_type()
+    ph = '%s' if db_type == 'postgres' else '?'
+
+    try:
+        from reportlab.lib.pagesizes import landscape
+        from reportlab.lib.units import inch
+        from reportlab.pdfgen import canvas
+        from reportlab.lib import colors
+    except ImportError:
+        return jsonify({'success': False, 'error': 'ReportLab not installed. Run: pip install reportlab'}), 500
+
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"SELECT * FROM production_jobs WHERE id = {ph}", (job_id,))
+                job = dict(cur.fetchone())
+                cur.execute(f"""
+                    SELECT * FROM production_job_addresses
+                    WHERE job_id = {ph}
+                    ORDER BY tray_number ASC NULLS LAST, sequence_number ASC NULLS LAST
+                """, (job_id,))
+                addresses = [dict(r) for r in cur.fetchall()]
+        else:
+            job = dict(db.execute(f"SELECT * FROM production_jobs WHERE id = {ph}", (job_id,)).fetchone())
+            addresses = [dict(r) for r in db.execute(f"""
+                SELECT * FROM production_job_addresses
+                WHERE job_id = {ph}
+                ORDER BY tray_number ASC, sequence_number ASC
+            """, (job_id,)).fetchall()]
+
+    # Build exports dir
+    exports_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'exports')
+    os.makedirs(exports_dir, exist_ok=True)
+
+    # Postcard size: 6.5" wide × 9" tall (portrait)
+    PAGE_W = 6.5 * inch
+    PAGE_H = 9.0 * inch
+
+    permit_number = job.get('permit_number') or 'PERMIT #[PENDING]'
+    permit_city   = job.get('permit_city') or 'NEWNAN'
+    permit_state  = job.get('permit_state') or 'GA'
+
+    # ── Main PDF ──────────────────────────────────────────────────────────────
+    pdf_path = os.path.join(exports_dir, f'production_job_{job_id}.pdf')
+    c = canvas.Canvas(pdf_path, pagesize=(PAGE_W, PAGE_H))
+
+    for addr in addresses:
+        # Use standardized fields if available
+        addr_line = addr.get('address_std') or addr.get('address') or ''
+        city      = addr.get('city_std') or addr.get('city') or ''
+        state     = addr.get('state_std') or addr.get('state') or 'GA'
+        zip5      = addr.get('zip5_std') or addr.get('zip5') or ''
+        zip4      = addr.get('zip4_std') or addr.get('zip4') or ''
+        tray_num  = addr.get('tray_number') or ''
+        seq_num   = addr.get('sequence_number') or ''
+
+        zip_display = f"{zip5}-{zip4}" if zip4 else zip5
+
+        # ── Indicia box (top-right, 2"×1") ───────────────────────────────────
+        indicia_x = PAGE_W - 2.2 * inch
+        indicia_y = PAGE_H - 1.2 * inch
+        indicia_w = 2.0 * inch
+        indicia_h = 1.0 * inch
+
+        c.setStrokeColor(colors.black)
+        c.setLineWidth(1)
+        c.rect(indicia_x, indicia_y, indicia_w, indicia_h)
+
+        c.setFont('Helvetica-Bold', 8)
+        line_h = 11
+        lines = [
+            'PRSRT STD',
+            'US POSTAGE PAID',
+            f'{permit_city}, {permit_state}',
+            f'PERMIT NO. {permit_number}',
+        ]
+        text_y = indicia_y + indicia_h - 14
+        for line in lines:
+            c.drawCentredString(indicia_x + indicia_w / 2, text_y, line)
+            text_y -= line_h
+
+        # ── Return address (top-left) ─────────────────────────────────────────
+        c.setFont('Helvetica', 8)
+        ra_x = 0.35 * inch
+        ra_y = PAGE_H - 0.45 * inch
+        for ra_line in ['Pinpoint Direct', '35 Andrew St', 'Newnan, GA 30263']:
+            c.drawString(ra_x, ra_y, ra_line)
+            ra_y -= 11
+
+        # ── Delivery address (center, 14pt bold) ──────────────────────────────
+        c.setFont('Helvetica-Bold', 14)
+        cx = PAGE_W / 2
+        cy = PAGE_H / 2 + 0.3 * inch
+
+        # Address line
+        c.drawCentredString(cx, cy, addr_line)
+        # City, State ZIP
+        c.drawCentredString(cx, cy - 20, f'{city}, {state}  {zip_display}')
+
+        # ── IMb barcode placeholder (bottom strip) ────────────────────────────
+        bar_y = 0.25 * inch
+        bar_h = 0.35 * inch
+        c.setFillColor(colors.Color(0.85, 0.85, 0.85))
+        c.rect(0.35 * inch, bar_y, PAGE_W - 0.7 * inch, bar_h, fill=1, stroke=0)
+        c.setFillColor(colors.black)
+        c.setFont('Helvetica', 7)
+        c.drawCentredString(cx, bar_y + bar_h / 2 - 3,
+                            f'IMb Barcode — {zip5}')
+
+        # ── Tray/seq reference (bottom-right corner) ──────────────────────────
+        c.setFont('Helvetica', 7)
+        c.setFillColor(colors.Color(0.6, 0.6, 0.6))
+        c.drawRightString(PAGE_W - 0.2 * inch, 0.12 * inch,
+                          f'Tray {tray_num}  Seq {seq_num}')
+        c.setFillColor(colors.black)
+
+        c.showPage()
+
+    c.save()
+    page_count = len(addresses)
+
+    # ── Tray Labels PDF ───────────────────────────────────────────────────────
+    tray_labels_path = os.path.join(exports_dir, f'production_job_{job_id}_trays.pdf')
+
+    # Group addresses by tray
+    trays = defaultdict(list)
+    for addr in addresses:
+        tn = addr.get('tray_number') or 0
+        trays[tn].append(addr)
+
+    from reportlab.lib.pagesizes import letter
+    tc = canvas.Canvas(tray_labels_path, pagesize=letter)
+    LW, LH = letter
+
+    from datetime import date
+    today_str = date.today().strftime('%B %d, %Y')
+    job_name = job.get('name', f'Job {job_id}')
+
+    for tray_num in sorted(trays.keys()):
+        addrs_in_tray = trays[tray_num]
+        piece_count = len(addrs_in_tray)
+
+        # Determine tray type from sort patterns
+        zips_in_tray = [a.get('zip5_std') or a.get('zip5') or '' for a in addrs_in_tray]
+        unique_5 = set(zips_in_tray)
+        unique_3 = set(z[:3] for z in zips_in_tray)
+        if len(unique_5) == 1:
+            tray_type = '5-Digit'
+            zip_label = list(unique_5)[0]
+        elif len(unique_3) == 1:
+            tray_type = '3-Digit'
+            zip_label = list(unique_3)[0] + 'XX'
+        else:
+            tray_type = 'Mixed / ADC'
+            zip_label = 'MIXED'
+
+        # Draw label page
+        tc.setFont('Helvetica-Bold', 28)
+        tc.drawCentredString(LW / 2, LH - 1.5 * inch, f'TRAY {tray_num}')
+
+        tc.setFont('Helvetica-Bold', 20)
+        tc.drawCentredString(LW / 2, LH - 2.2 * inch, tray_type)
+        tc.drawCentredString(LW / 2, LH - 2.8 * inch, zip_label)
+
+        tc.setFont('Helvetica', 16)
+        tc.drawCentredString(LW / 2, LH - 3.6 * inch, f'{piece_count} pieces')
+
+        tc.setStrokeColor(colors.black)
+        tc.setLineWidth(1)
+        tc.line(1 * inch, LH - 4.0 * inch, LW - 1 * inch, LH - 4.0 * inch)
+
+        tc.setFont('Helvetica', 12)
+        tc.drawCentredString(LW / 2, LH - 4.5 * inch, job_name)
+        tc.drawCentredString(LW / 2, LH - 4.9 * inch, today_str)
+        tc.drawCentredString(LW / 2, LH - 5.3 * inch, 'Marketing Mail — PRSRT STD')
+
+        tc.showPage()
+
+    tc.save()
+
+    # Update job record
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"""
+                    UPDATE production_jobs SET pdf_path={ph}, tray_labels_path={ph}, status='ready_to_print'
+                    WHERE id={ph}
+                """, (pdf_path, tray_labels_path, job_id))
+        else:
+            db.execute(f"""
+                UPDATE production_jobs SET pdf_path={ph}, tray_labels_path={ph}, status='ready_to_print'
+                WHERE id={ph}
+            """, (pdf_path, tray_labels_path, job_id))
+        db.commit()
+
+    return jsonify({
+        'success': True,
+        'pdf_path': pdf_path,
+        'tray_labels_path': tray_labels_path,
+        'page_count': page_count,
+        'tray_count': len(trays),
+    })
+
+
+@admin_bp.route('/production/<int:job_id>/download-pdf')
+@login_required
+@admin_required
+def production_download_pdf(job_id):
+    from app.utils.database import get_db, get_db_type
+    db_type = get_db_type()
+    ph = '%s' if db_type == 'postgres' else '?'
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"SELECT pdf_path, name FROM production_jobs WHERE id = {ph}", (job_id,))
+                row = dict(cur.fetchone())
+        else:
+            row = dict(db.execute(f"SELECT pdf_path, name FROM production_jobs WHERE id = {ph}", (job_id,)).fetchone())
+
+    if not row.get('pdf_path') or not os.path.exists(row['pdf_path']):
+        flash('PDF not yet generated.', 'error')
+        return redirect(url_for('admin.production_detail', job_id=job_id))
+
+    safe_name = (row.get('name') or f'job_{job_id}').replace(' ', '_')
+    return send_file(row['pdf_path'], as_attachment=True,
+                     download_name=f'{safe_name}_postcards.pdf',
+                     mimetype='application/pdf')
+
+
+@admin_bp.route('/production/<int:job_id>/download-trays')
+@login_required
+@admin_required
+def production_download_trays(job_id):
+    from app.utils.database import get_db, get_db_type
+    db_type = get_db_type()
+    ph = '%s' if db_type == 'postgres' else '?'
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"SELECT tray_labels_path, name FROM production_jobs WHERE id = {ph}", (job_id,))
+                row = dict(cur.fetchone())
+        else:
+            row = dict(db.execute(f"SELECT tray_labels_path, name FROM production_jobs WHERE id = {ph}",
+                                  (job_id,)).fetchone())
+
+    if not row.get('tray_labels_path') or not os.path.exists(row['tray_labels_path']):
+        flash('Tray labels not yet generated.', 'error')
+        return redirect(url_for('admin.production_detail', job_id=job_id))
+
+    safe_name = (row.get('name') or f'job_{job_id}').replace(' ', '_')
+    return send_file(row['tray_labels_path'], as_attachment=True,
+                     download_name=f'{safe_name}_tray_labels.pdf',
+                     mimetype='application/pdf')
+
+
+@admin_bp.route('/production/<int:job_id>/mark-mailed', methods=['POST'])
+@login_required
+@admin_required
+def production_mark_mailed(job_id):
+    from app.utils.database import get_db, get_db_type
+    from datetime import datetime
+    db_type = get_db_type()
+    ph = '%s' if db_type == 'postgres' else '?'
+    now = datetime.utcnow()
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"UPDATE production_jobs SET status='mailed', mailed_at={ph} WHERE id={ph}",
+                            (now, job_id))
+        else:
+            db.execute(f"UPDATE production_jobs SET status='mailed', mailed_at={ph} WHERE id={ph}",
+                       (now.isoformat(), job_id))
+        db.commit()
+    return jsonify({'success': True, 'status': 'mailed', 'mailed_at': now.isoformat()})
+
+
+# ── Invoices action (keep at end) ─────────────────────────────────────────────
+
 @admin_bp.route('/invoices/<int:record_id>/action', methods=['POST'])
 @login_required
 @admin_required

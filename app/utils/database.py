@@ -300,6 +300,51 @@ if DATABASE_URL:
                         UNIQUE(campaign_id, mover_id, month_number)
                     )
                 """)
+                # ── Production tables ─────────────────────────────────────────────
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS production_jobs (
+                        id              SERIAL PRIMARY KEY,
+                        campaign_id     INTEGER REFERENCES drip_campaigns(id) ON DELETE SET NULL,
+                        name            TEXT NOT NULL,
+                        status          TEXT DEFAULT 'pending',
+                        piece_count     INTEGER DEFAULT 0,
+                        permit_number   TEXT DEFAULT 'PERMIT #[PENDING]',
+                        permit_city     TEXT DEFAULT 'NEWNAN',
+                        permit_state    TEXT DEFAULT 'GA',
+                        permit_zip      TEXT DEFAULT '30263',
+                        mail_class      TEXT DEFAULT 'Marketing Mail',
+                        cass_validated  BOOLEAN DEFAULT FALSE,
+                        presorted       BOOLEAN DEFAULT FALSE,
+                        pdf_path        TEXT,
+                        tray_labels_path TEXT,
+                        created_at      TIMESTAMP DEFAULT NOW(),
+                        mailed_at       TIMESTAMP
+                    )
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS production_job_addresses (
+                        id              SERIAL PRIMARY KEY,
+                        job_id          INTEGER REFERENCES production_jobs(id) ON DELETE CASCADE,
+                        mover_id        INTEGER,
+                        address         TEXT,
+                        city            TEXT,
+                        state           TEXT,
+                        zip5            TEXT,
+                        zip4            TEXT,
+                        address_std     TEXT,
+                        city_std        TEXT,
+                        state_std       TEXT,
+                        zip5_std        TEXT,
+                        zip4_std        TEXT,
+                        dpbc            TEXT,
+                        sort_key        TEXT,
+                        tray_number     INTEGER,
+                        bundle_number   INTEGER,
+                        sequence_number INTEGER,
+                        cass_valid      BOOLEAN DEFAULT FALSE,
+                        imb_barcode     TEXT
+                    )
+                """)
             conn.commit()
 
 else:
@@ -466,6 +511,46 @@ else:
                     month_number    INTEGER NOT NULL,
                     mailed_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(campaign_id, mover_id, month_number)
+                );
+                CREATE TABLE IF NOT EXISTS production_jobs (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    campaign_id     INTEGER REFERENCES drip_campaigns(id) ON DELETE SET NULL,
+                    name            TEXT NOT NULL,
+                    status          TEXT DEFAULT 'pending',
+                    piece_count     INTEGER DEFAULT 0,
+                    permit_number   TEXT DEFAULT 'PERMIT #[PENDING]',
+                    permit_city     TEXT DEFAULT 'NEWNAN',
+                    permit_state    TEXT DEFAULT 'GA',
+                    permit_zip      TEXT DEFAULT '30263',
+                    mail_class      TEXT DEFAULT 'Marketing Mail',
+                    cass_validated  INTEGER DEFAULT 0,
+                    presorted       INTEGER DEFAULT 0,
+                    pdf_path        TEXT,
+                    tray_labels_path TEXT,
+                    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    mailed_at       DATETIME
+                );
+                CREATE TABLE IF NOT EXISTS production_job_addresses (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    job_id          INTEGER REFERENCES production_jobs(id) ON DELETE CASCADE,
+                    mover_id        INTEGER,
+                    address         TEXT,
+                    city            TEXT,
+                    state           TEXT,
+                    zip5            TEXT,
+                    zip4            TEXT,
+                    address_std     TEXT,
+                    city_std        TEXT,
+                    state_std       TEXT,
+                    zip5_std        TEXT,
+                    zip4_std        TEXT,
+                    dpbc            TEXT,
+                    sort_key        TEXT,
+                    tray_number     INTEGER,
+                    bundle_number   INTEGER,
+                    sequence_number INTEGER,
+                    cass_valid      INTEGER DEFAULT 0,
+                    imb_barcode     TEXT
                 );
             """)
             # Add verify columns to existing SQLite tables (idempotent)

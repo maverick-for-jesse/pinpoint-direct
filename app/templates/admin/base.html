@@ -283,6 +283,9 @@
       <a href="{{ url_for('admin.drip_campaigns') }}" class="nav-item {% if 'drip' in request.endpoint %}active{% endif %}">
         <span class="icon">📋</span> Drip Campaigns
       </a>
+      <a href="{{ url_for('admin.production_list') }}" class="nav-item {% if 'production' in request.endpoint %}active{% endif %}">
+        <span class="icon">🖨️</span> Production
+      </a>
     </div>
 
     <div class="sidebar-footer">
