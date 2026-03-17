@@ -84,7 +84,11 @@ def create_app():
 
     @app.errorhandler(500)
     def handle_500(e):
+        from flask import request as req
         tb = traceback.format_exc()
+        print(f"500 ERROR:\n{tb}")
+        if req.method == 'POST' or 'upload' in req.path or req.is_json or req.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': f'Server error: {str(e)}', 'detail': tb}), 500
         return f"<pre style='padding:20px;font-size:13px;'><strong>500 Error:</strong>\n\n{tb}</pre>", 500
 
     return app
