@@ -106,6 +106,8 @@ def _save_lead(name, email, business_name, phone, message):
 
 @marketing_bp.route('/')
 def index():
+    if not current_user.is_authenticated:
+        return redirect(url_for('auth.login'))
     # Clients auto-redirect to their portal; admins can see the marketing site
     if current_user.is_authenticated and not current_user.is_admin():
         return redirect(url_for('client.dashboard'))
