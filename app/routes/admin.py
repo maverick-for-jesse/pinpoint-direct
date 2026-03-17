@@ -830,11 +830,42 @@ SUPPORTED_COUNTIES = [
 @admin_required
 def new_movers():
     from app.utils.db_helpers import get_records
+    from app.utils.database import get_db, get_db_type
     # Get all records (we need full fields for stats)
     try:
         records = get_records('new_movers')
     except Exception:
         records = []
+
+    # Pull verified/failed counts per batch directly from Postgres (verify_status is stored in DB, not Airtable)
+    verify_counts = {}  # batch_label -> {'verified': N, 'failed': N}
+    try:
+        db_type = get_db_type()
+        with get_db() as db:
+            sql = """
+                SELECT upload_batch, verify_status, COUNT(*) as cnt
+                FROM new_movers
+                WHERE verify_status IN ('verified', 'failed')
+                GROUP BY upload_batch, verify_status
+            """
+            if db_type == 'postgres':
+                with db.cursor() as cur:
+                    cur.execute(sql)
+                    rows = cur.fetchall()
+            else:
+                rows = db.execute(sql).fetchall()
+            for row in rows:
+                batch = row['upload_batch'] or 'Unknown'
+                vs = row['verify_status']
+                cnt = row['cnt']
+                if batch not in verify_counts:
+                    verify_counts[batch] = {'verified': 0, 'failed': 0}
+                if vs == 'verified':
+                    verify_counts[batch]['verified'] += cnt
+                elif vs == 'failed':
+                    verify_counts[batch]['failed'] += cnt
+    except Exception:
+        pass  # If Postgres query fails, verified/failed will show 0
 
     # Summarize by batch
     batches = {}
@@ -853,17 +884,18 @@ def new_movers():
         batches[batch]['count'] += 1
         tier = f.get('Tier', 'Standard')
         batches[batch]['tiers'][tier] = batches[batch]['tiers'].get(tier, 0) + 1
-        vs = f.get('Verify Status', '')
-        if vs == 'verified':
-            batches[batch]['verified'] += 1
-        elif vs == 'failed':
-            batches[batch]['failed'] += 1
         # Track earliest (oldest) sale_date for golden window badge
         sd = f.get('Sale Date', '')
         if sd:
             prev = batches[batch]['earliest_sale_date']
             if prev is None or sd < prev:
                 batches[batch]['earliest_sale_date'] = sd
+
+    # Merge in verified/failed counts from Postgres
+    for batch, vc in verify_counts.items():
+        if batch in batches:
+            batches[batch]['verified'] = vc['verified']
+            batches[batch]['failed'] = vc['failed']
 
     batch_list = sorted(batches.items(), reverse=True)
 
