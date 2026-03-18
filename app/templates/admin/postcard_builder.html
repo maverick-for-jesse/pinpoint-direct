@@ -268,6 +268,18 @@ function applyVariant(v) {
 }
 </script>
 
+<!-- Back to gallery link -->
+<div style="margin-bottom: 16px;">
+  <a href="{{ url_for('admin.postcard_builder') }}{% if preselect %}?campaign={{ preselect }}{% endif %}"
+     style="font-size: 13px; color: #888; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; transition: color 0.15s;"
+     onmouseover="this.style.color='#e63946'" onmouseout="this.style.color='#888'">
+    ← Change Template
+  </a>
+  {% if template %}
+  <span style="font-size: 13px; color: #bbb; margin-left: 10px;">Using: <strong style="color: #1a1a2e;">{{ template.name }}</strong></span>
+  {% endif %}
+</div>
+
 <div class="builder-grid">
 
   <!-- ═══════════════════════════════════════════════════════════
@@ -1364,4 +1376,19 @@ function applyVariant(v) {
   onCampaignChange();
   updatePreview();
 </script>
+
+{% if template %}
+<script>
+  window.POSTCARD_TEMPLATE = {{ template | tojson }};
+  // Pre-populate any relevant fields when builder loads
+  document.addEventListener('DOMContentLoaded', function() {
+    if (window.POSTCARD_TEMPLATE) {
+      var t = window.POSTCARD_TEMPLATE;
+      // Try to set headline/copy fields if they exist
+      var headlineEl = document.getElementById('front-headline') || document.querySelector('[data-field="headline"]');
+      if (headlineEl && t.layout && t.layout.front) headlineEl.value = t.layout.front.headline || '';
+    }
+  });
+</script>
+{% endif %}
 {% endblock %}

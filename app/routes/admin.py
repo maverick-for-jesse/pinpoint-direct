@@ -258,11 +258,24 @@ def campaign_cancel(record_id):
 @login_required
 @admin_required
 def postcard_builder():
+    from app.utils.postcard_templates import POSTCARD_TEMPLATES
     campaigns = get_records('campaigns')
     campaigns = [c for c in campaigns if c['fields'].get('Status') not in ('Mailed', 'Cancelled')]
     campaigns = sorted(campaigns, key=lambda x: x['fields'].get('Campaign Name', ''))
     preselect = request.args.get('campaign', '')
-    return render_template('admin/postcard_builder.html',
+    template_id = request.args.get('template', '')
+
+    if template_id:
+        # User selected a template — go to builder
+        template = next((t for t in POSTCARD_TEMPLATES if t['id'] == template_id), None)
+        return render_template('admin/postcard_builder.html',
+                               campaigns=campaigns,
+                               preselect=preselect,
+                               template=template,
+                               templates=POSTCARD_TEMPLATES)
+    # No template selected — show gallery
+    return render_template('admin/postcard_template_gallery.html',
+                           templates=POSTCARD_TEMPLATES,
                            campaigns=campaigns,
                            preselect=preselect)
 

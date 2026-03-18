@@ -1,0 +1,305 @@
+{% extends "admin/base.html" %}
+{% block title %}Choose a Template{% endblock %}
+{% block page_title %}Postcard Builder{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.postcard_builder') }}?template=blank{% if preselect %}&campaign={{ preselect }}{% endif %}" class="btn btn-secondary">
+    ✏️ Start from Scratch
+  </a>
+{% endblock %}
+
+{% block content %}
+<style>
+  .gallery-header {
+    margin-bottom: 28px;
+  }
+  .gallery-header h3 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 6px;
+  }
+  .gallery-header p {
+    font-size: 15px;
+    color: #888;
+  }
+
+  /* Filter pills */
+  .filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 28px;
+  }
+  .filter-pill {
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1.5px solid #e0e0e0;
+    background: white;
+    color: #555;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .filter-pill:hover {
+    border-color: #e63946;
+    color: #e63946;
+  }
+  .filter-pill.active {
+    background: #e63946;
+    border-color: #e63946;
+    color: white;
+  }
+
+  /* Template grid */
+  .template-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-bottom: 40px;
+  }
+  @media (max-width: 1100px) {
+    .template-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .template-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Template card */
+  .template-card {
+    background: white;
+    border-radius: 12px;
+    border: 1.5px solid #e8e8e8;
+    overflow: hidden;
+    transition: transform 0.18s, box-shadow 0.18s;
+    cursor: pointer;
+  }
+  .template-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    border-color: #e63946;
+  }
+  .template-card[data-hidden="true"] {
+    display: none;
+  }
+
+  /* Color preview */
+  .template-preview {
+    width: 100%;
+    height: 140px;
+    position: relative;
+    overflow: hidden;
+  }
+  .preview-bg {
+    position: absolute;
+    inset: 0;
+  }
+  .preview-accent-bar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 12px;
+  }
+  .preview-headline-line {
+    position: absolute;
+    top: 32px;
+    left: 18px;
+    right: 18px;
+    height: 14px;
+    border-radius: 3px;
+    opacity: 0.85;
+  }
+  .preview-sub-line {
+    position: absolute;
+    top: 56px;
+    left: 18px;
+    width: 55%;
+    height: 8px;
+    border-radius: 3px;
+    opacity: 0.55;
+  }
+  .preview-cta-strip {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .preview-cta-text {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  /* Card body */
+  .template-card-body {
+    padding: 16px 18px 18px;
+  }
+  .template-card-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .category-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #f0f0f0;
+    color: #666;
+    white-space: nowrap;
+  }
+  .template-card-desc {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 14px;
+    line-height: 1.45;
+  }
+  .use-template-btn {
+    display: block;
+    width: 100%;
+    padding: 9px 0;
+    background: #1a1a2e;
+    color: white;
+    border: none;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .use-template-btn:hover {
+    background: #e63946;
+    color: white;
+    text-decoration: none;
+  }
+
+  /* Scratch section */
+  .scratch-section {
+    border-top: 1.5px solid #f0f0f0;
+    padding-top: 28px;
+    text-align: center;
+  }
+  .scratch-section h4 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 6px;
+  }
+  .scratch-section p {
+    font-size: 14px;
+    color: #888;
+    margin-bottom: 16px;
+  }
+  .scratch-btn {
+    display: inline-block;
+    padding: 10px 28px;
+    background: white;
+    border: 2px solid #1a1a2e;
+    color: #1a1a2e;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+  .scratch-btn:hover {
+    background: #1a1a2e;
+    color: white;
+    text-decoration: none;
+  }
+</style>
+
+<div class="gallery-header">
+  <h3>Choose a Template</h3>
+  <p>Pick a starting point for your postcard design.</p>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar" id="filterBar">
+  <button class="filter-pill active" data-category="all">All</button>
+  {% set categories = [] %}
+  {% for t in templates %}
+    {% if t.category not in categories %}
+      {% set _ = categories.append(t.category) %}
+    {% endif %}
+  {% endfor %}
+  {% for cat in categories %}
+    <button class="filter-pill" data-category="{{ cat }}">{{ cat }}</button>
+  {% endfor %}
+</div>
+
+<!-- Template Grid -->
+<div class="template-grid" id="templateGrid">
+  {% for t in templates %}
+  {% set colors = t.thumbnail_colors %}
+  <div class="template-card" data-category="{{ t.category }}">
+    <!-- Visual preview using thumbnail_colors -->
+    <div class="template-preview">
+      <div class="preview-bg" style="background-color: {{ colors[0] }};"></div>
+      <div class="preview-accent-bar" style="background-color: {{ colors[1] if colors|length > 1 else colors[0] }};"></div>
+      <div class="preview-headline-line" style="background-color: {{ colors[2] if colors|length > 2 else '#ffffff' }};"></div>
+      <div class="preview-sub-line" style="background-color: {{ colors[2] if colors|length > 2 else '#ffffff' }};"></div>
+      <div class="preview-cta-strip" style="background-color: {{ colors[1] if colors|length > 1 else colors[0] }};">
+        <span class="preview-cta-text" style="color: {{ colors[2] if colors|length > 2 else '#ffffff' }};">
+          {{ t.layout.front.cta_text[:20] if t.layout and t.layout.front else 'CTA' }}
+        </span>
+      </div>
+    </div>
+
+    <div class="template-card-body">
+      <div class="template-card-name">
+        {{ t.name }}
+        <span class="category-badge">{{ t.category }}</span>
+      </div>
+      <div class="template-card-desc">{{ t.description }}</div>
+      <a href="{{ url_for('admin.postcard_builder') }}?template={{ t.id }}{% if preselect %}&campaign={{ preselect }}{% endif %}"
+         class="use-template-btn">
+        Use This Template →
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Start from Scratch -->
+<div class="scratch-section">
+  <h4>Not seeing what you need?</h4>
+  <p>Start with a blank canvas and build your own design from scratch.</p>
+  <a href="{{ url_for('admin.postcard_builder') }}?template=blank{% if preselect %}&campaign={{ preselect }}{% endif %}"
+     class="scratch-btn">
+    ✏️ Start from Scratch
+  </a>
+</div>
+
+<script>
+  // Category filter
+  document.getElementById('filterBar').addEventListener('click', function(e) {
+    if (!e.target.classList.contains('filter-pill')) return;
+    
+    // Update active pill
+    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+    e.target.classList.add('active');
+
+    var selected = e.target.getAttribute('data-category');
+    document.querySelectorAll('.template-card').forEach(function(card) {
+      if (selected === 'all' || card.getAttribute('data-category') === selected) {
+        card.removeAttribute('data-hidden');
+        card.style.display = '';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+  });
+</script>
+{% endblock %}
