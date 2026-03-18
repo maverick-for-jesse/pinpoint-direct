@@ -160,7 +160,7 @@ Based on this website data, return ONLY valid JSON with this structure:
         "content-type": "application/json",
     }
     payload = {
-        "model": "claude-3-5-haiku-20241022",
+        "model": "claude-3-haiku-20240307",
         "max_tokens": 1024,
         "system": "You analyze business websites and extract structured data for direct mail marketing. Return only valid JSON.",
         "messages": [{"role": "user", "content": prompt}],
