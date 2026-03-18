@@ -207,15 +207,15 @@ def analyze_with_claude(scraped):
     prompt = f"""You are analyzing a business website to help create a direct mail postcard.
 
 WEBSITE DATA:
-Title: {scraped['title']}
-OG Title: {scraped['og_title']}
-Meta Description: {scraped['meta_desc']}
-Headings: {' | '.join(scraped['headings'])}
-Body Text (excerpt): {scraped['body_text'][:1500]}
-Phone: {scraped['phone']}
-Theme Color: {scraped['theme_color']}
-CSS Colors Found: {', '.join(scraped['css_colors'][:10])}
-Trust Signals: {', '.join(scraped['trust_signals'])}
+Title: {scraped.get('title', '')}
+OG Title: {scraped.get('og_title', '')}
+Meta Description: {scraped.get('meta_desc', scraped.get('meta_description', ''))}
+Headings: {' | '.join(scraped.get('headings', []))}
+Body Text (excerpt): {scraped.get('body_text', '')[:1500]}
+Phone: {scraped.get('phone', '')}
+Theme Color: {scraped.get('theme_color', '')}
+CSS Colors Found: {', '.join(scraped.get('css_colors', scraped.get('colors', []))[:10])}
+Trust Signals: {', '.join(scraped.get('trust_signals', []))}
 
 Based on this website data, return ONLY valid JSON with this structure:
 {{
