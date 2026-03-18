@@ -38,30 +38,97 @@ def get_anthropic_key():
     raise ValueError("Anthropic API key not configured. Set ANTHROPIC_API_KEY env var.")
 
 
+def _get_serpapi_key():
+    """Get SerpAPI key from env var or config file."""
+    key = os.getenv('SERPAPI_KEY')
+    if key:
+        return key
+    config_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        'config', 'agency_scraper.json'
+    )
+    if os.path.exists(config_path):
+        try:
+            with open(config_path) as f:
+                return json.load(f).get('serpapi_key')
+        except Exception:
+            pass
+    return None
+
+
+def _scrape_via_serpapi(url):
+    """Use SerpAPI Google Cache to fetch page content (bypasses bot protection)."""
+    serpapi_key = _get_serpapi_key()
+    if not serpapi_key:
+        return None
+    try:
+        # Use SerpAPI to search for the site and get organic result snippets
+        domain = url.replace('https://', '').replace('http://', '').rstrip('/')
+        resp = requests.get('https://serpapi.com/search.json', params={
+            'engine': 'google',
+            'q': f'site:{domain}',
+            'num': 5,
+            'api_key': serpapi_key,
+        }, timeout=15)
+        data = resp.json()
+        # Pull text from organic results + knowledge graph
+        text_chunks = []
+        if data.get('knowledge_graph'):
+            kg = data['knowledge_graph']
+            for field in ['title', 'description', 'type']:
+                if kg.get(field):
+                    text_chunks.append(str(kg[field]))
+        for result in data.get('organic_results', [])[:5]:
+            for field in ['title', 'snippet', 'rich_snippet']:
+                if result.get(field):
+                    text_chunks.append(str(result[field]))
+        return '\n'.join(text_chunks) if text_chunks else None
+    except Exception:
+        return None
+
+
 def scrape_website(url):
-    """Scrape a website and return raw extracted data."""
+    """Scrape a website and return raw extracted data. Uses SerpAPI if direct scrape fails."""
     if not url.startswith('http'):
         url = 'https://' + url
 
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
-                      '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'DNT': '1',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Cache-Control': 'max-age=0',
-    }
-    session = requests.Session()
-    session.headers.update(headers)
-    resp = session.get(url, timeout=15, allow_redirects=True)
-    resp.raise_for_status()
-    soup = BeautifulSoup(resp.text, 'html.parser')
+    soup = None
+    title = ''
+    meta_desc = ''
+    headings = []
+    body_text = ''
+
+    # Try direct scrape first
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
+                          '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+        }
+        session = requests.Session()
+        session.headers.update(headers)
+        resp = session.get(url, timeout=15, allow_redirects=True)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, 'html.parser')
+    except Exception:
+        # Fall back to SerpAPI
+        serpapi_text = _scrape_via_serpapi(url)
+        if serpapi_text:
+            # Return a simplified scraped dict using SerpAPI data
+            return {
+                'url': url,
+                'title': url.replace('https://', '').replace('http://', '').split('/')[0],
+                'meta_description': '',
+                'headings': [],
+                'body_text': serpapi_text,
+                'colors': [],
+                'nav_items': [],
+                'source': 'serpapi',
+            }
+        raise  # Re-raise original error if SerpAPI also fails
 
     # Remove scripts and styles from text extraction
     for tag in soup(['script', 'style', 'noscript', 'iframe']):
@@ -102,14 +169,15 @@ def scrape_website(url):
     body_text = ' '.join(soup.get_text(separator=' ').split())[:2500]
 
     # Phone numbers
+    raw_html = soup.prettify() if soup else ''
     phones = re.findall(
         r'[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4}',
-        resp.text
+        raw_html
     )
     phone = phones[0] if phones else ''
 
     # Colors from CSS (hex codes)
-    css_colors = list(set(re.findall(r'#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b', resp.text)))[:20]
+    css_colors = list(set(re.findall(r'#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b', raw_html)))[:20]
 
     # Social proof / trust signals
     trust_signals = []
