@@ -59,7 +59,7 @@ def get_ai_provider():
     raise ValueError("No AI API key configured. Set ANTHROPIC_API_KEY env var or add config/gemini.json.")
 
 
-def _generate_with_claude(api_key, system_prompt, user_prompt=None, model='claude-3-haiku-20240307'):
+def _generate_with_claude(api_key, system_prompt, user_prompt=None, model='claude-sonnet-4-6'):
     """Call Anthropic Claude API and return parsed JSON."""
     url = "https://api.anthropic.com/v1/messages"
     headers = {
@@ -129,7 +129,7 @@ Return ONLY valid JSON with this exact structure (no markdown fences, no extra t
 {{"headlines": ["headline1", "headline2", "headline3"], "body_copies": ["body1", "body2"], "ctas": ["cta1", "cta2", "cta3"]}}"""
 
     if provider == 'claude':
-        return _generate_with_claude(api_key, prompt, user_prompt=prompt, model='claude-3-haiku-20240307')
+        return _generate_with_claude(api_key, prompt, user_prompt=prompt, model='claude-sonnet-4-6')
     else:
         return _generate_with_gemini(api_key, prompt)
 
@@ -166,7 +166,7 @@ Return ONLY valid JSON with this exact structure:
 }}"""
 
     if provider == 'claude':
-        return _generate_with_claude(api_key, prompt, user_prompt=prompt, model='claude-3-haiku-20240307')
+        return _generate_with_claude(api_key, prompt, user_prompt=prompt, model='claude-sonnet-4-6')
     else:
         return _generate_with_gemini(api_key, prompt)
 
@@ -215,6 +215,6 @@ Return ONLY valid JSON with this exact structure:
 }}"""
 
     if provider == 'claude':
-        return _generate_with_claude(api_key, system_prompt, user_prompt=user_prompt, model='claude-3-5-sonnet-20240620')
+        return _generate_with_claude(api_key, system_prompt, user_prompt=user_prompt, model='claude-sonnet-4-6')
     else:
         return _generate_with_gemini(api_key, system_prompt + '\n\n' + user_prompt)
