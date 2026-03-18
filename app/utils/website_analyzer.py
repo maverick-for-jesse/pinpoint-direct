@@ -5,18 +5,37 @@ import re
 from bs4 import BeautifulSoup
 
 
-def get_xai_key():
-    key = os.getenv('XAI_API_KEY')
+AUTH_PROFILES_PATH = os.path.join(
+    os.path.expanduser('~'), '.openclaw', 'agents', 'main', 'agent', 'auth-profiles.json'
+)
+
+
+def get_anthropic_key():
+    """Get Anthropic API key: env var first, then auth-profiles.json, then config file."""
+    key = os.getenv('ANTHROPIC_API_KEY')
     if key:
         return key
+    if os.path.exists(AUTH_PROFILES_PATH):
+        try:
+            import json as _json
+            with open(AUTH_PROFILES_PATH) as f:
+                d = _json.load(f)
+            key = d.get('profiles', {}).get('anthropic:default', {}).get('key')
+            if key:
+                return key
+        except Exception:
+            pass
     config_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-        'config', 'xai.json'
+        'config', 'anthropic.json'
     )
     if os.path.exists(config_path):
-        with open(config_path) as f:
-            return json.load(f).get('api_key')
-    raise ValueError("XAI_API_KEY not configured.")
+        try:
+            with open(config_path) as f:
+                return json.load(f).get('api_key')
+        except Exception:
+            pass
+    raise ValueError("Anthropic API key not configured. Set ANTHROPIC_API_KEY env var.")
 
 
 def scrape_website(url):
@@ -101,9 +120,9 @@ def scrape_website(url):
     }
 
 
-def analyze_with_grok(scraped):
-    """Feed scraped data to Grok and get structured postcard data back."""
-    api_key = get_xai_key()
+def analyze_with_claude(scraped):
+    """Feed scraped data to Claude and get structured postcard data back."""
+    api_key = get_anthropic_key()
 
     prompt = f"""You are analyzing a business website to help create a direct mail postcard.
 
@@ -134,22 +153,21 @@ Based on this website data, return ONLY valid JSON with this structure:
   "image_prompt_hint": "Key visual elements or themes to include in Ideogram image prompts for this business"
 }}"""
 
-    url = "https://api.x.ai/v1/chat/completions"
+    url = "https://api.anthropic.com/v1/messages"
     headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
     }
     payload = {
-        "model": "grok-3-mini",
-        "messages": [
-            {"role": "system", "content": "You analyze business websites and extract structured data for direct mail marketing. Return only valid JSON."},
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.3
+        "model": "claude-3-5-haiku-20241022",
+        "max_tokens": 1024,
+        "system": "You analyze business websites and extract structured data for direct mail marketing. Return only valid JSON.",
+        "messages": [{"role": "user", "content": prompt}],
     }
     resp = requests.post(url, headers=headers, json=payload, timeout=30)
     resp.raise_for_status()
-    text = resp.json()['choices'][0]['message']['content'].strip()
+    text = resp.json()['content'][0]['text'].strip()
     # Strip markdown fences
     text = re.sub(r'^```(?:json)?\s*', '', text, flags=re.IGNORECASE)
     text = re.sub(r'\s*```$', '', text)
@@ -164,8 +182,8 @@ Based on this website data, return ONLY valid JSON with this structure:
 def analyze_website(url):
     """Full pipeline: scrape + analyze. Returns structured data for postcard builder."""
     scraped = scrape_website(url)
-    analysis = analyze_with_grok(scraped)
-    # Merge phone from scrape if Grok didn't find one
+    analysis = analyze_with_claude(scraped)
+    # Merge phone from scrape if Claude didn't find one
     if not analysis.get('phone') and scraped.get('phone'):
         analysis['phone'] = scraped['phone']
     return analysis

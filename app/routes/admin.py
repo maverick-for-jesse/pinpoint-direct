@@ -267,6 +267,36 @@ def postcard_builder():
                            preselect=preselect)
 
 
+@admin_bp.route('/postcard-builder/ai-design', methods=['POST'])
+@login_required
+@admin_required
+def postcard_ai_design():
+    """AI-powered postcard design generation using Claude."""
+    from app.utils.copy_generator import generate_ai_postcard_design
+    data = request.get_json()
+    business_name = data.get('business_name', '').strip()
+    business_type = data.get('business_type', '').strip()
+    target_audience = data.get('target_audience', '').strip()
+    key_message = data.get('key_message', '').strip()
+    offer = data.get('offer', '').strip()
+    style = data.get('style', 'modern professional').strip()
+
+    if not business_name or not business_type:
+        return jsonify({'error': 'Business name and type are required.'}), 400
+    try:
+        result = generate_ai_postcard_design(
+            business_name=business_name,
+            business_type=business_type,
+            target_audience=target_audience,
+            key_message=key_message,
+            offer=offer,
+            style=style
+        )
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @admin_bp.route('/postcard-builder/generate-image', methods=['POST'])
 @login_required
 @admin_required

@@ -123,6 +123,151 @@
   <div id="spinnerMsg" style="font-size:16px;font-weight:700;color:#1a1a2e;">Generating... this takes ~15 seconds</div>
 </div>
 
+<!-- AI Auto-Design Panel -->
+<div class="card mb-4" id="ai-design-panel">
+  <div class="card-header d-flex align-items-center justify-content-between" style="background:#fff5f5;border-bottom:1.5px solid #ffcdd2;">
+    <h5 class="mb-0">✨ AI Auto-Design</h5>
+    <span class="badge bg-primary">Powered by Claude</span>
+  </div>
+  <div class="card-body">
+    <p class="text-muted small mb-3">Tell the AI about your business and it'll generate a complete postcard design in seconds. <strong>Minimum 200 mailers required per USPS bulk mail requirements.</strong></p>
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">Business Name *</label>
+        <input type="text" class="form-control" id="ai-biz-name" placeholder="e.g. Newnan Plumbing Co.">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Business Type *</label>
+        <input type="text" class="form-control" id="ai-biz-type" placeholder="e.g. plumbing, real estate, dental">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Target Audience</label>
+        <input type="text" class="form-control" id="ai-audience" placeholder="e.g. new movers in Coweta County">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Key Message</label>
+        <input type="text" class="form-control" id="ai-message" placeholder="e.g. Welcome to the neighborhood">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Offer</label>
+        <input type="text" class="form-control" id="ai-offer" placeholder="e.g. Free estimate, 20% off first service">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Style</label>
+        <select class="form-select" id="ai-style">
+          <option value="modern professional">Modern Professional</option>
+          <option value="warm and welcoming">Warm &amp; Welcoming</option>
+          <option value="bold and urgent">Bold &amp; Urgent</option>
+          <option value="clean minimal">Clean Minimal</option>
+          <option value="friendly neighborhood">Friendly Neighborhood</option>
+        </select>
+      </div>
+    </div>
+    <div class="mt-3">
+      <button class="btn btn-primary" id="ai-generate-btn" onclick="generateAIDesign()">
+        ✨ Generate Design
+      </button>
+    </div>
+    <div id="ai-results" class="mt-4" style="display:none;">
+      <h6>Choose a Variant:</h6>
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card border-primary" id="variant-a-card">
+            <div class="card-header bg-primary text-white">Variant A</div>
+            <div class="card-body" id="variant-a-content"></div>
+            <div class="card-footer">
+              <button class="btn btn-primary btn-sm w-100" onclick="applyVariant('a')">Use Variant A</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card border-secondary" id="variant-b-card">
+            <div class="card-header bg-secondary text-white">Variant B</div>
+            <div class="card-body" id="variant-b-content"></div>
+            <div class="card-footer">
+              <button class="btn btn-secondary btn-sm w-100" onclick="applyVariant('b')">Use Variant B</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="compliance-notes" class="alert alert-info mt-3" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let aiDesignData = null;
+
+async function generateAIDesign() {
+  const btn = document.getElementById('ai-generate-btn');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Generating...';
+  document.getElementById('ai-results').style.display = 'none';
+
+  try {
+    const resp = await fetch('/admin/postcard-builder/ai-design', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        business_name: document.getElementById('ai-biz-name').value,
+        business_type: document.getElementById('ai-biz-type').value,
+        target_audience: document.getElementById('ai-audience').value,
+        key_message: document.getElementById('ai-message').value,
+        offer: document.getElementById('ai-offer').value,
+        style: document.getElementById('ai-style').value
+      })
+    });
+    const data = await resp.json();
+    if (data.error) { alert('Error: ' + data.error); return; }
+
+    aiDesignData = data;
+
+    document.getElementById('variant-a-content').innerHTML = `
+      <p><strong>Headline:</strong> ${data.variant_a?.headline || ''}</p>
+      <p><strong>Subheadline:</strong> ${data.variant_a?.subheadline || ''}</p>
+      <p><strong>Body:</strong> ${data.variant_a?.body || ''}</p>
+      <p><strong>CTA:</strong> ${data.variant_a?.cta || ''}</p>
+      <p class="text-muted small"><em>Style: ${data.variant_a?.style_notes || ''}</em></p>
+    `;
+
+    document.getElementById('variant-b-content').innerHTML = `
+      <p><strong>Headline:</strong> ${data.variant_b?.headline || ''}</p>
+      <p><strong>Subheadline:</strong> ${data.variant_b?.subheadline || ''}</p>
+      <p><strong>Body:</strong> ${data.variant_b?.body || ''}</p>
+      <p><strong>CTA:</strong> ${data.variant_b?.cta || ''}</p>
+      <p class="text-muted small"><em>Style: ${data.variant_b?.style_notes || ''}</em></p>
+    `;
+
+    if (data.compliance_notes?.length) {
+      document.getElementById('compliance-notes').style.display = '';
+      document.getElementById('compliance-notes').innerHTML = '<strong>📋 USPS Notes:</strong> ' + data.compliance_notes.join(' • ');
+    }
+
+    document.getElementById('ai-results').style.display = '';
+  } catch(e) {
+    alert('Generation failed: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '✨ Generate Design';
+  }
+}
+
+function applyVariant(v) {
+  if (!aiDesignData) return;
+  const variant = v === 'a' ? aiDesignData.variant_a : aiDesignData.variant_b;
+  const headlineEl = document.getElementById('front-headline') || document.querySelector('[name="headline"]') || document.querySelector('.headline-input');
+  const bodyEl = document.getElementById('front-body') || document.querySelector('[name="body"]') || document.querySelector('.body-input');
+  const ctaEl = document.getElementById('front-cta') || document.querySelector('[name="cta"]') || document.querySelector('.cta-input');
+  if (headlineEl) headlineEl.value = variant.headline || '';
+  if (bodyEl) bodyEl.value = variant.body || '';
+  if (ctaEl) ctaEl.value = variant.cta || '';
+  const canvas = document.getElementById('postcard-canvas') || document.querySelector('.postcard-builder') || document.querySelector('.builder-grid');
+  if (canvas) canvas.scrollIntoView({behavior: 'smooth'});
+  window.aiImagePrompts = { front: variant.front_image_prompt, back: variant.back_image_prompt };
+  alert('✅ Variant ' + v.toUpperCase() + ' applied! Edit the design below, then generate images using the prompts.');
+}
+</script>
+
 <div class="builder-grid">
 
   <!-- ═══════════════════════════════════════════════════════════
