@@ -155,7 +155,12 @@
     <span class="amount">1</span>
     <span class="unit">&nbsp;/ postcard</span>
   </div>
-  <div style="font-size:14px; color:rgba(255,255,255,0.5);">Design · Printing · Mailing · List — all included</div>
+  <div style="font-size:14px; color:rgba(255,255,255,0.5); margin-bottom:20px;">Design · Printing · Mailing · List — all included</div>
+  <div style="display:inline-flex; align-items:center; gap:8px; background:rgba(251,146,60,0.15); border:1px solid rgba(251,146,60,0.4); border-radius:30px; padding:8px 20px;">
+    <span style="font-size:18px;">📬</span>
+    <span style="font-size:14px; font-weight:700; color:#fdba74;">200 postcard monthly minimum</span>
+    <span style="font-size:13px; color:rgba(255,255,255,0.45);">· Starting at $200/mo</span>
+  </div>
 </section>
 
 <!-- ── WHAT'S INCLUDED ── -->
@@ -291,8 +296,8 @@
     </div>
 
     <div class="commit-box">
-      <h3>⏱️ We Require a 3-Month Minimum</h3>
-      <p>One mailer is a gamble. Three months is a strategy. We require a 3-month commitment because that's when direct mail starts working — and we only want clients who are set up to win.</p>
+      <h3>⏱️ Built for Businesses Serious About Results</h3>
+      <p>We require a <strong>3-month commitment</strong> and a <strong>minimum of 200 postcards/month</strong> — because below that threshold, direct mail simply doesn't get a fair shot. These aren't arbitrary rules. They're the conditions we've seen actually produce results, and we only take on clients set up to win.</p>
       <a href="{{ url_for('marketing.get_started') }}" class="btn btn-white" style="font-size:16px; padding:14px 32px;">
         Apply for Beta Access →
       </a>
@@ -322,7 +327,7 @@
       <a href="{{ url_for('marketing.get_started') }}" class="btn btn-primary" style="font-size:16px; padding:14px 36px;">
         Apply for Beta Access →
       </a>
-      <p style="margin-top:14px; font-size:13px; color:var(--gray-400);">Currently serving Coweta County, GA · 3-month minimum commitment</p>
+      <p style="margin-top:14px; font-size:13px; color:var(--gray-400);">Currently serving Coweta County, GA · 200 postcard minimum · 3-month commitment</p>
     </div>
   </div>
 </section>
@@ -337,7 +342,11 @@
     <div style="display:flex; flex-direction:column; gap:20px;">
       <div style="border:1px solid var(--gray-200); border-radius:12px; padding:24px;">
         <h4 style="font-weight:700; color:var(--navy); margin-bottom:8px;">How many postcards should I send per month?</h4>
-        <p style="font-size:14px; color:var(--gray-600); line-height:1.7;">That depends on your goals and budget. We'll help you figure out the right volume during onboarding. Most clients start with 200–500/month and scale from there as they see results.</p>
+        <p style="font-size:14px; color:var(--gray-600); line-height:1.7;">We require a minimum of 200 postcards/month — that's $200/mo to start. Most clients begin there and scale to 300–500/month once they see results building. We'll help you figure out the right volume for your goals during onboarding.</p>
+      </div>
+      <div style="border:1px solid var(--gray-200); border-radius:12px; padding:24px;">
+        <h4 style="font-weight:700; color:var(--navy); margin-bottom:8px;">Why is there a 200 postcard minimum?</h4>
+        <p style="font-size:14px; color:var(--gray-600); line-height:1.7;">Direct mail is a frequency game. Sending fewer than 200/month means too few people see your postcard often enough to take action — and clients who under-invest rarely see results. The 200-piece minimum isn't about revenue for us; it's about making sure every client we take on actually has a shot at winning.</p>
       </div>
       <div style="border:1px solid var(--gray-200); border-radius:12px; padding:24px;">
         <h4 style="font-weight:700; color:var(--navy); margin-bottom:8px;">What's the 3-month minimum about?</h4>
@@ -367,7 +376,7 @@
   <a href="{{ url_for('marketing.get_started') }}" class="btn btn-primary" style="font-size:17px; padding:18px 44px;">
     Apply for Beta Access →
   </a>
-  <p style="margin-top:16px; font-size:13px; color:rgba(255,255,255,0.35);">3-month minimum · Coweta County, GA · Spots limited</p>
+  <p style="margin-top:16px; font-size:13px; color:rgba(255,255,255,0.35);">200 postcard minimum · 3-month commitment · Coweta County, GA · Spots limited</p>
 </section>
 
 {% endblock %}
