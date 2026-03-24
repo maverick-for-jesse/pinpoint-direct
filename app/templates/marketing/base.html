@@ -64,7 +64,7 @@
       gap: 6px;
     }
     .nav-logo span { color: var(--orange); }
-    .nav-logo-img { filter: brightness(0) invert(1) !important; }
+    .nav-logo-img { filter: none; }
     .nav-links {
       display: flex;
       align-items: center;
@@ -266,7 +266,7 @@
 
 <nav class="nav" id="main-nav">
   <a href="{{ url_for('marketing.index') }}" class="nav-logo">
-  <img src="/static/img/logo.png" alt="Pinpoint Direct" class="nav-logo-img" style="height:72px; width:auto; object-fit:contain; display:inline-block; vertical-align:middle;">
+  <img src="/static/img/logo_white.png" alt="Pinpoint Direct" class="nav-logo-img" style="height:72px; width:auto; object-fit:contain; display:inline-block; vertical-align:middle;">
 </a>
   <div class="nav-links" id="nav-links">
     <a href="{{ url_for('marketing.how_it_works') }}" class="nav-link {% if request.endpoint == 'marketing.how_it_works' %}active{% endif %}">How It Works</a>
