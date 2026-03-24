@@ -227,6 +227,12 @@
     .flash-error   { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
     .flash-success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
 
+    /* ── DARK MODE OVERRIDE ── */
+    @media (prefers-color-scheme: dark) {
+      .nav { background: white !important; border-bottom-color: var(--gray-200) !important; }
+      .nav-link { color: var(--gray-600) !important; }
+      .nav-link:hover { background: var(--gray-100) !important; color: var(--navy) !important; }
+    }
     /* ── RESPONSIVE ── */
     @media (max-width: 900px) {
       .nav { padding: 0 20px; }
