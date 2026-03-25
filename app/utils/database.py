@@ -302,6 +302,22 @@ if DATABASE_URL:
                         UNIQUE(campaign_id, mover_id, month_number)
                     )
                 """)
+                # ── Campaigns column migrations (idempotent) ──────────────────────
+                cur.execute("""
+                    DO $$ BEGIN
+                      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='campaigns' AND column_name='list_count') THEN
+                        ALTER TABLE campaigns ADD COLUMN list_count INTEGER;
+                      END IF;
+                    END $$;
+                """)
+                cur.execute("""
+                    DO $$ BEGIN
+                      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='campaigns' AND column_name='quote_amount') THEN
+                        ALTER TABLE campaigns ADD COLUMN quote_amount DECIMAL(10,2);
+                      END IF;
+                    END $$;
+                """)
+
                 # ── Leads column migrations (idempotent) ─────────────────────────
                 cur.execute("""
                     DO $$ BEGIN
@@ -732,6 +748,12 @@ else:
             for col, col_type in [('status', "TEXT DEFAULT 'New'"), ('approved_at', 'DATETIME')]:
                 try:
                     conn.execute(f"ALTER TABLE leads ADD COLUMN {col} {col_type}")
+                except Exception:
+                    pass  # Column already exists
+            # Add campaign list/quote columns (idempotent)
+            for col, col_type in [('list_count', 'INTEGER'), ('quote_amount', 'REAL')]:
+                try:
+                    conn.execute(f"ALTER TABLE campaigns ADD COLUMN {col} {col_type}")
                 except Exception:
                     pass  # Column already exists
             conn.commit()
