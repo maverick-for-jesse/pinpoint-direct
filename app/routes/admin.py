@@ -2304,7 +2304,7 @@ def production_new():
     if request.method == 'POST':
         name          = request.form.get('name', '').strip()
         campaign_id   = request.form.get('campaign_id', '').strip() or None
-        permit_number = request.form.get('permit_number', 'PERMIT #[PENDING]').strip()
+        permit_number = request.form.get('permit_number', 'PERMIT #15').strip()
 
         if not name:
             flash('Job name is required.', 'error')
@@ -2777,7 +2777,7 @@ def production_generate_pdf(job_id):
     PAGE_W = 6.5 * inch
     PAGE_H = 9.0 * inch
 
-    permit_number = job.get('permit_number') or 'PERMIT #[PENDING]'
+    permit_number = job.get('permit_number') or 'PERMIT #15'
     permit_city   = job.get('permit_city') or 'NEWNAN'
     permit_state  = job.get('permit_state') or 'GA'
 
