@@ -230,18 +230,17 @@ def _allowed_design_file(filename):
 
 
 def _save_design_files(file_list, folder):
-    """Save a list of FileStorage objects to folder. Return list of relative paths."""
-    os.makedirs(folder, exist_ok=True)
-    paths = []
+    """Upload a list of FileStorage objects to R2. Return list of R2 keys."""
+    from app.utils.r2 import upload_file
+    keys = []
     for f in file_list:
         if f and f.filename and _allowed_design_file(f.filename):
-            fname = secure_filename(f.filename)
-            dest = os.path.join(folder, fname)
-            f.save(dest)
-            # Return path relative to static/
-            rel = os.path.relpath(dest, os.path.join(os.path.dirname(__file__), '..', 'static'))
-            paths.append(rel)
-    return paths
+            try:
+                key = upload_file(f.stream, f.filename, folder=folder)
+                keys.append(key)
+            except Exception as e:
+                print(f"R2 upload error: {e}")
+    return keys
 
 
 @client_bp.route('/design-request')
@@ -334,17 +333,14 @@ def design_request_new():
             db.commit()
 
         if new_id:
-            # Now handle file uploads
-            static_dir = os.path.join(os.path.dirname(__file__), '..', 'static')
-            dr_dir = os.path.join(static_dir, 'uploads', 'design_requests', str(new_id))
-
+            # Handle file uploads to R2
             logo_files = request.files.getlist('logo_files')
             product_files = request.files.getlist('product_files')
             inspiration_files = request.files.getlist('inspiration_files')
 
-            logo_paths = _save_design_files(logo_files, dr_dir)
-            product_paths = _save_design_files(product_files, dr_dir)
-            insp_paths = _save_design_files(inspiration_files, dr_dir)
+            logo_paths = _save_design_files(logo_files, f"design_requests/{new_id}/logos")
+            product_paths = _save_design_files(product_files, f"design_requests/{new_id}/products")
+            insp_paths = _save_design_files(inspiration_files, f"design_requests/{new_id}/inspiration")
 
             # Update with file paths
             file_updates = {}
@@ -376,6 +372,7 @@ def design_request_new():
 @login_required
 @client_required
 def design_request_detail(dr_id):
+    from app.utils.r2 import get_presigned_url
     try:
         dr = get_record('design_requests', dr_id)
     except Exception:
@@ -385,7 +382,17 @@ def design_request_detail(dr_id):
     if dr['fields'].get('client_id') != getattr(current_user, 'client_id', None):
         flash('Design request not found.', 'error')
         return redirect(url_for('client.design_requests'))
-    return render_template('client/design_request_detail.html', dr=dr)
+
+    # Generate presigned proof URL if available
+    proof_url = None
+    f = dr['fields']
+    if f.get('Proof File'):
+        try:
+            proof_url = get_presigned_url(f['Proof File'], expires_in=3600)
+        except Exception:
+            pass
+
+    return render_template('client/design_request_detail.html', dr=dr, proof_url=proof_url)
 
 
 @client_bp.route('/design-request/<int:dr_id>/approve', methods=['POST'])

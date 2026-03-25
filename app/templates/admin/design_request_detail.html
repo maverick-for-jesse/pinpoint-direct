@@ -205,35 +205,23 @@
     <div class="section-card">
       <h3>Client Files</h3>
       {% set has_any = f.get('Logo Files') or f.get('Product Files') or f.get('Inspiration Files') %}
-      {% if has_any %}
-        {% if f.get('Logo Files') %}
+      {% if logo_urls or product_urls or inspiration_urls %}
+        {% if logo_urls %}
           <p class="field-label" style="margin-bottom:6px;">Logo</p>
-          {% for path in f.get('Logo Files','').split(',') %}
-            {% if path.strip() %}
-            <a href="/static/{{ path.strip() }}" target="_blank" class="file-link">
-              📎 {{ path.strip().split('/')[-1] }}
-            </a>
-            {% endif %}
+          {% for file in logo_urls %}
+            <a href="{{ file.url }}" target="_blank" class="file-link">📎 {{ file.name }}</a>
           {% endfor %}
         {% endif %}
-        {% if f.get('Product Files') %}
+        {% if product_urls %}
           <p class="field-label" style="margin:12px 0 6px;">Product Images</p>
-          {% for path in f.get('Product Files','').split(',') %}
-            {% if path.strip() %}
-            <a href="/static/{{ path.strip() }}" target="_blank" class="file-link">
-              📎 {{ path.strip().split('/')[-1] }}
-            </a>
-            {% endif %}
+          {% for file in product_urls %}
+            <a href="{{ file.url }}" target="_blank" class="file-link">📎 {{ file.name }}</a>
           {% endfor %}
         {% endif %}
-        {% if f.get('Inspiration Files') %}
+        {% if inspiration_urls %}
           <p class="field-label" style="margin:12px 0 6px;">Inspiration</p>
-          {% for path in f.get('Inspiration Files','').split(',') %}
-            {% if path.strip() %}
-            <a href="/static/{{ path.strip() }}" target="_blank" class="file-link">
-              📎 {{ path.strip().split('/')[-1] }}
-            </a>
-            {% endif %}
+          {% for file in inspiration_urls %}
+            <a href="{{ file.url }}" target="_blank" class="file-link">📎 {{ file.name }}</a>
           {% endfor %}
         {% endif %}
       {% else %}
@@ -275,15 +263,15 @@
     <!-- Proof Upload -->
     <div class="section-card">
       <h3>Proof</h3>
-      {% if f.get('Proof File') %}
+      {% if proof_url %}
       <div class="proof-preview">
         {% set ext = f.get('Proof File','').split('.')[-1].lower() %}
         {% if ext in ('jpg','jpeg','png','tif','tiff') %}
-          <a href="/static/{{ f.get('Proof File') }}" target="_blank">
-            <img src="/static/{{ f.get('Proof File') }}" alt="Current Proof">
+          <a href="{{ proof_url }}" target="_blank">
+            <img src="{{ proof_url }}" alt="Current Proof">
           </a>
         {% else %}
-          <a href="/static/{{ f.get('Proof File') }}" target="_blank" class="file-link">
+          <a href="{{ proof_url }}" target="_blank" class="file-link">
             📄 View Current Proof
           </a>
         {% endif %}

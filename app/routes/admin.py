@@ -3186,12 +3186,46 @@ def design_requests():
 @login_required
 @admin_required
 def design_request_detail(dr_id):
+    from app.utils.r2 import get_presigned_url
     try:
         dr = get_record('design_requests', dr_id)
     except Exception:
         flash('Design request not found.', 'error')
         return redirect(url_for('admin.design_requests'))
-    return render_template('admin/design_request_detail.html', dr=dr, status_order=DR_STATUS_ORDER)
+
+    # Generate presigned URLs for all files (1 hour expiry)
+    def make_urls(keys_str):
+        if not keys_str:
+            return []
+        urls = []
+        for key in keys_str.split(','):
+            key = key.strip()
+            if key:
+                try:
+                    url = get_presigned_url(key, expires_in=3600)
+                    urls.append({'key': key, 'url': url, 'name': key.split('/')[-1]})
+                except Exception:
+                    urls.append({'key': key, 'url': None, 'name': key.split('/')[-1]})
+        return urls
+
+    f = dr['fields']
+    logo_urls = make_urls(f.get('Logo Files', ''))
+    product_urls = make_urls(f.get('Product Files', ''))
+    inspiration_urls = make_urls(f.get('Inspiration Files', ''))
+    proof_url = None
+    if f.get('Proof File'):
+        try:
+            proof_url = get_presigned_url(f['Proof File'], expires_in=3600)
+        except Exception:
+            pass
+
+    return render_template('admin/design_request_detail.html',
+                           dr=dr,
+                           status_order=DR_STATUS_ORDER,
+                           logo_urls=logo_urls,
+                           product_urls=product_urls,
+                           inspiration_urls=inspiration_urls,
+                           proof_url=proof_url)
 
 
 @admin_bp.route('/design-requests/<int:dr_id>/upload-proof', methods=['POST'])
@@ -3210,14 +3244,12 @@ def design_request_upload_proof(dr_id):
         flash('Invalid file type. Allowed: JPG, PNG, PDF, TIFF.', 'error')
         return redirect(url_for('admin.design_request_detail', dr_id=dr_id))
 
-    static_dir = os.path.join(os.path.dirname(__file__), '..', 'static')
-    proof_dir = os.path.join(static_dir, 'uploads', 'proofs', str(dr_id))
-    os.makedirs(proof_dir, exist_ok=True)
-
-    fname = secure_filename(proof.filename)
-    dest = os.path.join(proof_dir, fname)
-    proof.save(dest)
-    rel_path = os.path.relpath(dest, static_dir)
+    from app.utils.r2 import upload_file
+    try:
+        rel_path = upload_file(proof.stream, proof.filename, folder=f"proofs/{dr_id}")
+    except Exception as e:
+        flash(f'Upload failed: {e}', 'error')
+        return redirect(url_for('admin.design_request_detail', dr_id=dr_id))
 
     now = datetime.utcnow()
     with get_db() as db:

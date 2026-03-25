@@ -168,18 +168,18 @@
 {% endif %}
 
 <!-- Proof Section -->
-{% if status in ('Proof Sent', 'Revision Requested', 'Final Approved') and f.get('Proof File') %}
+{% if status in ('Proof Sent', 'Revision Requested', 'Final Approved') and proof_url %}
 <div class="proof-card">
   <h3>📋 Your Proof</h3>
-  {% set proof = f.get('Proof File') %}
+  {% set proof = f.get('Proof File','') %}
   {% set ext = proof.split('.')[-1].lower() if '.' in proof else '' %}
   {% if ext in ('jpg', 'jpeg', 'png', 'tif', 'tiff') %}
-    <a href="/static/{{ proof }}" target="_blank">
-      <img src="/static/{{ proof }}" alt="Proof"
+    <a href="{{ proof_url }}" target="_blank">
+      <img src="{{ proof_url }}" alt="Proof"
            style="max-width:100%;max-height:400px;border-radius:8px;border:1px solid #e0e0e0;">
     </a>
   {% else %}
-    <a href="/static/{{ proof }}" target="_blank" class="btn btn-secondary">
+    <a href="{{ proof_url }}" target="_blank" class="btn btn-secondary">
       📄 View Proof PDF
     </a>
   {% endif %}
