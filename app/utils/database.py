@@ -317,6 +317,63 @@ if DATABASE_URL:
                       END IF;
                     END $$;
                 """)
+                # ── Campaign design brief + file columns (idempotent) ─────────────
+                cur.execute("""
+                    DO $$ BEGIN
+                      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='campaigns' AND column_name='headline_ideas') THEN
+                        ALTER TABLE campaigns ADD COLUMN headline_ideas TEXT;
+                      END IF;
+                    END $$;
+                """)
+                cur.execute("""
+                    DO $$ BEGIN
+                      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='campaigns' AND column_name='key_selling_points') THEN
+                        ALTER TABLE campaigns ADD COLUMN key_selling_points TEXT;
+                      END IF;
+                    END $$;
+                """)
+                cur.execute("""
+                    DO $$ BEGIN
+                      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='campaigns' AND column_name='brand_colors') THEN
+                        ALTER TABLE campaigns ADD COLUMN brand_colors TEXT;
+                      END IF;
+                    END $$;
+                """)
+                cur.execute("""
+                    DO $$ BEGIN
+                      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='campaigns' AND column_name='brand_tone') THEN
+                        ALTER TABLE campaigns ADD COLUMN brand_tone TEXT;
+                      END IF;
+                    END $$;
+                """)
+                cur.execute("""
+                    DO $$ BEGIN
+                      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='campaigns' AND column_name='return_address') THEN
+                        ALTER TABLE campaigns ADD COLUMN return_address TEXT;
+                      END IF;
+                    END $$;
+                """)
+                cur.execute("""
+                    DO $$ BEGIN
+                      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='campaigns' AND column_name='logo_files') THEN
+                        ALTER TABLE campaigns ADD COLUMN logo_files TEXT;
+                      END IF;
+                    END $$;
+                """)
+                cur.execute("""
+                    DO $$ BEGIN
+                      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='campaigns' AND column_name='product_files') THEN
+                        ALTER TABLE campaigns ADD COLUMN product_files TEXT;
+                      END IF;
+                    END $$;
+                """)
+                cur.execute("""
+                    DO $$ BEGIN
+                      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='campaigns' AND column_name='inspiration_files') THEN
+                        ALTER TABLE campaigns ADD COLUMN inspiration_files TEXT;
+                      END IF;
+                    END $$;
+                """)
 
                 # ── Leads column migrations (idempotent) ─────────────────────────
                 cur.execute("""
@@ -752,6 +809,21 @@ else:
                     pass  # Column already exists
             # Add campaign list/quote columns (idempotent)
             for col, col_type in [('list_count', 'INTEGER'), ('quote_amount', 'REAL')]:
+                try:
+                    conn.execute(f"ALTER TABLE campaigns ADD COLUMN {col} {col_type}")
+                except Exception:
+                    pass  # Column already exists
+            # Add campaign design brief + file columns (idempotent)
+            for col, col_type in [
+                ('headline_ideas',    'TEXT'),
+                ('key_selling_points','TEXT'),
+                ('brand_colors',      'TEXT'),
+                ('brand_tone',        'TEXT'),
+                ('return_address',    'TEXT'),
+                ('logo_files',        'TEXT'),
+                ('product_files',     'TEXT'),
+                ('inspiration_files', 'TEXT'),
+            ]:
                 try:
                     conn.execute(f"ALTER TABLE campaigns ADD COLUMN {col} {col_type}")
                 except Exception:

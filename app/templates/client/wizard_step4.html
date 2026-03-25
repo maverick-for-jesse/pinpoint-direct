@@ -1,0 +1,160 @@
+{% extends "client/base.html" %}
+{% block title %}New Campaign — Step 4{% endblock %}
+{% block page_title %}{{ campaign.name }}{% endblock %}
+{% block page_sub %}<p>Step 4 of 5 — Files &amp; Assets</p>{% endblock %}
+
+{% block content %}
+<style>
+  .wizard-wrap { max-width: 680px; margin: 0 auto; }
+  .progress-steps { display: flex; gap: 0; margin-bottom: 28px; }
+  .step-item { flex: 1; text-align: center; position: relative; }
+  .step-item::after {
+    content: ''; position: absolute; top: 15px; left: 50%; right: -50%;
+    height: 2px; background: #e0e0e0; z-index: 0;
+  }
+  .step-item:last-child::after { display: none; }
+  .step-item.done::after { background: #27ae60; }
+  .step-item.active::after { background: #e0e0e0; }
+  .step-circle {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; position: relative; z-index: 1;
+    background: #e0e0e0; color: #999;
+  }
+  .step-item.active .step-circle { background: #e63946; color: white; }
+  .step-item.done .step-circle { background: #27ae60; color: white; }
+  .step-label { font-size: 11px; color: #aaa; margin-top: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .step-item.active .step-label { color: #e63946; }
+  .step-item.done .step-label { color: #27ae60; }
+
+  .form-group { margin-bottom: 24px; }
+  .form-group label { display: block; font-size: 14px; font-weight: 600; color: #333; margin-bottom: 6px; }
+  .form-group .hint { font-size: 12px; color: #999; margin-bottom: 8px; }
+  .section-label {
+    font-size: 11px; font-weight: 700; color: #e63946;
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 14px; margin-top: 24px; padding-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .section-label:first-child { margin-top: 0; }
+
+  .file-upload-box {
+    border: 2px dashed #e0e0e0; border-radius: 10px;
+    padding: 24px 20px; text-align: center; cursor: pointer;
+    transition: all 0.15s; background: #fafafa;
+  }
+  .file-upload-box:hover { border-color: #e63946; background: #fff8f8; }
+  .file-upload-box input[type="file"] { display: none; }
+  .file-upload-box .upload-icon { font-size: 28px; margin-bottom: 8px; }
+  .file-upload-box .upload-label { font-size: 14px; font-weight: 600; color: #444; margin-bottom: 4px; }
+  .file-upload-box .upload-hint { font-size: 12px; color: #aaa; }
+  .file-upload-box .file-names { font-size: 12px; color: #27ae60; margin-top: 8px; font-weight: 600; }
+
+  .submit-row { margin-top: 32px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .skip-link { color:#aaa; font-size:13px; text-decoration:none; }
+  .skip-link:hover { color:#666; text-decoration:underline; }
+</style>
+
+<div class="wizard-wrap">
+  <div class="progress-steps">
+    <div class="step-item done">
+      <div class="step-circle">✓</div>
+      <div class="step-label">The Offer</div>
+    </div>
+    <div class="step-item done">
+      <div class="step-circle">✓</div>
+      <div class="step-label">Audience</div>
+    </div>
+    <div class="step-item done">
+      <div class="step-circle">✓</div>
+      <div class="step-label">Design Brief</div>
+    </div>
+    <div class="step-item active">
+      <div class="step-circle">4</div>
+      <div class="step-label">Files</div>
+    </div>
+    <div class="step-item">
+      <div class="step-circle">5</div>
+      <div class="step-label">AI Copy</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Files &amp; Assets</div>
+    <p style="font-size:13px; color:#888; margin-bottom:20px;">
+      Upload your logo, photos, and any design inspiration. All files are optional — you can always send them later.
+      <br><strong>Accepted formats:</strong> JPG, PNG, PDF, AI, EPS, SVG, TIF/TIFF &nbsp;·&nbsp; <strong>Max:</strong> 50MB per file
+    </p>
+
+    <form method="POST" action="{{ url_for('wizard.wizard_step4', campaign_id=campaign.id) }}"
+          enctype="multipart/form-data">
+
+      <!-- Logo Files -->
+      <div class="form-group">
+        <label>Logo Files <span style="color:#aaa; font-weight:400;">(optional)</span></label>
+        <div class="hint">Upload your logo in the highest quality available (vector preferred).</div>
+        <div class="file-upload-box" onclick="document.getElementById('logo_files_input').click()">
+          <input type="file" id="logo_files_input" name="logo_files" multiple
+                 accept=".jpg,.jpeg,.png,.pdf,.ai,.eps,.svg,.tif,.tiff"
+                 onchange="showFileNames(this, 'logo_file_names')">
+          <div class="upload-icon">🖼️</div>
+          <div class="upload-label">Click to upload logo files</div>
+          <div class="upload-hint">or drag and drop</div>
+          <div class="file-names" id="logo_file_names"></div>
+        </div>
+      </div>
+
+      <!-- Product/Service Images -->
+      <div class="form-group">
+        <label>Product / Service Images <span style="color:#aaa; font-weight:400;">(optional)</span></label>
+        <div class="hint">Photos of your product, work, team, or location.</div>
+        <div class="file-upload-box" onclick="document.getElementById('product_files_input').click()">
+          <input type="file" id="product_files_input" name="product_files" multiple
+                 accept=".jpg,.jpeg,.png,.pdf,.ai,.eps,.svg,.tif,.tiff"
+                 onchange="showFileNames(this, 'product_file_names')">
+          <div class="upload-icon">📸</div>
+          <div class="upload-label">Click to upload product images</div>
+          <div class="upload-hint">or drag and drop</div>
+          <div class="file-names" id="product_file_names"></div>
+        </div>
+      </div>
+
+      <!-- Inspiration Files -->
+      <div class="form-group">
+        <label>Inspiration / Examples <span style="color:#aaa; font-weight:400;">(optional)</span></label>
+        <div class="hint">Postcards, ads, or designs you love — or want us to avoid.</div>
+        <div class="file-upload-box" onclick="document.getElementById('inspiration_files_input').click()">
+          <input type="file" id="inspiration_files_input" name="inspiration_files" multiple
+                 accept=".jpg,.jpeg,.png,.pdf,.ai,.eps,.svg,.tif,.tiff"
+                 onchange="showFileNames(this, 'inspiration_file_names')">
+          <div class="upload-icon">💡</div>
+          <div class="upload-label">Click to upload inspiration files</div>
+          <div class="upload-hint">or drag and drop</div>
+          <div class="file-names" id="inspiration_file_names"></div>
+        </div>
+      </div>
+
+      <div class="submit-row">
+        <button type="submit" class="btn btn-primary">Continue to AI Copy →</button>
+        <a href="{{ url_for('wizard.wizard_step5', campaign_id=campaign.id) }}"
+           class="skip-link">Skip — add files later →</a>
+        <a href="{{ url_for('wizard.wizard_step3', campaign_id=campaign.id) }}"
+           style="color:#999; font-size:13px; text-decoration:none; margin-left:auto;">← Back</a>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<script>
+function showFileNames(input, targetId) {
+  const el = document.getElementById(targetId);
+  if (input.files && input.files.length > 0) {
+    const names = Array.from(input.files).map(f => f.name).join(', ');
+    el.textContent = '✓ ' + names;
+  } else {
+    el.textContent = '';
+  }
+}
+</script>
+{% endblock %}

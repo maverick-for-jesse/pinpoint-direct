@@ -7,18 +7,47 @@ Routes:
   GET       /portal/wizard                  — Start new campaign (step 1)
   POST      /portal/wizard/start            — Submit step 1, create campaign
   GET/POST  /portal/wizard/<id>/step2       — Audience & postcard details
-  GET       /portal/wizard/<id>/step3       — AI copy selection
+  GET/POST  /portal/wizard/<id>/step3       — Design Brief (NEW)
+  GET/POST  /portal/wizard/<id>/step4       — Files & Assets (NEW)
+  GET       /portal/wizard/<id>/step5       — AI copy selection
   POST      /portal/wizard/<id>/generate-copy  — AJAX: generate AI copy
   POST      /portal/wizard/<id>/complete    — Save selections, finish wizard
 """
 
+import json
+import os
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
 from app.utils.database import get_db, db_fetchone, db_fetchall, db_insert, db_exec
 from app.utils.copy_generator import generate_campaign_copy
 from functools import wraps
+from werkzeug.utils import secure_filename
 
 wizard_bp = Blueprint('wizard', __name__)
+
+# ─── Allowed file types for uploads ──────────────────────────────────────────
+
+ALLOWED_CAMPAIGN_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.pdf', '.ai', '.eps', '.svg', '.tif', '.tiff'}
+
+
+def _allowed_campaign_file(filename):
+    ext = os.path.splitext(filename.lower())[1]
+    return ext in ALLOWED_CAMPAIGN_EXTENSIONS
+
+
+def _save_campaign_files(file_list, campaign_id, subfolder):
+    """Upload a list of FileStorage objects to R2 under campaigns/<id>/<subfolder>/. Return list of R2 keys."""
+    from app.utils.r2 import upload_file
+    keys = []
+    for f in file_list:
+        if f and f.filename and _allowed_campaign_file(f.filename):
+            try:
+                folder = f"campaigns/{campaign_id}/{subfolder}"
+                key = upload_file(f.stream, f.filename, folder=folder)
+                keys.append(key)
+            except Exception as e:
+                print(f"R2 upload error: {e}")
+    return keys
 
 
 # ─── Decorators ──────────────────────────────────────────────────────────────
@@ -196,9 +225,9 @@ def wizard_step2(campaign_id):
     return render_template('client/wizard_step2.html', campaign=campaign)
 
 
-# ─── Wizard Step 3 — AI Copy ──────────────────────────────────────────────────
+# ─── Wizard Step 3 — Design Brief ─────────────────────────────────────────────
 
-@wizard_bp.route('/wizard/<int:campaign_id>/step3', methods=['GET'])
+@wizard_bp.route('/wizard/<int:campaign_id>/step3', methods=['GET', 'POST'])
 @login_required
 @client_required
 def wizard_step3(campaign_id):
@@ -206,8 +235,81 @@ def wizard_step3(campaign_id):
     if not campaign:
         flash('Campaign not found.', 'error')
         return redirect(url_for('client.campaigns'))
+
+    if request.method == 'POST':
+        headline_ideas    = request.form.get('headline_ideas', '').strip()
+        key_selling_pts   = request.form.get('key_selling_points', '').strip()
+        brand_colors      = request.form.get('brand_colors', '').strip()
+        brand_tone        = request.form.get('brand_tone', '').strip()
+        return_address    = request.form.get('return_address', '').strip()
+
+        with get_db() as db:
+            db_exec(db, """
+                UPDATE campaigns SET
+                    headline_ideas=?, key_selling_points=?, brand_colors=?,
+                    brand_tone=?, return_address=?, wizard_step=4
+                WHERE id=?
+            """, (headline_ideas, key_selling_pts, brand_colors, brand_tone,
+                  return_address, campaign_id))
+
+        return redirect(url_for('wizard.wizard_step4', campaign_id=campaign_id))
+
+    return render_template('client/wizard_step3.html', campaign=campaign)
+
+
+# ─── Wizard Step 4 — Files & Assets ───────────────────────────────────────────
+
+@wizard_bp.route('/wizard/<int:campaign_id>/step4', methods=['GET', 'POST'])
+@login_required
+@client_required
+def wizard_step4(campaign_id):
+    campaign = _get_campaign(campaign_id)
+    if not campaign:
+        flash('Campaign not found.', 'error')
+        return redirect(url_for('client.campaigns'))
+
+    if request.method == 'POST':
+        logo_files        = request.files.getlist('logo_files')
+        product_files     = request.files.getlist('product_files')
+        inspiration_files = request.files.getlist('inspiration_files')
+
+        logo_keys        = _save_campaign_files(logo_files, campaign_id, 'logos')
+        product_keys     = _save_campaign_files(product_files, campaign_id, 'products')
+        inspiration_keys = _save_campaign_files(inspiration_files, campaign_id, 'inspiration')
+
+        # Merge with any previously saved keys
+        existing_logo    = json.loads(campaign.get('logo_files') or '[]')
+        existing_product = json.loads(campaign.get('product_files') or '[]')
+        existing_insp    = json.loads(campaign.get('inspiration_files') or '[]')
+
+        all_logo    = existing_logo + logo_keys
+        all_product = existing_product + product_keys
+        all_insp    = existing_insp + inspiration_keys
+
+        with get_db() as db:
+            db_exec(db, """
+                UPDATE campaigns SET
+                    logo_files=?, product_files=?, inspiration_files=?, wizard_step=5
+                WHERE id=?
+            """, (json.dumps(all_logo), json.dumps(all_product), json.dumps(all_insp), campaign_id))
+
+        return redirect(url_for('wizard.wizard_step5', campaign_id=campaign_id))
+
+    return render_template('client/wizard_step4.html', campaign=campaign)
+
+
+# ─── Wizard Step 5 — AI Copy ──────────────────────────────────────────────────
+
+@wizard_bp.route('/wizard/<int:campaign_id>/step5', methods=['GET'])
+@login_required
+@client_required
+def wizard_step5(campaign_id):
+    campaign = _get_campaign(campaign_id)
+    if not campaign:
+        flash('Campaign not found.', 'error')
+        return redirect(url_for('client.campaigns'))
     profile = _get_business_profile()
-    return render_template('client/wizard_step3.html', campaign=campaign, profile=profile)
+    return render_template('client/wizard_step5.html', campaign=campaign, profile=profile)
 
 
 @wizard_bp.route('/wizard/<int:campaign_id>/generate-copy', methods=['POST'])
@@ -245,13 +347,13 @@ def wizard_complete(campaign_id):
 
     if not selected_headline or not selected_body or not selected_cta:
         flash('Please select a headline, body copy, and call-to-action.', 'error')
-        return redirect(url_for('wizard.wizard_step3', campaign_id=campaign_id))
+        return redirect(url_for('wizard.wizard_step5', campaign_id=campaign_id))
 
     with get_db() as db:
         db_exec(db, """
             UPDATE campaigns SET
                 selected_headline=?, selected_body=?, selected_cta=?,
-                wizard_completed=true, wizard_step=4, status='Draft'
+                wizard_completed=true, wizard_step=6, status='Draft'
             WHERE id=?
         """, (selected_headline, selected_body, selected_cta, campaign_id))
 

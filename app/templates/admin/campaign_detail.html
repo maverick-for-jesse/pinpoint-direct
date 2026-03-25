@@ -116,6 +116,69 @@
   </div>
 </div>
 
+{# Design Brief & Files #}
+{% set has_brief = campaign.fields.get('Headline Ideas') or campaign.fields.get('Key Selling Points') or campaign.fields.get('Brand Colors') or campaign.fields.get('Brand Tone') or campaign.fields.get('Return Address') %}
+{% set has_files = campaign.fields.get('Logo Files') or campaign.fields.get('Product Files') or campaign.fields.get('Inspiration Files') %}
+{% if has_brief or has_files %}
+<div class="card" style="margin-bottom: 20px;">
+  <div class="card-title">Design Brief</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+    <div style="font-size: 14px; line-height: 2.2;">
+      {% if campaign.fields.get('Brand Tone') %}
+      <div><strong>Brand Tone:</strong> {{ campaign.fields.get('Brand Tone') }}</div>
+      {% endif %}
+      {% if campaign.fields.get('Brand Colors') %}
+      <div><strong>Brand Colors:</strong> {{ campaign.fields.get('Brand Colors') }}</div>
+      {% endif %}
+      {% if campaign.fields.get('Return Address') %}
+      <div><strong>Return Address:</strong><br>
+        <span style="white-space:pre-line; color:#555;">{{ campaign.fields.get('Return Address') }}</span>
+      </div>
+      {% endif %}
+    </div>
+    <div style="font-size: 14px; line-height: 2;">
+      {% if campaign.fields.get('Key Selling Points') %}
+      <div style="margin-bottom:10px;"><strong>Key Selling Points:</strong><br>
+        <span style="color:#555;">{{ campaign.fields.get('Key Selling Points') }}</span>
+      </div>
+      {% endif %}
+      {% if campaign.fields.get('Headline Ideas') %}
+      <div><strong>Headline Ideas:</strong><br>
+        <span style="color:#555;">{{ campaign.fields.get('Headline Ideas') }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% if has_files %}
+  <div style="margin-top:16px; padding-top:16px; border-top:1px solid #f0f0f0;">
+    <div style="font-size:12px; font-weight:700; color:#888; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">Uploaded Files</div>
+    <div style="display:flex; gap:16px; flex-wrap:wrap; font-size:13px;">
+      {% if campaign.fields.get('Logo Files') %}
+        {% set logo_list = campaign.fields.get('Logo Files') %}
+        {% if logo_list %}
+        <div><strong>Logos:</strong>
+          {% if logo_list starts with '[' %}
+            {% for key in logo_list | tojson | fromjson %}
+              <a href="#" style="color:#e63946;">{{ key.split('/')[-1] }}</a>{% if not loop.last %}, {% endif %}
+            {% endfor %}
+          {% else %}
+            <span style="color:#555;">{{ logo_list }}</span>
+          {% endif %}
+        </div>
+        {% endif %}
+      {% endif %}
+      {% if campaign.fields.get('Product Files') %}
+        <div><strong>Product Images:</strong> <span style="color:#555;">{{ campaign.fields.get('Product Files') }}</span></div>
+      {% endif %}
+      {% if campaign.fields.get('Inspiration Files') %}
+        <div><strong>Inspiration:</strong> <span style="color:#555;">{{ campaign.fields.get('Inspiration Files') }}</span></div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
 {# Artwork #}
 <div class="card" style="margin-bottom: 20px;">
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">

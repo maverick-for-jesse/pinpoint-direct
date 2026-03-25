@@ -28,6 +28,9 @@ _SELECT = {
         SELECT c.id, c.name, c.postcard_size, c.status, c.piece_count,
                c.mail_date, c.notes, c.created_at, c.client_id,
                c.list_count, c.quote_amount,
+               c.headline_ideas, c.key_selling_points, c.brand_colors,
+               c.brand_tone, c.return_address,
+               c.logo_files, c.product_files, c.inspiration_files,
                cl.company_name AS client_name
         FROM campaigns c
         LEFT JOIN clients cl ON c.client_id = cl.id
@@ -137,15 +140,23 @@ def _row_to_record(table, row):
         }
     elif table == 'campaigns':
         fields = {
-            'Campaign Name': r.get('name') or '',
-            'Client':        r.get('client_name') or '',
-            'Postcard Size': r.get('postcard_size') or '6x9',
-            'Status':        r.get('status') or 'Draft',
-            'Piece Count':   r.get('piece_count') or 0,
-            'Mail Date':     _date_str(r.get('mail_date')),
-            'Notes':         r.get('notes') or '',
-            'List Count':    r.get('list_count') or 0,
-            'Quote Amount':  r.get('quote_amount') or 0.0,
+            'Campaign Name':      r.get('name') or '',
+            'Client':             r.get('client_name') or '',
+            'Postcard Size':      r.get('postcard_size') or '6x9',
+            'Status':             r.get('status') or 'Draft',
+            'Piece Count':        r.get('piece_count') or 0,
+            'Mail Date':          _date_str(r.get('mail_date')),
+            'Notes':              r.get('notes') or '',
+            'List Count':         r.get('list_count') or 0,
+            'Quote Amount':       r.get('quote_amount') or 0.0,
+            'Headline Ideas':     r.get('headline_ideas') or '',
+            'Key Selling Points': r.get('key_selling_points') or '',
+            'Brand Colors':       r.get('brand_colors') or '',
+            'Brand Tone':         r.get('brand_tone') or '',
+            'Return Address':     r.get('return_address') or '',
+            'Logo Files':         r.get('logo_files') or '',
+            'Product Files':      r.get('product_files') or '',
+            'Inspiration Files':  r.get('inspiration_files') or '',
         }
     elif table == 'artwork':
         fields = {
@@ -347,14 +358,22 @@ def _fields_to_pg(table, fields, db):
 
     elif table == 'campaigns':
         MAP = {
-            'Campaign Name': 'name',
-            'Postcard Size': 'postcard_size',
-            'Status':        'status',
-            'Piece Count':   'piece_count',
-            'Mail Date':     'mail_date',
-            'Notes':         'notes',
-            'List Count':    'list_count',
-            'Quote Amount':  'quote_amount',
+            'Campaign Name':      'name',
+            'Postcard Size':      'postcard_size',
+            'Status':             'status',
+            'Piece Count':        'piece_count',
+            'Mail Date':          'mail_date',
+            'Notes':              'notes',
+            'List Count':         'list_count',
+            'Quote Amount':       'quote_amount',
+            'Headline Ideas':     'headline_ideas',
+            'Key Selling Points': 'key_selling_points',
+            'Brand Colors':       'brand_colors',
+            'Brand Tone':         'brand_tone',
+            'Return Address':     'return_address',
+            'Logo Files':         'logo_files',
+            'Product Files':      'product_files',
+            'Inspiration Files':  'inspiration_files',
         }
         for at_key, pg_col in MAP.items():
             if at_key in fields:
