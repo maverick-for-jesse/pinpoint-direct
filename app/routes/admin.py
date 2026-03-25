@@ -3331,3 +3331,38 @@ def design_request_advance(dr_id):
                 flash('Already at final status or cannot auto-advance from this state.', 'info')
 
     return redirect(url_for('admin.design_request_detail', dr_id=dr_id))
+
+
+# ── One-time test client setup ────────────────────────────────────────────────
+@admin_bp.route('/setup-test-client')
+@login_required
+@admin_required
+def setup_test_client():
+    from app.utils.database import get_db, get_db_type
+    from werkzeug.security import generate_password_hash
+    ph = '%s' if get_db_type() == 'postgres' else '?'
+    with get_db() as db:
+        if get_db_type() == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"SELECT id FROM clients WHERE company_name = {ph}", ('Blue Alpha Test',))
+                existing = cur.fetchone()
+                if existing:
+                    return f"Test client already exists (ID: {existing['id']}). <a href='/admin/'>Back</a>"
+                cur.execute(
+                    f"INSERT INTO clients (company_name, contact_name, contact_email, status) VALUES ({ph},{ph},{ph},{ph}) RETURNING id",
+                    ('Blue Alpha Test', 'Jesse Frei', 'jesse@bluealpha.us', 'Active')
+                )
+                client_id = cur.fetchone()['id']
+                pw = generate_password_hash('TestClient2026!')
+                cur.execute(
+                    f"INSERT INTO users (name, email, password_hash, role, client_id) VALUES ({ph},{ph},{ph},{ph},{ph}) RETURNING id",
+                    ('Jesse (Test Client)', 'testclient@pinpointdirect.io', pw, 'Client', client_id)
+                )
+                user_id = cur.fetchone()['id']
+            db.commit()
+            return f"""<h2>✅ Test client created!</h2>
+            <p>Client ID: {client_id} | User ID: {user_id}</p>
+            <p><strong>Email:</strong> testclient@pinpointdirect.io</p>
+            <p><strong>Password:</strong> TestClient2026!</p>
+            <p><a href='/admin/'>Back to admin</a></p>"""
+        return "Only works on PostgreSQL (Railway)."
