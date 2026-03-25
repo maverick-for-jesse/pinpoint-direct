@@ -278,30 +278,16 @@
     <!-- Section 5: Mailing List -->
     <div class="section-card">
       <div class="section-header">5. Mailing List</div>
-      <div class="section-sub">Do you have your mailing list, or do you need help?</div>
+      <div class="section-sub">Pinpoint will source and build your targeted mailing list. Tell us who you want to reach.</div>
 
-      <div class="radio-group">
-        <label class="radio-option">
-          <input type="radio" name="mailing_list_status" value="Have one" checked>
-          <div>
-            <strong>I have a mailing list</strong>
-            <span style="display:block;font-size:12px;color:#888;">I'll upload my list or provide it separately</span>
-          </div>
-        </label>
-        <label class="radio-option">
-          <input type="radio" name="mailing_list_status" value="Need one">
-          <div>
-            <strong>I need Pinpoint to source one</strong>
-            <span style="display:block;font-size:12px;color:#888;">We'll build a targeted list for your area and audience</span>
-          </div>
-        </label>
-        <label class="radio-option">
-          <input type="radio" name="mailing_list_status" value="Upload later">
-          <div>
-            <strong>I'll upload my list later</strong>
-            <span style="display:block;font-size:12px;color:#888;">I have a list but I'll provide it after the design is approved</span>
-          </div>
-        </label>
+      <input type="hidden" name="mailing_list_status" value="Need one">
+
+      <div class="form-group" style="margin-top:16px;">
+        <label class="form-label">Targeting Details</label>
+        <textarea name="mailing_list_targeting" rows="4"
+          placeholder="Examples: neighborhoods (Oak Hill, Riverside), new movers in ZIP 30265, homeowners who pulled permits in the last 6 months, households within 5 miles of our location..."
+          style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:14px;resize:vertical;font-family:inherit;"></textarea>
+        <span style="font-size:12px;color:#888;margin-top:4px;display:block;">Be as specific as you'd like — neighborhood names, ZIP codes, mover data, permit activity, home value ranges, etc.</span>
       </div>
     </div>
 
