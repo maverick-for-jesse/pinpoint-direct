@@ -385,6 +385,45 @@ if DATABASE_URL:
                         imb_barcode     TEXT
                     )
                 """)
+                # ── Design Requests ───────────────────────────────────────────────
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS design_requests (
+                        id SERIAL PRIMARY KEY,
+                        client_id INTEGER REFERENCES clients(id),
+                        campaign_id INTEGER REFERENCES campaigns(id),
+                        status VARCHAR(50) DEFAULT 'Draft',
+                        business_name VARCHAR(255),
+                        industry VARCHAR(255),
+                        campaign_goal TEXT,
+                        products_services TEXT,
+                        headline_ideas TEXT,
+                        key_selling_points TEXT,
+                        call_to_action VARCHAR(255),
+                        cta_url VARCHAR(500),
+                        promo_code VARCHAR(100),
+                        brand_colors VARCHAR(255),
+                        brand_tone VARCHAR(100),
+                        target_audience TEXT,
+                        mailing_list_status VARCHAR(50) DEFAULT 'Have one',
+                        return_address TEXT,
+                        quantity INTEGER,
+                        target_mail_date DATE,
+                        additional_notes TEXT,
+                        logo_files TEXT,
+                        product_files TEXT,
+                        inspiration_files TEXT,
+                        proof_file VARCHAR(500),
+                        proof_uploaded_at TIMESTAMP,
+                        revision_round INTEGER DEFAULT 0,
+                        revision_limit INTEGER DEFAULT 2,
+                        client_feedback TEXT,
+                        admin_notes TEXT,
+                        fiverr_order_ref VARCHAR(100),
+                        submitted_at TIMESTAMP,
+                        approved_at TIMESTAMP,
+                        created_at TIMESTAMP DEFAULT NOW()
+                    )
+                """)
             conn.commit()
 
 else:
@@ -625,6 +664,42 @@ else:
                     sequence_number INTEGER,
                     cass_valid      INTEGER DEFAULT 0,
                     imb_barcode     TEXT
+                );
+                CREATE TABLE IF NOT EXISTS design_requests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    client_id INTEGER REFERENCES clients(id),
+                    campaign_id INTEGER REFERENCES campaigns(id),
+                    status VARCHAR(50) DEFAULT 'Draft',
+                    business_name VARCHAR(255),
+                    industry VARCHAR(255),
+                    campaign_goal TEXT,
+                    products_services TEXT,
+                    headline_ideas TEXT,
+                    key_selling_points TEXT,
+                    call_to_action VARCHAR(255),
+                    cta_url VARCHAR(500),
+                    promo_code VARCHAR(100),
+                    brand_colors VARCHAR(255),
+                    brand_tone VARCHAR(100),
+                    target_audience TEXT,
+                    mailing_list_status VARCHAR(50) DEFAULT 'Have one',
+                    return_address TEXT,
+                    quantity INTEGER,
+                    target_mail_date DATE,
+                    additional_notes TEXT,
+                    logo_files TEXT,
+                    product_files TEXT,
+                    inspiration_files TEXT,
+                    proof_file VARCHAR(500),
+                    proof_uploaded_at DATETIME,
+                    revision_round INTEGER DEFAULT 0,
+                    revision_limit INTEGER DEFAULT 2,
+                    client_feedback TEXT,
+                    admin_notes TEXT,
+                    fiverr_order_ref VARCHAR(100),
+                    submitted_at DATETIME,
+                    approved_at DATETIME,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
             """)
             # Add verify columns to existing SQLite tables (idempotent)

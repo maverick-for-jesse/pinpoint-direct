@@ -1,0 +1,89 @@
+{% extends "admin/base.html" %}
+{% block title %}Design Requests{% endblock %}
+{% block page_title %}Design Requests{% endblock %}
+
+{% block content %}
+
+<style>
+  .tr-attention td { background: #fffbf0; }
+  .tr-attention:hover td { background: #fff5e0 !important; }
+  .badge-orange { background: #fff3e0; color: #e65100; }
+  .badge-teal { background: #e0f7fa; color: #006064; }
+</style>
+
+<div style="margin-bottom:20px;">
+  <p style="color:#888;font-size:14px;">
+    All client design briefs. Rows highlighted in orange need attention.
+  </p>
+</div>
+
+{% if design_requests %}
+<div class="card" style="padding:0;">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Client</th>
+          <th>Business Name</th>
+          <th>Status</th>
+          <th>Submitted</th>
+          <th>Revision</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for dr in design_requests %}
+        {% set f = dr.fields %}
+        {% set status = f.get('Status', 'Draft') %}
+        {% set needs_attention = status in ('Submitted', 'Revision Requested') %}
+        <tr {% if needs_attention %}class="tr-attention"{% endif %}>
+          <td>
+            <strong>{{ f.get('Client') or '—' }}</strong>
+          </td>
+          <td>{{ f.get('Business Name') or '—' }}</td>
+          <td>
+            {% if status == 'Final Approved' %}
+              <span class="badge badge-green">{{ status }}</span>
+            {% elif status == 'Submitted' %}
+              <span class="badge badge-orange">🔔 {{ status }}</span>
+            {% elif status == 'Revision Requested' %}
+              <span class="badge badge-orange">✏️ {{ status }}</span>
+            {% elif status == 'Proof Sent' %}
+              <span class="badge badge-blue">{{ status }}</span>
+            {% elif status == 'In Review' %}
+              <span class="badge badge-yellow">{{ status }}</span>
+            {% else %}
+              <span class="badge badge-gray">{{ status }}</span>
+            {% endif %}
+          </td>
+          <td style="font-size:13px;color:#888;">
+            {{ f.get('Submitted At', '')[:10] if f.get('Submitted At') else '—' }}
+          </td>
+          <td style="font-size:13px;text-align:center;">
+            {% set rr = f.get('Revision Round') or 0 %}
+            {% set rl = f.get('Revision Limit') or 2 %}
+            {% if rr > 0 %}
+              <span {% if rr >= rl %}style="color:#e63946;font-weight:700;"{% endif %}>
+                {{ rr }}/{{ rl }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('admin.design_request_detail', dr_id=dr.id) }}"
+               class="btn btn-secondary" style="font-size:12px;padding:6px 12px;">View →</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% else %}
+<div class="card empty-state">
+  <div class="empty-icon">🎨</div>
+  <p>No design requests yet. They'll appear here when clients submit their briefs.</p>
+</div>
+{% endif %}
+
+{% endblock %}

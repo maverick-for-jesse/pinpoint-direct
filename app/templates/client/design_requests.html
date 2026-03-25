@@ -1,0 +1,77 @@
+{% extends "client/base.html" %}
+{% block title %}Design Requests{% endblock %}
+{% block page_title %}Design Requests{% endblock %}
+{% block page_sub %}<p>Your postcard design briefs and proofs</p>{% endblock %}
+
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+  <div></div>
+  <a href="{{ url_for('client.design_request_new') }}" class="btn btn-primary">+ New Design Request</a>
+</div>
+
+{% if design_requests %}
+<div class="card" style="padding:0;">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Business / Campaign</th>
+          <th>Status</th>
+          <th>Submitted</th>
+          <th>Revision</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for dr in design_requests %}
+        {% set f = dr.fields %}
+        {% set status = f.get('Status', 'Draft') %}
+        <tr>
+          <td>
+            <strong>{{ f.get('Business Name') or '(no name)' }}</strong>
+            {% if f.get('Campaign') %}<br><span style="font-size:12px;color:#888;">{{ f.get('Campaign') }}</span>{% endif %}
+          </td>
+          <td>
+            {% if status == 'Final Approved' %}
+              <span class="badge badge-green">{{ status }}</span>
+            {% elif status in ('Submitted', 'Revision Requested') %}
+              <span class="badge badge-orange">{{ status }}</span>
+            {% elif status == 'Proof Sent' %}
+              <span class="badge badge-blue">{{ status }}</span>
+            {% elif status == 'In Review' %}
+              <span class="badge badge-yellow">{{ status }}</span>
+            {% else %}
+              <span class="badge badge-gray">{{ status }}</span>
+            {% endif %}
+          </td>
+          <td style="font-size:13px;color:#888;">
+            {{ f.get('Submitted At', '')[:10] if f.get('Submitted At') else '—' }}
+          </td>
+          <td style="font-size:13px;">
+            {% set rr = f.get('Revision Round') or 0 %}
+            {% set rl = f.get('Revision Limit') or 2 %}
+            {% if rr > 0 %}{{ rr }}/{{ rl }}{% else %}—{% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('client.design_request_detail', dr_id=dr.id) }}"
+               class="btn btn-secondary" style="font-size:12px;padding:6px 12px;">View →</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% else %}
+<div class="empty-state card">
+  <div class="icon">🎨</div>
+  <p style="font-size:18px;font-weight:700;color:#444;margin-bottom:8px;">No design requests yet</p>
+  <p>Start your first design request and our team will create a stunning 6×9 postcard for you.</p>
+  <br>
+  <a href="{{ url_for('client.design_request_new') }}" class="btn btn-primary">Start Your First Design Request</a>
+</div>
+{% endif %}
+
+{% endblock %}

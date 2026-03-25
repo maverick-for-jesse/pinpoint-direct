@@ -1,8 +1,11 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 from app.utils.db_helpers import get_records, get_record, update_record, create_record
-from app.utils.database import get_db, db_fetchone
+from app.utils.database import get_db, get_db_type, db_fetchone
 from functools import wraps
+import os, time
+from datetime import datetime
+from werkzeug.utils import secure_filename
 
 client_bp = Blueprint('client', __name__)
 
@@ -214,3 +217,236 @@ def invoice_detail(record_id):
         flash('Invoice not found.', 'error')
         return redirect(url_for('client.invoices'))
     return render_template('client/invoice_detail.html', invoice=invoice)
+
+
+# ── Design Requests ───────────────────────────────────────────────────────────
+
+ALLOWED_DESIGN_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.pdf', '.ai', '.eps', '.svg', '.tif', '.tiff'}
+
+
+def _allowed_design_file(filename):
+    ext = os.path.splitext(filename.lower())[1]
+    return ext in ALLOWED_DESIGN_EXTENSIONS
+
+
+def _save_design_files(file_list, folder):
+    """Save a list of FileStorage objects to folder. Return list of relative paths."""
+    os.makedirs(folder, exist_ok=True)
+    paths = []
+    for f in file_list:
+        if f and f.filename and _allowed_design_file(f.filename):
+            fname = secure_filename(f.filename)
+            dest = os.path.join(folder, fname)
+            f.save(dest)
+            # Return path relative to static/
+            rel = os.path.relpath(dest, os.path.join(os.path.dirname(__file__), '..', 'static'))
+            paths.append(rel)
+    return paths
+
+
+@client_bp.route('/design-request')
+@login_required
+@client_required
+def design_requests():
+    client_id = getattr(current_user, 'client_id', None)
+    drs = []
+    if client_id:
+        try:
+            all_drs = get_records('design_requests')
+            drs = [r for r in all_drs if r['fields'].get('client_id') == client_id]
+            drs = sorted(drs, key=lambda x: x.get('createdTime', ''), reverse=True)
+        except Exception:
+            drs = []
+    return render_template('client/design_requests.html', design_requests=drs)
+
+
+@client_bp.route('/design-request/new', methods=['GET', 'POST'])
+@login_required
+@client_required
+def design_request_new():
+    # Try to pre-fill business name from client profile
+    prefill_name = ''
+    try:
+        client_rec = get_records('clients', filter_formula=f"{{Company Name}}='{client_name()}'")
+        if client_rec:
+            prefill_name = client_rec[0]['fields'].get('Company Name', '')
+    except Exception:
+        pass
+
+    if request.method == 'POST':
+        from app.utils.database import get_db, get_db_type
+        ph = '%s' if get_db_type() == 'postgres' else '?'
+
+        client_id = getattr(current_user, 'client_id', None)
+        now = datetime.utcnow()
+        ts = int(time.time())
+
+        # Text fields
+        fields_data = {
+            'client_id':            client_id,
+            'status':               'Submitted',
+            'business_name':        request.form.get('business_name', '').strip(),
+            'industry':             request.form.get('industry', '').strip(),
+            'campaign_goal':        request.form.get('campaign_goal', '').strip(),
+            'products_services':    request.form.get('products_services', '').strip(),
+            'headline_ideas':       request.form.get('headline_ideas', '').strip(),
+            'key_selling_points':   request.form.get('key_selling_points', '').strip(),
+            'call_to_action':       request.form.get('call_to_action', '').strip(),
+            'cta_url':              request.form.get('cta_url', '').strip(),
+            'promo_code':           request.form.get('promo_code', '').strip(),
+            'brand_colors':         request.form.get('brand_colors', '').strip(),
+            'brand_tone':           request.form.get('brand_tone', '').strip(),
+            'target_audience':      request.form.get('target_audience', '').strip(),
+            'mailing_list_status':  request.form.get('mailing_list_status', 'Have one'),
+            'return_address':       request.form.get('return_address', '').strip(),
+            'additional_notes':     request.form.get('additional_notes', '').strip(),
+            'submitted_at':         now,
+            'created_at':           now,
+        }
+        qty = request.form.get('quantity', '').strip()
+        if qty:
+            try:
+                fields_data['quantity'] = int(qty)
+            except ValueError:
+                pass
+        tmd = request.form.get('target_mail_date', '').strip()
+        if tmd:
+            fields_data['target_mail_date'] = tmd
+
+        # Insert first (no files yet)
+        cols = [k for k in fields_data if fields_data[k] is not None and fields_data[k] != '']
+        vals = [fields_data[c] for c in cols]
+        placeholders = ', '.join([ph] * len(cols))
+        col_str = ', '.join(cols)
+
+        new_id = None
+        with get_db() as db:
+            if get_db_type() == 'postgres':
+                sql = f"INSERT INTO design_requests ({col_str}) VALUES ({placeholders}) RETURNING id"
+                with db.cursor() as cur:
+                    cur.execute(sql, vals)
+                    row = cur.fetchone()
+                    new_id = row['id'] if row else None
+            else:
+                sql = f"INSERT INTO design_requests ({col_str}) VALUES ({placeholders})"
+                cur = db.execute(sql, vals)
+                new_id = cur.lastrowid
+            db.commit()
+
+        if new_id:
+            # Now handle file uploads
+            static_dir = os.path.join(os.path.dirname(__file__), '..', 'static')
+            dr_dir = os.path.join(static_dir, 'uploads', 'design_requests', str(new_id))
+
+            logo_files = request.files.getlist('logo_files')
+            product_files = request.files.getlist('product_files')
+            inspiration_files = request.files.getlist('inspiration_files')
+
+            logo_paths = _save_design_files(logo_files, dr_dir)
+            product_paths = _save_design_files(product_files, dr_dir)
+            insp_paths = _save_design_files(inspiration_files, dr_dir)
+
+            # Update with file paths
+            file_updates = {}
+            if logo_paths:
+                file_updates['logo_files'] = ','.join(logo_paths)
+            if product_paths:
+                file_updates['product_files'] = ','.join(product_paths)
+            if insp_paths:
+                file_updates['inspiration_files'] = ','.join(insp_paths)
+
+            if file_updates:
+                set_clause = ', '.join([f"{k} = {ph}" for k in file_updates])
+                update_vals = list(file_updates.values()) + [new_id]
+                with get_db() as db:
+                    if get_db_type() == 'postgres':
+                        with db.cursor() as cur:
+                            cur.execute(f"UPDATE design_requests SET {set_clause} WHERE id = {ph}", update_vals)
+                    else:
+                        db.execute(f"UPDATE design_requests SET {set_clause} WHERE id = {ph}", update_vals)
+                    db.commit()
+
+        flash('Your design request has been submitted! We\'ll be in touch soon.', 'success')
+        return redirect(url_for('client.design_requests'))
+
+    return render_template('client/design_request_new.html', prefill_name=prefill_name)
+
+
+@client_bp.route('/design-request/<int:dr_id>')
+@login_required
+@client_required
+def design_request_detail(dr_id):
+    try:
+        dr = get_record('design_requests', dr_id)
+    except Exception:
+        flash('Design request not found.', 'error')
+        return redirect(url_for('client.design_requests'))
+    # Security check
+    if dr['fields'].get('client_id') != getattr(current_user, 'client_id', None):
+        flash('Design request not found.', 'error')
+        return redirect(url_for('client.design_requests'))
+    return render_template('client/design_request_detail.html', dr=dr)
+
+
+@client_bp.route('/design-request/<int:dr_id>/approve', methods=['POST'])
+@login_required
+@client_required
+def design_request_approve(dr_id):
+    try:
+        dr = get_record('design_requests', dr_id)
+    except Exception:
+        flash('Design request not found.', 'error')
+        return redirect(url_for('client.design_requests'))
+    if dr['fields'].get('client_id') != getattr(current_user, 'client_id', None):
+        flash('Not authorized.', 'error')
+        return redirect(url_for('client.design_requests'))
+
+    ph = '%s' if get_db_type() == 'postgres' else '?'
+    now = datetime.utcnow()
+    with get_db() as db:
+        if get_db_type() == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"UPDATE design_requests SET status={ph}, approved_at={ph} WHERE id={ph}",
+                            ('Final Approved', now, dr_id))
+        else:
+            db.execute(f"UPDATE design_requests SET status={ph}, approved_at={ph} WHERE id={ph}",
+                       ('Final Approved', now, dr_id))
+        db.commit()
+
+    flash('Proof approved! Your design is finalized. 🎉', 'success')
+    return redirect(url_for('client.design_request_detail', dr_id=dr_id))
+
+
+@client_bp.route('/design-request/<int:dr_id>/revise', methods=['POST'])
+@login_required
+@client_required
+def design_request_revise(dr_id):
+    try:
+        dr = get_record('design_requests', dr_id)
+    except Exception:
+        flash('Design request not found.', 'error')
+        return redirect(url_for('client.design_requests'))
+    if dr['fields'].get('client_id') != getattr(current_user, 'client_id', None):
+        flash('Not authorized.', 'error')
+        return redirect(url_for('client.design_requests'))
+
+    feedback = request.form.get('client_feedback', '').strip()
+    rev_round = (dr['fields'].get('Revision Round') or 0) + 1
+    rev_limit = dr['fields'].get('Revision Limit') or 2
+
+    ph = '%s' if get_db_type() == 'postgres' else '?'
+    with get_db() as db:
+        if get_db_type() == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"UPDATE design_requests SET status={ph}, client_feedback={ph}, revision_round={ph} WHERE id={ph}",
+                            ('Revision Requested', feedback, rev_round, dr_id))
+        else:
+            db.execute(f"UPDATE design_requests SET status={ph}, client_feedback={ph}, revision_round={ph} WHERE id={ph}",
+                       ('Revision Requested', feedback, rev_round, dr_id))
+        db.commit()
+
+    if rev_round >= rev_limit:
+        flash(f'Revision {rev_round} of {rev_limit} requested. Note: you\'ve reached your revision limit — additional revisions may incur extra charges.', 'warning')
+    else:
+        flash(f'Revision {rev_round} of {rev_limit} requested. Our designer will update the proof shortly.', 'info')
+    return redirect(url_for('client.design_request_detail', dr_id=dr_id))

@@ -261,6 +261,9 @@
       <a href="{{ url_for('admin.admin_wizard') }}" class="nav-item {% if 'wizard' in request.endpoint %}active{% endif %}">
         <span class="icon">🧙</span> Campaign Wizard
       </a>
+      <a href="{{ url_for('admin.design_requests') }}" class="nav-item {% if 'design_request' in request.endpoint %}active{% endif %}">
+        <span class="icon">🎨</span> Design Requests
+      </a>
     </div>
 
     <div class="nav-section">

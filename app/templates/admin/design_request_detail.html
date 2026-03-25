@@ -1,0 +1,352 @@
+{% extends "admin/base.html" %}
+{% block title %}Design Request #{{ dr.id }}{% endblock %}
+{% block page_title %}Design Request #{{ dr.id }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('admin.design_requests') }}" class="btn btn-secondary">← All Requests</a>
+{% endblock %}
+
+{% block content %}
+{% set f = dr.fields %}
+{% set status = f.get('Status', 'Draft') %}
+
+<style>
+  .layout { display: grid; grid-template-columns: 1fr 360px; gap: 20px; align-items: start; }
+  .section-card {
+    background: white; border-radius: 10px; padding: 20px 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 16px;
+  }
+  .section-card h3 {
+    font-size: 13px; font-weight: 700; color: #888;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin-bottom: 14px; padding-bottom: 10px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .field-row { margin-bottom: 12px; }
+  .field-label { font-size: 11px; font-weight: 600; color: #bbb; text-transform: uppercase; letter-spacing: 0.5px; }
+  .field-value { font-size: 14px; color: #333; margin-top: 2px; }
+  .field-value.empty { color: #ccc; font-style: italic; }
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .status-badge-lg {
+    display: inline-block; padding: 5px 14px; border-radius: 20px;
+    font-size: 13px; font-weight: 700;
+  }
+  .badge-orange { background: #fff3e0; color: #e65100; }
+  .form-group { margin-bottom: 14px; }
+  .form-label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 5px; }
+  .form-control {
+    width: 100%; padding: 9px 12px;
+    border: 1.5px solid #e0e0e0; border-radius: 7px;
+    font-size: 14px; font-family: inherit;
+    outline: none; transition: border-color 0.2s;
+  }
+  .form-control:focus { border-color: #e63946; }
+  textarea.form-control { resize: vertical; min-height: 80px; }
+  .btn-sm { padding: 7px 14px; font-size: 13px; }
+  .file-link {
+    display: inline-block; margin: 3px 6px 3px 0;
+    padding: 5px 10px; background: #f0f4ff; color: #2980b9;
+    border-radius: 6px; font-size: 13px; text-decoration: none;
+    transition: background 0.15s;
+  }
+  .file-link:hover { background: #dce8ff; }
+  .proof-preview img {
+    max-width: 100%; border-radius: 8px;
+    border: 1px solid #e0e0e0; margin-bottom: 10px;
+  }
+  .advance-btn {
+    background: #1a1a2e; color: white;
+    padding: 8px 16px; border-radius: 7px;
+    font-size: 13px; font-weight: 600;
+    border: none; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .advance-btn:hover { background: #2d3561; }
+  @media(max-width:900px) { .layout { grid-template-columns: 1fr; } }
+</style>
+
+<div class="layout">
+
+  <!-- Left: Brief Details -->
+  <div>
+
+    <!-- Status Row -->
+    <div class="section-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div class="field-label" style="margin-bottom:4px;">Current Status</div>
+          {% if status == 'Final Approved' %}
+            <span class="status-badge-lg badge-green">{{ status }}</span>
+          {% elif status in ('Submitted', 'Revision Requested') %}
+            <span class="status-badge-lg badge-orange">{{ status }}</span>
+          {% elif status == 'Proof Sent' %}
+            <span class="status-badge-lg badge-blue">{{ status }}</span>
+          {% elif status == 'In Review' %}
+            <span class="status-badge-lg badge-yellow">{{ status }}</span>
+          {% else %}
+            <span class="status-badge-lg badge-gray">{{ status }}</span>
+          {% endif %}
+        </div>
+        <form method="POST" action="{{ url_for('admin.design_request_advance', dr_id=dr.id) }}" style="display:inline;">
+          <button type="submit" class="advance-btn">Advance Status →</button>
+        </form>
+      </div>
+
+      {% if f.get('Client Feedback') %}
+      <div style="margin-top:14px;padding:12px;background:#fff8e1;border-radius:8px;border-left:3px solid #f57f17;">
+        <div class="field-label" style="color:#f57f17;">Client Revision Feedback</div>
+        <p style="font-size:14px;color:#333;margin-top:4px;">{{ f.get('Client Feedback') }}</p>
+        <p style="font-size:12px;color:#aaa;margin-top:4px;">Round {{ f.get('Revision Round', 0) }} of {{ f.get('Revision Limit', 2) }}</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Business Info -->
+    <div class="section-card">
+      <h3>Your Business</h3>
+      <div class="field-grid">
+        <div class="field-row">
+          <div class="field-label">Business Name</div>
+          <div class="field-value {% if not f.get('Business Name') %}empty{% endif %}">{{ f.get('Business Name') or 'Not provided' }}</div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">Industry</div>
+          <div class="field-value {% if not f.get('Industry') %}empty{% endif %}">{{ f.get('Industry') or 'Not provided' }}</div>
+        </div>
+        <div class="field-row" style="grid-column:span 2;">
+          <div class="field-label">Target Audience</div>
+          <div class="field-value {% if not f.get('Target Audience') %}empty{% endif %}">{{ f.get('Target Audience') or 'Not specified' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Campaign Details -->
+    <div class="section-card">
+      <h3>Campaign Details</h3>
+      <div class="field-row">
+        <div class="field-label">Goal</div>
+        <div class="field-value {% if not f.get('Campaign Goal') %}empty{% endif %}">{{ f.get('Campaign Goal') or 'Not specified' }}</div>
+      </div>
+      <div class="field-grid">
+        <div class="field-row">
+          <div class="field-label">Quantity</div>
+          <div class="field-value">{{ f.get('Quantity') or '—' }}</div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">Target Mail Date</div>
+          <div class="field-value">{{ f.get('Target Mail Date') or '—' }}</div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">Postcard Size</div>
+          <div class="field-value" style="font-weight:700;">6 × 9 inches</div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">Mailing List</div>
+          <div class="field-value">{{ f.get('Mailing List Status') or '—' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Message -->
+    <div class="section-card">
+      <h3>Message &amp; Copy</h3>
+      <div class="field-row">
+        <div class="field-label">Products / Services to Feature</div>
+        <div class="field-value {% if not f.get('Products Services') %}empty{% endif %}">{{ f.get('Products Services') or 'Not specified' }}</div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Headline Ideas</div>
+        <div class="field-value {% if not f.get('Headline Ideas') %}empty{% endif %}">{{ f.get('Headline Ideas') or 'Let designer decide' }}</div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Key Selling Points</div>
+        <div class="field-value {% if not f.get('Key Selling Points') %}empty{% endif %}">{{ f.get('Key Selling Points') or 'Not specified' }}</div>
+      </div>
+      <div class="field-grid">
+        <div class="field-row">
+          <div class="field-label">Call to Action</div>
+          <div class="field-value">{{ f.get('Call To Action') or '—' }}</div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">Promo Code</div>
+          <div class="field-value">{{ f.get('Promo Code') or '—' }}</div>
+        </div>
+        <div class="field-row" style="grid-column:span 2;">
+          <div class="field-label">CTA URL</div>
+          <div class="field-value">
+            {% if f.get('CTA URL') %}
+              <a href="{{ f.get('CTA URL') }}" target="_blank" style="color:#2980b9;">{{ f.get('CTA URL') }}</a>
+            {% else %}—{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Brand -->
+    <div class="section-card">
+      <h3>Brand</h3>
+      <div class="field-grid">
+        <div class="field-row">
+          <div class="field-label">Colors</div>
+          <div class="field-value">{{ f.get('Brand Colors') or '—' }}</div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">Tone</div>
+          <div class="field-value">{{ f.get('Brand Tone') or '—' }}</div>
+        </div>
+        <div class="field-row" style="grid-column:span 2;">
+          <div class="field-label">Return Address</div>
+          <div class="field-value {% if not f.get('Return Address') %}empty{% endif %}">{{ f.get('Return Address') or 'Not provided' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Files -->
+    <div class="section-card">
+      <h3>Client Files</h3>
+      {% set has_any = f.get('Logo Files') or f.get('Product Files') or f.get('Inspiration Files') %}
+      {% if has_any %}
+        {% if f.get('Logo Files') %}
+          <p class="field-label" style="margin-bottom:6px;">Logo</p>
+          {% for path in f.get('Logo Files','').split(',') %}
+            {% if path.strip() %}
+            <a href="/static/{{ path.strip() }}" target="_blank" class="file-link">
+              📎 {{ path.strip().split('/')[-1] }}
+            </a>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {% if f.get('Product Files') %}
+          <p class="field-label" style="margin:12px 0 6px;">Product Images</p>
+          {% for path in f.get('Product Files','').split(',') %}
+            {% if path.strip() %}
+            <a href="/static/{{ path.strip() }}" target="_blank" class="file-link">
+              📎 {{ path.strip().split('/')[-1] }}
+            </a>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {% if f.get('Inspiration Files') %}
+          <p class="field-label" style="margin:12px 0 6px;">Inspiration</p>
+          {% for path in f.get('Inspiration Files','').split(',') %}
+            {% if path.strip() %}
+            <a href="/static/{{ path.strip() }}" target="_blank" class="file-link">
+              📎 {{ path.strip().split('/')[-1] }}
+            </a>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      {% else %}
+        <p style="color:#ccc;font-style:italic;font-size:14px;">No files uploaded.</p>
+      {% endif %}
+    </div>
+
+    {% if f.get('Additional Notes') %}
+    <div class="section-card">
+      <h3>Additional Notes from Client</h3>
+      <p style="font-size:14px;color:#333;">{{ f.get('Additional Notes') }}</p>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <!-- Right Sidebar -->
+  <div>
+
+    <!-- Client Info -->
+    <div class="section-card">
+      <h3>Client</h3>
+      <div class="field-row">
+        <div class="field-label">Company</div>
+        <div class="field-value" style="font-weight:600;">{{ f.get('Client') or '—' }}</div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Submitted</div>
+        <div class="field-value">{{ f.get('Submitted At', '')[:10] if f.get('Submitted At') else '—' }}</div>
+      </div>
+      {% if f.get('Approved At') %}
+      <div class="field-row">
+        <div class="field-label">Approved</div>
+        <div class="field-value" style="color:#27ae60;">{{ f.get('Approved At', '')[:10] }}</div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Proof Upload -->
+    <div class="section-card">
+      <h3>Proof</h3>
+      {% if f.get('Proof File') %}
+      <div class="proof-preview">
+        {% set ext = f.get('Proof File','').split('.')[-1].lower() %}
+        {% if ext in ('jpg','jpeg','png','tif','tiff') %}
+          <a href="/static/{{ f.get('Proof File') }}" target="_blank">
+            <img src="/static/{{ f.get('Proof File') }}" alt="Current Proof">
+          </a>
+        {% else %}
+          <a href="/static/{{ f.get('Proof File') }}" target="_blank" class="file-link">
+            📄 View Current Proof
+          </a>
+        {% endif %}
+        <p style="font-size:12px;color:#aaa;">
+          Uploaded {{ f.get('Proof Uploaded At', '')[:10] if f.get('Proof Uploaded At') else '' }}
+        </p>
+      </div>
+      <p style="font-size:12px;color:#888;margin-bottom:10px;">Upload a new version to replace:</p>
+      {% else %}
+      <p style="font-size:13px;color:#888;margin-bottom:12px;">No proof uploaded yet. Upload the finished design for the client to review.</p>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('admin.design_request_upload_proof', dr_id=dr.id) }}" enctype="multipart/form-data">
+        <div class="form-group">
+          <label class="form-label">Proof File (JPG, PNG, PDF)</label>
+          <input type="file" name="proof_file" class="form-control"
+                 accept=".jpg,.jpeg,.png,.pdf,.tif,.tiff" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Upload Proof →</button>
+      </form>
+    </div>
+
+    <!-- Admin Fields -->
+    <div class="section-card">
+      <h3>Admin Notes</h3>
+      <form method="POST" action="{{ url_for('admin.design_request_update_admin', dr_id=dr.id) }}">
+        <div class="form-group">
+          <label class="form-label">Fiverr Order Ref</label>
+          <input type="text" name="fiverr_order_ref" class="form-control"
+                 value="{{ f.get('Fiverr Ref') or '' }}"
+                 placeholder="e.g. FO-123456">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Admin Notes</label>
+          <textarea name="admin_notes" class="form-control" rows="4"
+                    placeholder="Internal notes, designer instructions, status updates...">{{ f.get('Admin Notes') or '' }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-secondary btn-sm">Save Notes</button>
+      </form>
+    </div>
+
+    <!-- Revision History -->
+    <div class="section-card">
+      <h3>Revision History</h3>
+      {% set rr = f.get('Revision Round') or 0 %}
+      {% set rl = f.get('Revision Limit') or 2 %}
+      <div class="field-row">
+        <div class="field-label">Revisions Used</div>
+        <div class="field-value" {% if rr >= rl %}style="color:#e63946;font-weight:700;"{% endif %}>
+          {{ rr }} / {{ rl }}
+        </div>
+      </div>
+      {% if f.get('Client Feedback') %}
+      <div class="field-row">
+        <div class="field-label">Latest Feedback</div>
+        <div class="field-value" style="background:#fff8e1;padding:8px;border-radius:6px;font-size:13px;">
+          {{ f.get('Client Feedback') }}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

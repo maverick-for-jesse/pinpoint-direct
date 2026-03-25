@@ -146,6 +146,8 @@
        class="nav-link {% if 'approval' in request.endpoint %}active{% endif %}">Approvals</a>
     <a href="{{ url_for('client.invoices') }}"
        class="nav-link {% if 'invoice' in request.endpoint %}active{% endif %}">Invoices</a>
+    <a href="{{ url_for('client.design_requests') }}"
+       class="nav-link {% if 'design_request' in request.endpoint %}active{% endif %}">Design Requests</a>
     <a href="{{ url_for('wizard.new_campaign') }}"
        class="nav-link {% if 'wizard' in request.endpoint %}active{% endif %}"
        style="background:rgba(230,57,70,0.15); color:white; margin-left:8px;">+ New Campaign</a>

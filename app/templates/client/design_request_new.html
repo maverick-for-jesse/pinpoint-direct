@@ -1,0 +1,383 @@
+{% extends "client/base.html" %}
+{% block title %}New Design Request{% endblock %}
+{% block page_title %}New Design Request{% endblock %}
+{% block page_sub %}<p>Fill out your design brief and we'll get to work</p>{% endblock %}
+
+{% block content %}
+
+<style>
+  .brief-form { max-width: 780px; }
+  .section-card {
+    background: white;
+    border-radius: 10px;
+    padding: 28px 32px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+  }
+  .section-header {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 4px;
+  }
+  .section-sub {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 20px;
+  }
+  .form-group { margin-bottom: 18px; }
+  .form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #444;
+    margin-bottom: 6px;
+  }
+  .form-label .optional {
+    font-weight: 400;
+    color: #aaa;
+    font-size: 12px;
+    margin-left: 4px;
+  }
+  .form-control {
+    width: 100%;
+    padding: 10px 13px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 7px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-control:focus { border-color: #e63946; }
+  textarea.form-control { resize: vertical; min-height: 90px; }
+  select.form-control { background: white; cursor: pointer; }
+  .form-hint { font-size: 12px; color: #aaa; margin-top: 5px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .radio-group { display: flex; flex-direction: column; gap: 10px; }
+  .radio-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 14px;
+  }
+  .radio-option:has(input:checked) {
+    border-color: #e63946;
+    background: rgba(230,57,70,0.04);
+  }
+  .radio-option input { accent-color: #e63946; }
+  .file-upload-area {
+    border: 2px dashed #d0d0d0;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .file-upload-area:hover { border-color: #e63946; background: rgba(230,57,70,0.02); }
+  .file-upload-area input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .file-upload-area .upload-icon { font-size: 24px; margin-bottom: 6px; }
+  .file-upload-area p { font-size: 13px; color: #888; margin: 0; }
+  .file-upload-area strong { color: #444; }
+  .size-banner {
+    background: linear-gradient(135deg, #1a1a2e, #2d3561);
+    color: white;
+    border-radius: 10px;
+    padding: 16px 24px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .size-banner .size-badge {
+    background: #e63946;
+    color: white;
+    font-size: 22px;
+    font-weight: 800;
+    padding: 8px 16px;
+    border-radius: 8px;
+    white-space: nowrap;
+  }
+  .size-banner p { margin: 0; font-size: 14px; opacity: 0.85; }
+  .size-banner strong { font-size: 16px; display: block; margin-bottom: 2px; }
+  .submit-bar {
+    background: white;
+    border-radius: 10px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    margin-bottom: 40px;
+  }
+  .submit-bar p { font-size: 13px; color: #888; margin: 0; }
+  .btn-submit {
+    background: #e63946;
+    color: white;
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-submit:hover { background: #c0392b; }
+  @media(max-width:640px) {
+    .form-row, .form-row-3 { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="brief-form">
+
+  <!-- Postcard size banner -->
+  <div class="size-banner">
+    <div class="size-badge">6 × 9</div>
+    <div>
+      <strong>Standard Flat Mailer — 6×9 inches</strong>
+      <p>All design requests are for our standard 6×9 postcard format — the most effective direct mail size.</p>
+    </div>
+  </div>
+
+  <form method="POST" enctype="multipart/form-data" action="{{ url_for('client.design_request_new') }}">
+
+    <!-- Section 1: Your Business -->
+    <div class="section-card">
+      <div class="section-header">1. Your Business</div>
+      <div class="section-sub">Tell us about who you are and who you're trying to reach.</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Business Name</label>
+          <input type="text" name="business_name" class="form-control"
+                 value="{{ prefill_name }}" placeholder="Your business name" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Industry</label>
+          <input type="text" name="industry" class="form-control"
+                 placeholder="e.g. Home Services, Retail, Medical">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Target Audience</label>
+        <textarea name="target_audience" class="form-control" rows="3"
+                  placeholder="Who are you trying to reach? e.g. Homeowners in ZIP 30265, families with children, recent movers..."></textarea>
+      </div>
+    </div>
+
+    <!-- Section 2: Campaign Details -->
+    <div class="section-card">
+      <div class="section-header">2. Campaign Details</div>
+      <div class="section-sub">Help us understand your campaign goals and timing.</div>
+
+      <div class="form-group">
+        <label class="form-label">Campaign Goal</label>
+        <textarea name="campaign_goal" class="form-control" rows="3"
+                  placeholder="What do you want this campaign to achieve? e.g. Drive foot traffic, promote a seasonal sale, announce a new location..."></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Target Mail Date <span class="optional">(optional)</span></label>
+          <input type="date" name="target_mail_date" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estimated Quantity</label>
+          <input type="number" name="quantity" class="form-control"
+                 min="200" placeholder="Min 200" required>
+          <p class="form-hint">Minimum 200 pieces</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3: Your Message -->
+    <div class="section-card">
+      <div class="section-header">3. Your Message</div>
+      <div class="section-sub">What should be on the postcard? The more detail, the better.</div>
+
+      <div class="form-group">
+        <label class="form-label">Products / Services to Feature</label>
+        <textarea name="products_services" class="form-control" rows="3"
+                  placeholder="Describe what you want showcased — specific products, services, or a promotion"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Headline Ideas <span class="optional">(optional)</span></label>
+        <textarea name="headline_ideas" class="form-control" rows="2"
+                  placeholder="Any headline or tagline ideas? Leave blank and let our designer decide."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Key Selling Points</label>
+        <textarea name="key_selling_points" class="form-control" rows="3"
+                  placeholder="What makes you stand out? e.g. 20 years in business, free estimates, licensed & insured, 5-star reviews"></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Call to Action</label>
+          <input type="text" name="call_to_action" class="form-control"
+                 placeholder="e.g. Call Now, Visit Us, Shop Online">
+        </div>
+        <div class="form-group">
+          <label class="form-label">CTA URL <span class="optional">(optional)</span></label>
+          <input type="url" name="cta_url" class="form-control"
+                 placeholder="https://yourwebsite.com">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Promo Code <span class="optional">(optional)</span></label>
+        <input type="text" name="promo_code" class="form-control"
+               placeholder="e.g. SAVE15, NEWMOVER, SPRING2025" style="max-width:280px;">
+      </div>
+    </div>
+
+    <!-- Section 4: Brand -->
+    <div class="section-card">
+      <div class="section-header">4. Brand</div>
+      <div class="section-sub">Help us match your brand identity.</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Brand Colors</label>
+          <input type="text" name="brand_colors" class="form-control"
+                 placeholder="e.g. Navy blue and orange, red and white">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Brand Tone</label>
+          <select name="brand_tone" class="form-control">
+            <option value="">— Select —</option>
+            <option value="Professional">Professional</option>
+            <option value="Bold">Bold</option>
+            <option value="Friendly">Friendly</option>
+            <option value="Tactical">Tactical</option>
+            <option value="Elegant">Elegant</option>
+            <option value="Fun">Fun</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Return Address</label>
+        <textarea name="return_address" class="form-control" rows="2"
+                  placeholder="Business name and mailing address to appear on the postcard"></textarea>
+      </div>
+    </div>
+
+    <!-- Section 5: Mailing List -->
+    <div class="section-card">
+      <div class="section-header">5. Mailing List</div>
+      <div class="section-sub">Do you have your mailing list, or do you need help?</div>
+
+      <div class="radio-group">
+        <label class="radio-option">
+          <input type="radio" name="mailing_list_status" value="Have one" checked>
+          <div>
+            <strong>I have a mailing list</strong>
+            <span style="display:block;font-size:12px;color:#888;">I'll upload my list or provide it separately</span>
+          </div>
+        </label>
+        <label class="radio-option">
+          <input type="radio" name="mailing_list_status" value="Need one">
+          <div>
+            <strong>I need Pinpoint to source one</strong>
+            <span style="display:block;font-size:12px;color:#888;">We'll build a targeted list for your area and audience</span>
+          </div>
+        </label>
+        <label class="radio-option">
+          <input type="radio" name="mailing_list_status" value="Upload later">
+          <div>
+            <strong>I'll upload my list later</strong>
+            <span style="display:block;font-size:12px;color:#888;">I have a list but I'll provide it after the design is approved</span>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- Section 6: Files -->
+    <div class="section-card">
+      <div class="section-header">6. Files &amp; Assets</div>
+      <div class="section-sub">Upload your logo, product images, and any inspiration. JPG, PNG, PDF, SVG, AI, EPS, TIFF accepted (up to 50MB each).</div>
+
+      <div class="form-group">
+        <label class="form-label">Logo File(s)</label>
+        <div class="file-upload-area" id="logo-drop">
+          <input type="file" name="logo_files" multiple
+                 accept=".jpg,.jpeg,.png,.pdf,.ai,.eps,.svg,.tif,.tiff"
+                 onchange="showFiles(this, 'logo-names')">
+          <div class="upload-icon">🖼️</div>
+          <p><strong>Click to upload</strong> or drag and drop</p>
+          <p>Your logo in any format — vector preferred (AI, EPS, SVG)</p>
+          <div id="logo-names" style="margin-top:8px;font-size:12px;color:#e63946;"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Product / Marketing Images <span class="optional">(optional)</span></label>
+        <div class="file-upload-area">
+          <input type="file" name="product_files" multiple
+                 accept=".jpg,.jpeg,.png,.pdf,.ai,.eps,.svg,.tif,.tiff"
+                 onchange="showFiles(this, 'product-names')">
+          <div class="upload-icon">📸</div>
+          <p><strong>Click to upload</strong> or drag and drop</p>
+          <p>Product photos, lifestyle images, anything you want featured</p>
+          <div id="product-names" style="margin-top:8px;font-size:12px;color:#e63946;"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Inspiration / Examples <span class="optional">(optional)</span></label>
+        <div class="file-upload-area">
+          <input type="file" name="inspiration_files" multiple
+                 accept=".jpg,.jpeg,.png,.pdf,.ai,.eps,.svg,.tif,.tiff"
+                 onchange="showFiles(this, 'inspi-names')">
+          <div class="upload-icon">💡</div>
+          <p><strong>Click to upload</strong> or drag and drop</p>
+          <p>Postcards, ads, or designs you like — give the designer direction</p>
+          <div id="inspi-names" style="margin-top:8px;font-size:12px;color:#e63946;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 7: Additional Notes -->
+    <div class="section-card">
+      <div class="section-header">7. Additional Notes <span style="font-weight:400;font-size:14px;color:#888;">(optional)</span></div>
+      <div class="section-sub">Anything else our designer should know?</div>
+
+      <div class="form-group" style="margin-bottom:0;">
+        <textarea name="additional_notes" class="form-control" rows="4"
+                  placeholder="Any other notes, special requirements, or context..."></textarea>
+      </div>
+    </div>
+
+    <!-- Submit -->
+    <div class="submit-bar">
+      <p>Submitting will notify our design team. We'll be in touch within 1–2 business days.</p>
+      <button type="submit" class="btn-submit">Submit Design Request →</button>
+    </div>
+
+  </form>
+</div>
+
+<script>
+function showFiles(input, targetId) {
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  const files = Array.from(input.files);
+  if (files.length === 0) { el.textContent = ''; return; }
+  el.innerHTML = files.map(f => `📎 ${f.name}`).join('<br>');
+}
+</script>
+
+{% endblock %}

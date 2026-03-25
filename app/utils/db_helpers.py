@@ -91,6 +91,23 @@ _SELECT = {
         FROM mailing_trays mt
         LEFT JOIN mailing_jobs mj ON mt.mailing_job_id = mj.id
     """,
+    'design_requests': """
+        SELECT dr.id, dr.status, dr.business_name, dr.industry, dr.campaign_goal,
+               dr.products_services, dr.headline_ideas, dr.key_selling_points,
+               dr.call_to_action, dr.cta_url, dr.promo_code, dr.brand_colors, dr.brand_tone,
+               dr.target_audience, dr.mailing_list_status, dr.return_address,
+               dr.quantity, dr.target_mail_date, dr.additional_notes,
+               dr.logo_files, dr.product_files, dr.inspiration_files,
+               dr.proof_file, dr.proof_uploaded_at, dr.revision_round, dr.revision_limit,
+               dr.client_feedback, dr.admin_notes, dr.fiverr_order_ref,
+               dr.submitted_at, dr.approved_at, dr.created_at,
+               dr.client_id, dr.campaign_id,
+               cl.company_name AS client_name,
+               c.name AS campaign_name
+        FROM design_requests dr
+        LEFT JOIN clients cl ON dr.client_id = cl.id
+        LEFT JOIN campaigns c ON dr.campaign_id = c.id
+    """,
 }
 
 
@@ -218,6 +235,43 @@ def _row_to_record(table, row):
             'Tray Label':     r.get('tray_label') or '',
             'Job Name':       r.get('job_name') or '',
             'Mailing Job ID': r.get('mailing_job_id'),
+        }
+    elif table == 'design_requests':
+        fields = {
+            'Status':               r.get('status') or 'Draft',
+            'Business Name':        r.get('business_name') or '',
+            'Industry':             r.get('industry') or '',
+            'Campaign Goal':        r.get('campaign_goal') or '',
+            'Products Services':    r.get('products_services') or '',
+            'Headline Ideas':       r.get('headline_ideas') or '',
+            'Key Selling Points':   r.get('key_selling_points') or '',
+            'Call To Action':       r.get('call_to_action') or '',
+            'CTA URL':              r.get('cta_url') or '',
+            'Promo Code':           r.get('promo_code') or '',
+            'Brand Colors':         r.get('brand_colors') or '',
+            'Brand Tone':           r.get('brand_tone') or '',
+            'Target Audience':      r.get('target_audience') or '',
+            'Mailing List Status':  r.get('mailing_list_status') or 'Have one',
+            'Return Address':       r.get('return_address') or '',
+            'Quantity':             r.get('quantity'),
+            'Target Mail Date':     _date_str(r.get('target_mail_date')),
+            'Additional Notes':     r.get('additional_notes') or '',
+            'Logo Files':           r.get('logo_files') or '',
+            'Product Files':        r.get('product_files') or '',
+            'Inspiration Files':    r.get('inspiration_files') or '',
+            'Proof File':           r.get('proof_file') or '',
+            'Proof Uploaded At':    _date_str(r.get('proof_uploaded_at')),
+            'Revision Round':       r.get('revision_round') or 0,
+            'Revision Limit':       r.get('revision_limit') or 2,
+            'Client Feedback':      r.get('client_feedback') or '',
+            'Admin Notes':          r.get('admin_notes') or '',
+            'Fiverr Ref':           r.get('fiverr_order_ref') or '',
+            'Submitted At':         _date_str(r.get('submitted_at')),
+            'Approved At':          _date_str(r.get('approved_at')),
+            'Client':               r.get('client_name') or '',
+            'Campaign':             r.get('campaign_name') or '',
+            'client_id':            r.get('client_id'),
+            'campaign_id':          r.get('campaign_id'),
         }
 
     return {
@@ -426,6 +480,45 @@ def _fields_to_pg(table, fields, db):
             'ZIP Range':      'zip_range',
             'Tray Label':     'tray_label',
             'Mailing Job ID': 'mailing_job_id',
+        }
+        for at_key, pg_col in MAP.items():
+            if at_key in fields:
+                pg[pg_col] = fields[at_key] if fields[at_key] != '' else None
+
+    elif table == 'design_requests':
+        MAP = {
+            'Status':              'status',
+            'Business Name':       'business_name',
+            'Industry':            'industry',
+            'Campaign Goal':       'campaign_goal',
+            'Products Services':   'products_services',
+            'Headline Ideas':      'headline_ideas',
+            'Key Selling Points':  'key_selling_points',
+            'Call To Action':      'call_to_action',
+            'CTA URL':             'cta_url',
+            'Promo Code':          'promo_code',
+            'Brand Colors':        'brand_colors',
+            'Brand Tone':          'brand_tone',
+            'Target Audience':     'target_audience',
+            'Mailing List Status': 'mailing_list_status',
+            'Return Address':      'return_address',
+            'Quantity':            'quantity',
+            'Target Mail Date':    'target_mail_date',
+            'Additional Notes':    'additional_notes',
+            'Logo Files':          'logo_files',
+            'Product Files':       'product_files',
+            'Inspiration Files':   'inspiration_files',
+            'Proof File':          'proof_file',
+            'Proof Uploaded At':   'proof_uploaded_at',
+            'Revision Round':      'revision_round',
+            'Revision Limit':      'revision_limit',
+            'Client Feedback':     'client_feedback',
+            'Admin Notes':         'admin_notes',
+            'Fiverr Ref':          'fiverr_order_ref',
+            'Submitted At':        'submitted_at',
+            'Approved At':         'approved_at',
+            'client_id':           'client_id',
+            'campaign_id':         'campaign_id',
         }
         for at_key, pg_col in MAP.items():
             if at_key in fields:
@@ -697,14 +790,15 @@ def at_str(value):
 def _table_alias(table):
     """Return the main table alias used in SELECT queries."""
     aliases = {
-        'clients':       'c',
-        'campaigns':     'c',
-        'artwork':       'a',
-        'invoices':      'i',
-        'print_jobs':    'pj',
-        'new_movers':    'new_movers',
-        'users':         'u',
-        'mailing_jobs':  'mj',
-        'mailing_trays': 'mt',
+        'clients':          'c',
+        'campaigns':        'c',
+        'artwork':          'a',
+        'invoices':         'i',
+        'print_jobs':       'pj',
+        'new_movers':       'new_movers',
+        'users':            'u',
+        'mailing_jobs':     'mj',
+        'mailing_trays':    'mt',
+        'design_requests':  'dr',
     }
     return aliases.get(table, table)

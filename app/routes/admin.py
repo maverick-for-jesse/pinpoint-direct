@@ -2,6 +2,8 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_required, current_user
 from app.utils.db_helpers import get_records, get_record, create_record, update_record, at_str
 import os, base64
+from datetime import datetime
+from werkzeug.utils import secure_filename
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -35,11 +37,23 @@ def dashboard():
         if inv['fields'].get('Status') in ('Sent', 'Overdue')
     )
 
+    # Design requests needing attention
+    design_requests_pending = 0
+    try:
+        all_drs = get_records('design_requests')
+        design_requests_pending = len([
+            dr for dr in all_drs
+            if dr['fields'].get('Status') in ('Submitted', 'Revision Requested')
+        ])
+    except Exception:
+        design_requests_pending = 0
+
     stats = {
         'active_campaigns': len(active_campaigns),
         'pending_approvals': len(pending_approvals),
         'print_queue': len(print_queue),
-        'outstanding_invoices': f'{outstanding:,.2f}'
+        'outstanding_invoices': f'{outstanding:,.2f}',
+        'design_requests_pending': design_requests_pending,
     }
 
     recent_campaigns = sorted(campaigns, key=lambda x: x.get('createdTime', ''), reverse=True)[:5]
@@ -3141,3 +3155,147 @@ def mailing_job_complete(job_id):
         db.commit()
     flash('Job marked as Mailed! ✅', 'success')
     return redirect(url_for('admin.mailing_job_detail', job_id=job_id))
+
+
+# ── Design Requests ───────────────────────────────────────────────────────────
+
+DR_STATUS_ORDER = ['Draft', 'Submitted', 'In Review', 'Proof Sent', 'Revision Requested', 'Final Approved']
+
+ALLOWED_PROOF_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.pdf', '.tif', '.tiff'}
+
+
+def _allowed_proof_file(filename):
+    ext = os.path.splitext(filename.lower())[1]
+    return ext in ALLOWED_PROOF_EXTENSIONS
+
+
+@admin_bp.route('/design-requests')
+@login_required
+@admin_required
+def design_requests():
+    from app.utils.database import get_db, get_db_type
+    try:
+        drs = get_records('design_requests')
+        drs = sorted(drs, key=lambda x: x.get('createdTime', ''), reverse=True)
+    except Exception:
+        drs = []
+    return render_template('admin/design_requests.html', design_requests=drs)
+
+
+@admin_bp.route('/design-requests/<int:dr_id>')
+@login_required
+@admin_required
+def design_request_detail(dr_id):
+    try:
+        dr = get_record('design_requests', dr_id)
+    except Exception:
+        flash('Design request not found.', 'error')
+        return redirect(url_for('admin.design_requests'))
+    return render_template('admin/design_request_detail.html', dr=dr, status_order=DR_STATUS_ORDER)
+
+
+@admin_bp.route('/design-requests/<int:dr_id>/upload-proof', methods=['POST'])
+@login_required
+@admin_required
+def design_request_upload_proof(dr_id):
+    from app.utils.database import get_db, get_db_type
+    ph = '%s' if get_db_type() == 'postgres' else '?'
+
+    proof = request.files.get('proof_file')
+    if not proof or not proof.filename:
+        flash('No file selected.', 'error')
+        return redirect(url_for('admin.design_request_detail', dr_id=dr_id))
+
+    if not _allowed_proof_file(proof.filename):
+        flash('Invalid file type. Allowed: JPG, PNG, PDF, TIFF.', 'error')
+        return redirect(url_for('admin.design_request_detail', dr_id=dr_id))
+
+    static_dir = os.path.join(os.path.dirname(__file__), '..', 'static')
+    proof_dir = os.path.join(static_dir, 'uploads', 'proofs', str(dr_id))
+    os.makedirs(proof_dir, exist_ok=True)
+
+    fname = secure_filename(proof.filename)
+    dest = os.path.join(proof_dir, fname)
+    proof.save(dest)
+    rel_path = os.path.relpath(dest, static_dir)
+
+    now = datetime.utcnow()
+    with get_db() as db:
+        if get_db_type() == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(
+                    f"UPDATE design_requests SET proof_file={ph}, proof_uploaded_at={ph}, status='Proof Sent' WHERE id={ph}",
+                    (rel_path, now, dr_id)
+                )
+        else:
+            db.execute(
+                f"UPDATE design_requests SET proof_file={ph}, proof_uploaded_at={ph}, status='Proof Sent' WHERE id={ph}",
+                (rel_path, now, dr_id)
+            )
+        db.commit()
+
+    flash('Proof uploaded and status set to "Proof Sent". Client can now review.', 'success')
+    return redirect(url_for('admin.design_request_detail', dr_id=dr_id))
+
+
+@admin_bp.route('/design-requests/<int:dr_id>/update-admin', methods=['POST'])
+@login_required
+@admin_required
+def design_request_update_admin(dr_id):
+    from app.utils.database import get_db, get_db_type
+    ph = '%s' if get_db_type() == 'postgres' else '?'
+
+    admin_notes = request.form.get('admin_notes', '').strip()
+    fiverr_ref = request.form.get('fiverr_order_ref', '').strip()
+
+    with get_db() as db:
+        if get_db_type() == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(
+                    f"UPDATE design_requests SET admin_notes={ph}, fiverr_order_ref={ph} WHERE id={ph}",
+                    (admin_notes, fiverr_ref, dr_id)
+                )
+        else:
+            db.execute(
+                f"UPDATE design_requests SET admin_notes={ph}, fiverr_order_ref={ph} WHERE id={ph}",
+                (admin_notes, fiverr_ref, dr_id)
+            )
+        db.commit()
+
+    flash('Admin notes saved.', 'success')
+    return redirect(url_for('admin.design_request_detail', dr_id=dr_id))
+
+
+@admin_bp.route('/design-requests/<int:dr_id>/advance', methods=['POST'])
+@login_required
+@admin_required
+def design_request_advance(dr_id):
+    from app.utils.database import get_db, get_db_type
+    ph = '%s' if get_db_type() == 'postgres' else '?'
+
+    with get_db() as db:
+        if get_db_type() == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"SELECT status FROM design_requests WHERE id={ph}", (dr_id,))
+                row = cur.fetchone()
+        else:
+            row = db.execute(f"SELECT status FROM design_requests WHERE id={ph}", (dr_id,)).fetchone()
+
+        if row:
+            current_status = row['status']
+            # Skip 'Revision Requested' when manually advancing
+            advanceable = ['Draft', 'Submitted', 'In Review', 'Proof Sent', 'Final Approved']
+            idx = advanceable.index(current_status) if current_status in advanceable else -1
+            if idx >= 0 and idx < len(advanceable) - 1:
+                next_status = advanceable[idx + 1]
+                if get_db_type() == 'postgres':
+                    with db.cursor() as cur:
+                        cur.execute(f"UPDATE design_requests SET status={ph} WHERE id={ph}", (next_status, dr_id))
+                else:
+                    db.execute(f"UPDATE design_requests SET status={ph} WHERE id={ph}", (next_status, dr_id))
+                db.commit()
+                flash(f'Status advanced to "{next_status}".', 'success')
+            else:
+                flash('Already at final status or cannot auto-advance from this state.', 'info')
+
+    return redirect(url_for('admin.design_request_detail', dr_id=dr_id))
