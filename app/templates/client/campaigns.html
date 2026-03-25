@@ -33,6 +33,8 @@
             {% set s = c.fields.get('Status','Draft') %}
             {% if s == 'Mailed' %}<span class="badge badge-green">✓ Mailed</span>
             {% elif s == 'Artwork Pending' %}<span class="badge badge-orange">⚠ Needs Artwork Approval</span>
+            {% elif s == 'List Approval Pending' %}<span class="badge badge-orange">⚠ Approve List &amp; Quote</span>
+            {% elif s == 'List Building' %}<span class="badge badge-blue">🔍 Building Your List</span>
             {% elif s == 'Mailing Approval Pending' %}<span class="badge badge-orange">⚠ Needs Mailing Approval</span>
             {% elif s == 'Artwork Approved' %}<span class="badge badge-blue">Artwork Approved</span>
             {% elif s == 'Mailing Approved' %}<span class="badge badge-blue">Mailing Approved</span>

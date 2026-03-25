@@ -27,6 +27,7 @@ _SELECT = {
     'campaigns': """
         SELECT c.id, c.name, c.postcard_size, c.status, c.piece_count,
                c.mail_date, c.notes, c.created_at, c.client_id,
+               c.list_count, c.quote_amount,
                cl.company_name AS client_name
         FROM campaigns c
         LEFT JOIN clients cl ON c.client_id = cl.id
@@ -143,6 +144,8 @@ def _row_to_record(table, row):
             'Piece Count':   r.get('piece_count') or 0,
             'Mail Date':     _date_str(r.get('mail_date')),
             'Notes':         r.get('notes') or '',
+            'List Count':    r.get('list_count') or 0,
+            'Quote Amount':  r.get('quote_amount') or 0.0,
         }
     elif table == 'artwork':
         fields = {
@@ -350,6 +353,8 @@ def _fields_to_pg(table, fields, db):
             'Piece Count':   'piece_count',
             'Mail Date':     'mail_date',
             'Notes':         'notes',
+            'List Count':    'list_count',
+            'Quote Amount':  'quote_amount',
         }
         for at_key, pg_col in MAP.items():
             if at_key in fields:

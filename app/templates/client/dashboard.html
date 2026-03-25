@@ -57,7 +57,61 @@
   </div>
 </div>
 
-<!-- Recent campaigns -->
+<!-- Active Campaign Timeline Steppers -->
+{% set active_step_statuses = ('Artwork Pending', 'List Building', 'List Approval Pending', 'In Production') %}
+{% set active_campaigns = campaigns | selectattr('fields') | list %}
+{% set active_campaigns = active_campaigns | selectattr('fields.Status', 'in', active_step_statuses) | list %}
+
+{% if active_campaigns %}
+<div style="margin-bottom:20px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+    <div style="font-size:15px; font-weight:700; color:#1a1a2e;">📬 Active Campaigns</div>
+    <a href="{{ url_for('client.campaigns') }}" style="font-size:13px; color:#e63946; text-decoration:none;">View all →</a>
+  </div>
+  {% set steps = ['Campaign Setup', 'Design', 'List Building', 'Approve List & Quote', 'In Production', 'Mailed ✓'] %}
+  {% set status_step = {'Draft':0,'Artwork Pending':1,'List Building':2,'List Approval Pending':3,'In Production':4,'Mailed':5} %}
+  {% set action_steps = [1, 3] %}
+
+  {% for campaign in active_campaigns %}
+  {% set cur_status = campaign.fields.get('Status','Draft') %}
+  {% set cur = status_step.get(cur_status, 0) %}
+  {% set needs_action = cur in action_steps %}
+
+  <div class="card" style="margin-bottom:16px; padding:18px 20px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+      <div style="font-weight:700; font-size:15px; color:#1a1a2e;">{{ campaign.fields.get('Campaign Name','—') }}</div>
+      {% if needs_action %}
+      <a href="{{ url_for('client.approvals') }}" style="display:inline-flex; align-items:center; gap:6px; background:#e63946; color:white; padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700; text-decoration:none;">
+        🔔 Action Required
+      </a>
+      {% endif %}
+    </div>
+
+    <!-- Stepper -->
+    <div style="display:flex; align-items:flex-start; overflow-x:auto; padding:8px 0;">
+      {% for label in steps %}
+      {% set i = loop.index0 %}
+      <div style="display:flex; flex-direction:column; align-items:center; flex:1; min-width:60px; position:relative;">
+        {% if not loop.first %}
+        <div style="position:absolute; top:14px; right:50%; width:100%; height:2px; background:{{ '#4caf50' if i <= cur else '#e0e0e0' }}; z-index:0;"></div>
+        {% endif %}
+        <div style="
+          width:28px; height:28px; border-radius:50%; z-index:1; position:relative;
+          display:flex; align-items:center; justify-content:center;
+          font-size:12px; font-weight:700;
+          background:{{ '#4caf50' if i < cur else ('#e63946' if i == cur else '#e0e0e0') }};
+          color:{{ 'white' if i <= cur else '#999' }};
+        ">{{ '✓' if i < cur else loop.index }}</div>
+        <div style="font-size:10px; color:{{ '#1a1a2e' if i == cur else ('#4caf50' if i < cur else '#aaa') }}; margin-top:6px; text-align:center; font-weight:{{ '700' if i == cur else '400' }}; line-height:1.3; max-width:60px;">{{ label }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Recent campaigns table (non-active) -->
 <div class="card" style="margin-bottom:20px;">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
     <div class="card-title" style="margin:0;">Recent Campaigns</div>
@@ -73,9 +127,9 @@
           <td><strong>{{ c.fields.get('Campaign Name','—') }}</strong></td>
           <td>
             {% set s = c.fields.get('Status','Draft') %}
-            {% if s == 'Mailed' %}<span class="badge badge-green">{{ s }}</span>
-            {% elif s in ['Artwork Pending','Mailing Approval Pending'] %}<span class="badge badge-orange">⚠ {{ s }}</span>
-            {% elif s == 'In Production' %}<span class="badge badge-blue">{{ s }}</span>
+            {% if s == 'Mailed' %}<span class="badge badge-green">✓ Mailed</span>
+            {% elif s in ('Artwork Pending', 'List Approval Pending') %}<span class="badge badge-orange">⚠ {{ s }}</span>
+            {% elif s in ('In Production', 'List Building') %}<span class="badge badge-blue">{{ s }}</span>
             {% else %}<span class="badge badge-gray">{{ s }}</span>{% endif %}
           </td>
           <td>{{ '{:,}'.format(c.fields.get('Piece Count',0)|int) if c.fields.get('Piece Count') else '—' }}</td>

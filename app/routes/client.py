@@ -58,8 +58,7 @@ def dashboard():
     campaigns = get_client_campaigns()
     invoices  = get_client_invoices()
 
-    active_statuses = ('Artwork Pending','Artwork Approved','Mailing Approval Pending',
-                       'Mailing Approved','In Production')
+    active_statuses = ('Artwork Pending', 'List Building', 'List Approval Pending', 'In Production')
     active = [c for c in campaigns if c['fields'].get('Status') in active_statuses]
 
     pieces_mailed = sum(
@@ -74,7 +73,7 @@ def dashboard():
 
     pending_approvals = len([
         c for c in campaigns
-        if c['fields'].get('Status') in ('Artwork Pending','Mailing Approval Pending')
+        if c['fields'].get('Status') in ('Artwork Pending', 'List Approval Pending')
     ])
 
     # Get pending artwork items
@@ -122,13 +121,18 @@ def approvals():
     artwork_items = get_records('artwork', filter_formula=f"{{Client}}='{name}'")
     artwork_pending = [a for a in artwork_items if a['fields'].get('Status') == 'Pending Review']
 
-    # Campaigns needing mailing approval
+    # Campaigns needing mailing approval (legacy)
     mailing_pending = [c for c in campaigns
                        if c['fields'].get('Status') == 'Mailing Approval Pending']
 
+    # Campaigns needing list approval (new flow)
+    list_pending = [c for c in campaigns
+                    if c['fields'].get('Status') == 'List Approval Pending']
+
     return render_template('client/approvals.html',
                            artwork_pending=artwork_pending,
-                           mailing_pending=mailing_pending)
+                           mailing_pending=mailing_pending,
+                           list_pending=list_pending)
 
 
 @client_bp.route('/approvals/artwork/<int:record_id>', methods=['POST'])
@@ -194,6 +198,32 @@ def mailing_approve(record_id):
         update_record('campaigns', record_id, {'Status': 'Artwork Approved'})
         flash('Mailing put on hold. Contact your account manager with any questions.', 'info')
 
+    return redirect(url_for('client.approvals'))
+
+
+@client_bp.route('/approvals/list/<int:record_id>', methods=['POST'])
+@login_required
+@client_required
+def list_approve(record_id):
+    decision = request.form.get('decision', 'approve')
+    if decision == 'approve':
+        update_record('campaigns', record_id, {'Status': 'In Production'})
+        campaign = get_record('campaigns', record_id)
+        f = campaign['fields']
+        existing_jobs = get_records('print_jobs',
+            filter_formula=f"{{Campaign}}='{f.get('Campaign Name','')}'")
+        if not existing_jobs:
+            create_record('print_jobs', {
+                'Job Name':    f.get('Campaign Name','') + ' — Print Job',
+                'Campaign':    f.get('Campaign Name',''),
+                'Client':      f.get('Client',''),
+                'Piece Count': f.get('List Count') or f.get('Piece Count', 0),
+                'Status':      'Queued',
+            })
+        flash('List approved! Your campaign is now in production. 🎉', 'success')
+    elif decision == 'hold':
+        update_record('campaigns', record_id, {'Status': 'List Building'})
+        flash('List put on hold. Your account manager has been notified.', 'info')
     return redirect(url_for('client.approvals'))
 
 

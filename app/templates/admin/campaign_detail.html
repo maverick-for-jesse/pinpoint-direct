@@ -10,7 +10,7 @@
 {% block content %}
 
 {# Status pipeline #}
-{% set all_statuses = ['Draft','Artwork Pending','Artwork Approved','Mailing Approval Pending','Mailing Approved','In Production','Mailed'] %}
+{% set all_statuses = ['Draft','Artwork Pending','List Building','List Approval Pending','In Production','Mailed'] %}
 {% set current_status = campaign.fields.get('Status','Draft') %}
 <div class="card" style="margin-bottom: 20px; padding: 20px 24px;">
   <div style="display: flex; align-items: center; gap: 0; overflow-x: auto;">
@@ -45,6 +45,12 @@
       <div><strong>Postcard Size:</strong> {{ campaign.fields.get('Postcard Size','—') }}</div>
       <div><strong>Piece Count:</strong> {{ '{:,}'.format(campaign.fields.get('Piece Count',0)|int) if campaign.fields.get('Piece Count') else '—' }}</div>
       <div><strong>Mail Date:</strong> {{ campaign.fields.get('Mail Date','—') }}</div>
+      {% if campaign.fields.get('List Count') %}
+      <div><strong>List Count:</strong> {{ '{:,}'.format(campaign.fields.get('List Count',0)|int) }}</div>
+      {% endif %}
+      {% if campaign.fields.get('Quote Amount') %}
+      <div><strong>Quote Amount:</strong> ${{ '%.2f'|format(campaign.fields.get('Quote Amount',0)|float) }}</div>
+      {% endif %}
     </div>
     {% if campaign.fields.get('Notes') %}
     <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid #f0f0f0;">
@@ -65,17 +71,31 @@
         📋 Assign Mailing List
       </a>
 
-      {# Status advance button #}
+      {# Status advance button / List Building form #}
       {% if current_status != 'Mailed' and current_status != 'Cancelled' %}
         {% set next_statuses = {
           'Draft': 'Artwork Pending',
-          'Artwork Pending': 'Artwork Approved',
-          'Artwork Approved': 'Mailing Approval Pending',
-          'Mailing Approval Pending': 'Mailing Approved',
-          'Mailing Approved': 'In Production',
+          'Artwork Pending': 'List Building',
+          'List Building': 'List Approval Pending',
+          'List Approval Pending': 'In Production',
           'In Production': 'Mailed'
         } %}
-        {% if current_status in next_statuses %}
+        {% if current_status == 'List Building' %}
+        <form method="POST" action="{{ url_for('admin.campaign_set_quote', record_id=campaign.id) }}" style="border:1px solid #e0e0e0; border-radius:8px; padding:14px; background:#fafafa;">
+          <div style="font-weight:600; font-size:13px; margin-bottom:10px;">📋 Send List for Client Approval</div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+            <div style="flex:1; min-width:120px;">
+              <label style="font-size:12px; color:#888; display:block; margin-bottom:4px;">List Count</label>
+              <input type="number" name="list_count" placeholder="e.g. 2500" style="width:100%; padding:8px 10px; border:1.5px solid #e0e0e0; border-radius:6px; font-size:14px;">
+            </div>
+            <div style="flex:1; min-width:120px;">
+              <label style="font-size:12px; color:#888; display:block; margin-bottom:4px;">Quote Amount ($)</label>
+              <input type="number" step="0.01" name="quote_amount" placeholder="e.g. 1250.00" style="width:100%; padding:8px 10px; border:1.5px solid #e0e0e0; border-radius:6px; font-size:14px;">
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;">📨 Send to Client for Approval</button>
+        </form>
+        {% elif current_status in next_statuses %}
         <form method="POST" action="{{ url_for('admin.campaign_advance', record_id=campaign.id) }}">
           <button type="submit" class="btn btn-secondary" style="width: 100%;">
             ✅ Mark as "{{ next_statuses[current_status] }}"

@@ -29,7 +29,7 @@ def dashboard():
     print_jobs = get_records('print_jobs')
 
     active_campaigns = [c for c in campaigns if c['fields'].get('Status') not in ('Mailed', 'Cancelled', 'Draft')]
-    pending_approvals = [c for c in campaigns if c['fields'].get('Status') in ('Artwork Pending', 'Mailing Approval Pending')]
+    pending_approvals = [c for c in campaigns if c['fields'].get('Status') in ('Artwork Pending', 'List Approval Pending')]
     print_queue = [j for j in print_jobs if j['fields'].get('Status') == 'Queued']
     outstanding = sum(
         float(inv['fields'].get('Amount', 0))
@@ -246,10 +246,9 @@ def campaign_advance(record_id):
     current = campaign['fields'].get('Status', 'Draft')
     next_map = {
         'Draft': 'Artwork Pending',
-        'Artwork Pending': 'Artwork Approved',
-        'Artwork Approved': 'Mailing Approval Pending',
-        'Mailing Approval Pending': 'Mailing Approved',
-        'Mailing Approved': 'In Production',
+        'Artwork Pending': 'List Building',
+        'List Building': 'List Approval Pending',
+        'List Approval Pending': 'In Production',
         'In Production': 'Mailed',
     }
     next_status = next_map.get(current)
@@ -257,22 +256,24 @@ def campaign_advance(record_id):
         update_record('campaigns', record_id, {'Status': next_status})
         flash(f'Campaign moved to "{next_status}".', 'success')
 
-        # Auto-create print job when campaign reaches Mailing Approved
-        if next_status == 'Mailing Approved':
-            campaign = get_record('campaigns', record_id)
-            f = campaign['fields']
-            existing_jobs = get_records('print_jobs',
-                filter_formula=f"{{Campaign}}='{f.get('Campaign Name','')}'")
-            if not existing_jobs:
-                create_record('print_jobs', {
-                    'Job Name':    f.get('Campaign Name','') + ' — Print Job',
-                    'Campaign':    f.get('Campaign Name',''),
-                    'Client':      f.get('Client',''),
-                    'Piece Count': f.get('Piece Count', 0),
-                    'Status':      'Queued',
-                })
-                flash('Print job created and added to queue.', 'info')
+    return redirect(url_for('admin.campaign_detail', record_id=record_id))
 
+
+@admin_bp.route('/campaigns/<int:record_id>/set-quote', methods=['POST'])
+@login_required
+@admin_required
+def campaign_set_quote(record_id):
+    list_count = request.form.get('list_count', '').strip()
+    quote_amount = request.form.get('quote_amount', '').strip()
+    fields = {}
+    if list_count:
+        fields['List Count'] = int(list_count)
+    if quote_amount:
+        fields['Quote Amount'] = float(quote_amount)
+    if fields:
+        update_record('campaigns', record_id, fields)
+    update_record('campaigns', record_id, {'Status': 'List Approval Pending'})
+    flash('List details saved. Client can now review the quote.', 'success')
     return redirect(url_for('admin.campaign_detail', record_id=record_id))
 
 
