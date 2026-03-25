@@ -136,7 +136,7 @@
         <label class="form-label" for="desired_action">What Should Recipients Do?</label>
         <select id="desired_action" name="desired_action" class="form-control">
           <option value="">— Select an action —</option>
-          {% for action in ['Call us', 'Visit our website', 'Come in to the store', 'Scan the QR code', 'Text us', 'Book online', 'Claim the offer'] %}
+          {% for action in ['Call us', 'Visit our website', 'Come in to the store', 'Scan the QR code', 'Text us', 'Book online', 'Claim the offer', 'Request a quote'] %}
             <option value="{{ action }}" {% if campaign.desired_action == action %}selected{% endif %}>{{ action }}</option>
           {% endfor %}
         </select>
