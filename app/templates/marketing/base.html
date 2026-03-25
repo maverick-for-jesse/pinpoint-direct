@@ -50,7 +50,7 @@
       background: white !important;
       border-bottom: 1px solid var(--gray-200) !important;
       padding: 0 40px;
-      height: 68px;
+      height: 120px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -266,7 +266,7 @@
 
 <nav class="nav" id="main-nav">
   <a href="{{ url_for('marketing.index') }}" class="nav-logo">
-  <img src="/static/img/logo.png" alt="Pinpoint Direct" class="nav-logo-img" style="height:56px; width:auto; object-fit:contain; display:inline-block; vertical-align:middle; background:white; padding:4px 8px; border-radius:6px;">
+  <img src="/static/img/logo.png" alt="Pinpoint Direct" class="nav-logo-img" style="height:112px; width:auto; object-fit:contain; display:inline-block; vertical-align:middle; background:white; padding:4px 8px; border-radius:6px;">
 </a>
   <div class="nav-links" id="nav-links">
     <a href="{{ url_for('marketing.how_it_works') }}" class="nav-link {% if request.endpoint == 'marketing.how_it_works' %}active{% endif %}">How It Works</a>
