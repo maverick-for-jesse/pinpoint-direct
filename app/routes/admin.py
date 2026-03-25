@@ -48,12 +48,31 @@ def dashboard():
     except Exception:
         design_requests_pending = 0
 
+    # New leads count
+    new_leads = 0
+    try:
+        from app.utils.database import get_db, get_db_type
+        db_type = get_db_type()
+        ph = '%s' if db_type == 'postgres' else '?'
+        with get_db() as db:
+            if db_type == 'postgres':
+                with db.cursor() as cur:
+                    cur.execute("SELECT COUNT(*) as cnt FROM leads WHERE status = 'New' OR status IS NULL")
+                    row = cur.fetchone()
+                    new_leads = row['cnt'] if row else 0
+            else:
+                row = db.execute("SELECT COUNT(*) as cnt FROM leads WHERE status = 'New' OR status IS NULL").fetchone()
+                new_leads = row['cnt'] if row else 0
+    except Exception:
+        new_leads = 0
+
     stats = {
         'active_campaigns': len(active_campaigns),
         'pending_approvals': len(pending_approvals),
         'print_queue': len(print_queue),
         'outstanding_invoices': f'{outstanding:,.2f}',
         'design_requests_pending': design_requests_pending,
+        'new_leads': new_leads,
     }
 
     recent_campaigns = sorted(campaigns, key=lambda x: x.get('createdTime', ''), reverse=True)[:5]
@@ -1606,25 +1625,139 @@ def new_movers_export():
 @login_required
 @admin_required
 def leads():
-    from app.utils.database import get_db, get_db_type
+    from app.utils.database import get_db, get_db_type, init_db
+    init_db()
     db_type = get_db_type()
     with get_db() as db:
         if db_type == 'postgres':
             with db.cursor() as cur:
                 cur.execute("""
-                    SELECT id, name, email, business_name, phone, message, created_at
+                    SELECT id, name, email, business_name, phone, message, status, approved_at, created_at
                     FROM leads
                     ORDER BY created_at DESC
                 """)
                 all_leads = [dict(r) for r in cur.fetchall()]
         else:
             rows = db.execute("""
-                SELECT id, name, email, business_name, phone, message, created_at
+                SELECT id, name, email, business_name, phone, message, status, approved_at, created_at
                 FROM leads
                 ORDER BY created_at DESC
             """).fetchall()
             all_leads = [dict(r) for r in rows]
-    return render_template('admin/leads.html', leads=all_leads)
+    new_leads_count = sum(1 for l in all_leads if not l.get('status') or l.get('status') == 'New')
+    return render_template('admin/leads.html', leads=all_leads, new_leads_count=new_leads_count)
+
+
+@admin_bp.route('/leads/<int:lead_id>/approve', methods=['POST'])
+@login_required
+@admin_required
+def lead_approve(lead_id):
+    import random, json, requests as req_lib
+    from app.utils.database import get_db, get_db_type
+    from werkzeug.security import generate_password_hash
+    db_type = get_db_type()
+    ph = '%s' if db_type == 'postgres' else '?'
+
+    # 1. Get lead
+    with get_db() as db:
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"SELECT * FROM leads WHERE id = {ph}", (lead_id,))
+                lead = dict(cur.fetchone())
+        else:
+            row = db.execute(f"SELECT * FROM leads WHERE id = {ph}", (lead_id,)).fetchone()
+            lead = dict(row)
+
+    lead_name = lead.get('name', '')
+    lead_email = lead.get('email', '')
+    lead_phone = lead.get('phone', '')
+    lead_business = lead.get('business_name', '') or lead_name
+
+    # 2. Generate temp password
+    temp_password = f"Pinpoint{random.randint(1000, 9999)}"
+    password_hash = generate_password_hash(temp_password)
+
+    with get_db() as db:
+        # 3. Create client record
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"""
+                    INSERT INTO clients (company_name, contact_name, contact_email, contact_phone, status)
+                    VALUES ({ph},{ph},{ph},{ph},{ph}) RETURNING id
+                """, (lead_business, lead_name, lead_email, lead_phone, 'Active'))
+                client_id = cur.fetchone()['id']
+        else:
+            cur = db.execute(f"""
+                INSERT INTO clients (company_name, contact_name, contact_email, contact_phone, status)
+                VALUES ({ph},{ph},{ph},{ph},{ph})
+            """, (lead_business, lead_name, lead_email, lead_phone, 'Active'))
+            client_id = cur.lastrowid
+
+        # 4. Create user record
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"""
+                    INSERT INTO users (name, email, password_hash, role, client_id)
+                    VALUES ({ph},{ph},{ph},{ph},{ph}) RETURNING id
+                """, (lead_name, lead_email, password_hash, 'Client', client_id))
+        else:
+            db.execute(f"""
+                INSERT INTO users (name, email, password_hash, role, client_id)
+                VALUES ({ph},{ph},{ph},{ph},{ph})
+            """, (lead_name, lead_email, password_hash, 'Client', client_id))
+
+        # 5. Update lead status
+        from datetime import datetime
+        now = datetime.utcnow()
+        if db_type == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"UPDATE leads SET status='Approved', approved_at={ph} WHERE id={ph}", (now, lead_id))
+        else:
+            db.execute(f"UPDATE leads SET status='Approved', approved_at={ph} WHERE id={ph}", (now.isoformat(), lead_id))
+
+        db.commit()
+
+    # 6. Send welcome email via AgentMail
+    try:
+        with open('/Users/maverick/.openclaw/workspace/config/agentmail.json') as f:
+            cfg = json.load(f)
+        api_key = cfg['api_key']
+        inbox_id = 'maverickforjesse@agentmail.to'
+        req_lib.post(
+            f'https://api.agentmail.to/v0/inboxes/{inbox_id}/messages',
+            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+            json={
+                'to': [lead_email],
+                'subject': 'Welcome to Pinpoint Direct — Your Portal Access',
+                'text': f"""Hi {lead_name},
+
+Welcome to Pinpoint Direct! Your client portal account has been created.
+
+Login at: https://pinpoint-direct-production.up.railway.app/login
+
+Email: {lead_email}
+Temporary Password: {temp_password}
+
+Please log in and change your password at your earliest convenience.
+
+If you have any questions, reply to this email or call us.
+
+— The Pinpoint Direct Team
+pinpointdirect.io"""
+            },
+            timeout=10
+        )
+        email_status = 'sent'
+    except Exception as e:
+        email_status = f'failed ({e})'
+
+    flash(
+        f"✅ Lead approved! Client account created for {lead_name}. "
+        f"Temp password: <strong>{temp_password}</strong>. "
+        f"Welcome email: {email_status}.",
+        'success'
+    )
+    return redirect(url_for('admin.leads'))
 
 
 @admin_bp.route('/leads/<int:lead_id>/delete', methods=['POST'])

@@ -11,6 +11,16 @@
     <div class="stat-value">{{ leads | length }}</div>
     <div class="stat-sub">All time</div>
   </div>
+  <div class="stat-card {% if new_leads_count > 0 %}red{% endif %}">
+    <div class="stat-label">New Leads</div>
+    <div class="stat-value">{{ new_leads_count }}</div>
+    <div class="stat-sub">awaiting approval</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-label">Approved</div>
+    <div class="stat-value">{{ leads | selectattr('status', 'equalto', 'Approved') | list | length }}</div>
+    <div class="stat-sub">converted to clients</div>
+  </div>
 </div>
 
 <div class="card">
@@ -26,6 +36,7 @@
             <th>Email</th>
             <th>Phone</th>
             <th>Message</th>
+            <th>Status</th>
             <th></th>
           </tr>
         </thead>
@@ -55,6 +66,28 @@
               {% endif %}
             </td>
             <td>
+              {% set status = lead.status or 'New' %}
+              {% if status == 'Approved' %}
+                <span class="badge badge-green">Approved</span>
+                {% if lead.approved_at %}
+                  <div style="font-size: 11px; color: #888; margin-top: 2px;">
+                    {{ lead.approved_at.strftime('%b %d') if lead.approved_at.strftime is defined else lead.approved_at | string | truncate(10, True, '') }}
+                  </div>
+                {% endif %}
+              {% else %}
+                <span class="badge badge-yellow">New</span>
+              {% endif %}
+            </td>
+            <td style="white-space: nowrap;">
+              {% if (lead.status or 'New') == 'New' %}
+                <form method="POST" action="{{ url_for('admin.lead_approve', lead_id=lead.id) }}" style="display:inline;">
+                  <button type="submit" class="btn btn-primary btn-sm"
+                          onclick="return confirm('Create client account and send welcome email to {{ lead.name }}?')"
+                          style="padding: 5px 12px; font-size: 12px; margin-right: 4px;">
+                    Approve →
+                  </button>
+                </form>
+              {% endif %}
               <form method="POST" action="{{ url_for('admin.lead_delete', lead_id=lead.id) }}"
                     onsubmit="return confirm('Delete this lead?');" style="display:inline;">
                 <button type="submit" class="btn btn-secondary"

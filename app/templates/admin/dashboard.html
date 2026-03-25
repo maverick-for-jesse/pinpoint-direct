@@ -3,7 +3,7 @@
 {% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="stats-grid" style="grid-template-columns: repeat(5, 1fr);">
+<div class="stats-grid" style="grid-template-columns: repeat(6, 1fr);">
   <div class="stat-card blue">
     <div class="stat-label">Active Campaigns</div>
     <div class="stat-value">{{ stats.active_campaigns }}</div>
@@ -28,6 +28,11 @@
     <div class="stat-label">Design Requests</div>
     <div class="stat-value">{{ stats.design_requests_pending }}</div>
     <div class="stat-sub"><a href="{{ url_for('admin.design_requests') }}" style="color:inherit;">needing attention</a></div>
+  </div>
+  <div class="stat-card {% if stats.new_leads > 0 %}red{% endif %}">
+    <div class="stat-label">New Leads</div>
+    <div class="stat-value">{{ stats.new_leads }}</div>
+    <div class="stat-sub"><a href="{{ url_for('admin.leads') }}" style="color:inherit;">awaiting approval</a></div>
   </div>
 </div>
 

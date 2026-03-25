@@ -272,6 +272,8 @@ if DATABASE_URL:
                         business_name VARCHAR(255),
                         phone         VARCHAR(50),
                         message       TEXT,
+                        status        VARCHAR(50) DEFAULT 'New',
+                        approved_at   TIMESTAMP,
                         created_at    TIMESTAMP DEFAULT NOW()
                     )
                 """)
@@ -300,6 +302,22 @@ if DATABASE_URL:
                         UNIQUE(campaign_id, mover_id, month_number)
                     )
                 """)
+                # ── Leads column migrations (idempotent) ─────────────────────────
+                cur.execute("""
+                    DO $$ BEGIN
+                      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='leads' AND column_name='status') THEN
+                        ALTER TABLE leads ADD COLUMN status VARCHAR(50) DEFAULT 'New';
+                      END IF;
+                    END $$;
+                """)
+                cur.execute("""
+                    DO $$ BEGIN
+                      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='leads' AND column_name='approved_at') THEN
+                        ALTER TABLE leads ADD COLUMN approved_at TIMESTAMP;
+                      END IF;
+                    END $$;
+                """)
+
                 # ── Mailing Operations tables ─────────────────────────────────────
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS mailing_jobs (
@@ -568,6 +586,8 @@ else:
                     business_name TEXT,
                     phone         TEXT,
                     message       TEXT,
+                    status        TEXT DEFAULT 'New',
+                    approved_at   DATETIME,
                     created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
                 CREATE TABLE IF NOT EXISTS drip_campaigns (
@@ -706,6 +726,12 @@ else:
             for col, col_type in [('verify_status', 'TEXT'), ('verify_message', 'TEXT')]:
                 try:
                     conn.execute(f"ALTER TABLE new_movers ADD COLUMN {col} {col_type}")
+                except Exception:
+                    pass  # Column already exists
+            # Add leads columns (idempotent)
+            for col, col_type in [('status', "TEXT DEFAULT 'New'"), ('approved_at', 'DATETIME')]:
+                try:
+                    conn.execute(f"ALTER TABLE leads ADD COLUMN {col} {col_type}")
                 except Exception:
                     pass  # Column already exists
             conn.commit()
