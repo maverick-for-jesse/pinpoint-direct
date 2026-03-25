@@ -97,25 +97,11 @@
         <div class="form-hint">Larger cards get more attention but cost more. 6x9 is our most popular choice.</div>
         <div class="size-cards">
 
-          <label class="size-card {% if campaign.postcard_size == '4x6' %}selected{% endif %}" onclick="selectSize(this, '4x6')">
-            <input type="radio" name="postcard_size" value="4x6"
-                   {% if campaign.postcard_size == '4x6' %}checked{% endif %}>
-            <div class="size-name">4×6</div>
-            <div class="size-desc">Standard<br>Budget-friendly</div>
-          </label>
-
           <label class="size-card {% if not campaign.postcard_size or campaign.postcard_size == '6x9' %}selected{% endif %}" onclick="selectSize(this, '6x9')">
             <input type="radio" name="postcard_size" value="6x9"
                    {% if not campaign.postcard_size or campaign.postcard_size == '6x9' %}checked{% endif %}>
             <div class="size-name">6×9</div>
             <div class="size-desc">Most popular<br>Great impact</div>
-          </label>
-
-          <label class="size-card {% if campaign.postcard_size == '6x11' %}selected{% endif %}" onclick="selectSize(this, '6x11')">
-            <input type="radio" name="postcard_size" value="6x11"
-                   {% if campaign.postcard_size == '6x11' %}checked{% endif %}>
-            <div class="size-name">6×11</div>
-            <div class="size-desc">Max impact<br>Jumbo size</div>
           </label>
 
         </div>

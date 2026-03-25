@@ -35,7 +35,7 @@
       <div class="form-group">
         <label class="form-label">Postcard Size</label>
         <select name="postcard_size" class="form-control">
-          {% for size in ['4x6', '6x9', '6x11'] %}
+          {% for size in ['6x9'] %}
             <option value="{{ size }}"
               {% if campaign and campaign.fields.get('Postcard Size') == size %}selected
               {% elif not campaign and size == '6x9' %}selected{% endif %}>
