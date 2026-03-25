@@ -2891,3 +2891,253 @@ def invoice_action(record_id):
         update_record('invoices', record_id, fields)
         flash('Invoice updated.', 'success')
     return redirect(url_for('admin.invoice_detail', record_id=record_id))
+
+
+# ── Mailing Operations ────────────────────────────────────────────────────────
+
+MAILING_STATUS_ORDER = [
+    'Address Processing',
+    'Presort Ready',
+    'Print Queue',
+    'Printing',
+    'Tray Assembly',
+    'Ready to Drop',
+    'Mailed',
+]
+
+
+@admin_bp.route('/mailing-jobs')
+@login_required
+@admin_required
+def mailing_jobs():
+    jobs = get_records('mailing_jobs')
+    return render_template('admin/mailing_jobs.html', jobs=jobs)
+
+
+@admin_bp.route('/mailing-jobs/new', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def mailing_job_new():
+    clients = get_records('clients')
+    campaigns = get_records('campaigns')
+    if request.method == 'POST':
+        job_name = request.form.get('job_name', '').strip()
+        client_id = request.form.get('client_id') or None
+        campaign_id = request.form.get('campaign_id') or None
+        mail_class = request.form.get('mail_class', 'USPS Marketing Mail')
+        piece_count = request.form.get('piece_count', 0)
+        notes = request.form.get('notes', '')
+        if not job_name:
+            flash('Job name is required.', 'error')
+            return render_template('admin/mailing_job_new.html', clients=clients, campaigns=campaigns)
+        from app.utils.database import get_db, get_db_type
+        ph = '%s' if get_db_type() == 'postgres' else '?'
+        with get_db() as db:
+            if get_db_type() == 'postgres':
+                with db.cursor() as cur:
+                    cur.execute(
+                        f"INSERT INTO mailing_jobs (job_name, client_id, campaign_id, mail_class, piece_count, notes) "
+                        f"VALUES ({ph},{ph},{ph},{ph},{ph},{ph}) RETURNING id",
+                        (job_name, client_id or None, campaign_id or None, mail_class, piece_count or 0, notes)
+                    )
+                    new_id = cur.fetchone()['id']
+            else:
+                cur = db.execute(
+                    f"INSERT INTO mailing_jobs (job_name, client_id, campaign_id, mail_class, piece_count, notes) "
+                    f"VALUES ({ph},{ph},{ph},{ph},{ph},{ph})",
+                    (job_name, client_id or None, campaign_id or None, mail_class, piece_count or 0, notes)
+                )
+                new_id = cur.lastrowid
+            db.commit()
+        flash('Mailing job created.', 'success')
+        return redirect(url_for('admin.mailing_job_detail', job_id=new_id))
+    return render_template('admin/mailing_job_new.html', clients=clients, campaigns=campaigns)
+
+
+@admin_bp.route('/mailing-jobs/<int:job_id>')
+@login_required
+@admin_required
+def mailing_job_detail(job_id):
+    job = get_record('mailing_jobs', job_id)
+    # Get trays for this job
+    from app.utils.database import get_db, get_db_type
+    ph = '%s' if get_db_type() == 'postgres' else '?'
+    with get_db() as db:
+        if get_db_type() == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"SELECT * FROM mailing_trays WHERE mailing_job_id = {ph} ORDER BY tray_number", (job_id,))
+                trays = [dict(r) for r in cur.fetchall()]
+        else:
+            trays = [dict(r) for r in db.execute(
+                f"SELECT * FROM mailing_trays WHERE mailing_job_id = {ph} ORDER BY tray_number", (job_id,)
+            ).fetchall()]
+    return render_template('admin/mailing_job_detail.html',
+                           job=job, trays=trays,
+                           status_order=MAILING_STATUS_ORDER)
+
+
+@admin_bp.route('/mailing-jobs/<int:job_id>/update-cass', methods=['POST'])
+@login_required
+@admin_required
+def mailing_job_update_cass(job_id):
+    cass_status = request.form.get('cass_status', 'Pending')
+    cass_notes = request.form.get('cass_notes', '')
+    from app.utils.database import get_db, get_db_type
+    ph = '%s' if get_db_type() == 'postgres' else '?'
+    with get_db() as db:
+        if get_db_type() == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"UPDATE mailing_jobs SET cass_status={ph}, cass_notes={ph} WHERE id={ph}",
+                            (cass_status, cass_notes, job_id))
+        else:
+            db.execute(f"UPDATE mailing_jobs SET cass_status={ph}, cass_notes={ph} WHERE id={ph}",
+                       (cass_status, cass_notes, job_id))
+        db.commit()
+    flash('CASS status updated.', 'success')
+    return redirect(url_for('admin.mailing_job_detail', job_id=job_id))
+
+
+@admin_bp.route('/mailing-jobs/<int:job_id>/update-print', methods=['POST'])
+@login_required
+@admin_required
+def mailing_job_update_print(job_id):
+    from datetime import datetime
+    from app.utils.database import get_db, get_db_type
+    ph = '%s' if get_db_type() == 'postgres' else '?'
+    print_file_url = request.form.get('print_file_url', '')
+    sheet_count = request.form.get('sheet_count') or None
+    action = request.form.get('action', '')
+    now = datetime.utcnow()
+    with get_db() as db:
+        if action == 'start_print':
+            if get_db_type() == 'postgres':
+                with db.cursor() as cur:
+                    cur.execute(f"UPDATE mailing_jobs SET status='Printing', print_started_at={ph} WHERE id={ph}", (now, job_id))
+            else:
+                db.execute(f"UPDATE mailing_jobs SET status='Printing', print_started_at={ph} WHERE id={ph}", (now.isoformat(), job_id))
+        elif action == 'complete_print':
+            if get_db_type() == 'postgres':
+                with db.cursor() as cur:
+                    cur.execute(f"UPDATE mailing_jobs SET status='Tray Assembly', print_completed_at={ph} WHERE id={ph}", (now, job_id))
+            else:
+                db.execute(f"UPDATE mailing_jobs SET status='Tray Assembly', print_completed_at={ph} WHERE id={ph}", (now.isoformat(), job_id))
+        else:
+            updates = "print_file_url={ph}".replace('{ph}', ph)
+            params = [print_file_url]
+            if sheet_count:
+                updates += f", sheet_count={ph}"
+                params.append(int(sheet_count))
+            params.append(job_id)
+            if get_db_type() == 'postgres':
+                with db.cursor() as cur:
+                    cur.execute(f"UPDATE mailing_jobs SET {updates} WHERE id={ph}", params)
+            else:
+                db.execute(f"UPDATE mailing_jobs SET {updates} WHERE id={ph}", params)
+        db.commit()
+    flash('Print info updated.', 'success')
+    return redirect(url_for('admin.mailing_job_detail', job_id=job_id))
+
+
+@admin_bp.route('/mailing-jobs/<int:job_id>/add-tray', methods=['POST'])
+@login_required
+@admin_required
+def mailing_job_add_tray(job_id):
+    from app.utils.database import get_db, get_db_type
+    ph = '%s' if get_db_type() == 'postgres' else '?'
+    tray_number = request.form.get('tray_number') or None
+    piece_count = request.form.get('piece_count') or None
+    zip_range = request.form.get('zip_range', '')
+    tray_label = request.form.get('tray_label', '')
+    with get_db() as db:
+        if get_db_type() == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(
+                    f"INSERT INTO mailing_trays (mailing_job_id, tray_number, piece_count, zip_range, tray_label) "
+                    f"VALUES ({ph},{ph},{ph},{ph},{ph})",
+                    (job_id, tray_number, piece_count, zip_range, tray_label)
+                )
+                cur.execute(f"UPDATE mailing_jobs SET tray_count = (SELECT COUNT(*) FROM mailing_trays WHERE mailing_job_id={ph}) WHERE id={ph}", (job_id, job_id))
+        else:
+            db.execute(
+                f"INSERT INTO mailing_trays (mailing_job_id, tray_number, piece_count, zip_range, tray_label) "
+                f"VALUES ({ph},{ph},{ph},{ph},{ph})",
+                (job_id, tray_number, piece_count, zip_range, tray_label)
+            )
+            db.execute(f"UPDATE mailing_jobs SET tray_count = (SELECT COUNT(*) FROM mailing_trays WHERE mailing_job_id={ph}) WHERE id={ph}", (job_id, job_id))
+        db.commit()
+    flash('Tray added.', 'success')
+    return redirect(url_for('admin.mailing_job_detail', job_id=job_id))
+
+
+@admin_bp.route('/mailing-jobs/<int:job_id>/update-drop', methods=['POST'])
+@login_required
+@admin_required
+def mailing_job_update_drop(job_id):
+    from app.utils.database import get_db, get_db_type
+    ph = '%s' if get_db_type() == 'postgres' else '?'
+    drop_date = request.form.get('drop_date') or None
+    bmeu_location = request.form.get('bmeu_location', '')
+    form_3602_ref = request.form.get('form_3602_ref', '')
+    postage_paid = request.form.get('postage_paid') or None
+    with get_db() as db:
+        if get_db_type() == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(
+                    f"UPDATE mailing_jobs SET drop_date={ph}, bmeu_location={ph}, form_3602_ref={ph}, postage_paid={ph} WHERE id={ph}",
+                    (drop_date, bmeu_location, form_3602_ref, postage_paid, job_id)
+                )
+        else:
+            db.execute(
+                f"UPDATE mailing_jobs SET drop_date={ph}, bmeu_location={ph}, form_3602_ref={ph}, postage_paid={ph} WHERE id={ph}",
+                (drop_date, bmeu_location, form_3602_ref, postage_paid, job_id)
+            )
+        db.commit()
+    flash('Drop info saved.', 'success')
+    return redirect(url_for('admin.mailing_job_detail', job_id=job_id))
+
+
+@admin_bp.route('/mailing-jobs/<int:job_id>/advance', methods=['POST'])
+@login_required
+@admin_required
+def mailing_job_advance(job_id):
+    from app.utils.database import get_db, get_db_type
+    ph = '%s' if get_db_type() == 'postgres' else '?'
+    with get_db() as db:
+        if get_db_type() == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"SELECT status FROM mailing_jobs WHERE id={ph}", (job_id,))
+                row = cur.fetchone()
+        else:
+            row = db.execute(f"SELECT status FROM mailing_jobs WHERE id={ph}", (job_id,)).fetchone()
+        if row:
+            current_status = row['status']
+            idx = MAILING_STATUS_ORDER.index(current_status) if current_status in MAILING_STATUS_ORDER else -1
+            if idx >= 0 and idx < len(MAILING_STATUS_ORDER) - 1:
+                next_status = MAILING_STATUS_ORDER[idx + 1]
+                if get_db_type() == 'postgres':
+                    with db.cursor() as cur:
+                        cur.execute(f"UPDATE mailing_jobs SET status={ph} WHERE id={ph}", (next_status, job_id))
+                else:
+                    db.execute(f"UPDATE mailing_jobs SET status={ph} WHERE id={ph}", (next_status, job_id))
+                db.commit()
+                flash(f'Status advanced to {next_status}.', 'success')
+            else:
+                flash('Already at final status.', 'info')
+    return redirect(url_for('admin.mailing_job_detail', job_id=job_id))
+
+
+@admin_bp.route('/mailing-jobs/<int:job_id>/complete', methods=['POST'])
+@login_required
+@admin_required
+def mailing_job_complete(job_id):
+    from app.utils.database import get_db, get_db_type
+    ph = '%s' if get_db_type() == 'postgres' else '?'
+    with get_db() as db:
+        if get_db_type() == 'postgres':
+            with db.cursor() as cur:
+                cur.execute(f"UPDATE mailing_jobs SET status='Mailed' WHERE id={ph}", (job_id,))
+        else:
+            db.execute(f"UPDATE mailing_jobs SET status='Mailed' WHERE id={ph}", (job_id,))
+        db.commit()
+    flash('Job marked as Mailed! ✅', 'success')
+    return redirect(url_for('admin.mailing_job_detail', job_id=job_id))

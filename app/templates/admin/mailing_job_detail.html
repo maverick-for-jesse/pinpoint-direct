@@ -1,0 +1,278 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}{{ job.fields['Job Name'] }}{% endblock %}
+
+{% block content %}
+
+{% set current_status = job.fields['Status'] %}
+{% set stage_index = status_order.index(current_status) if current_status in status_order else 0 %}
+
+<div class="topbar">
+  <div>
+    <h1 class="page-title">{{ job.fields['Job Name'] }}</h1>
+    <div style="font-size: 13px; color: #8892a4; margin-top: 2px;">
+      {{ job.fields['Client'] or 'No client' }}
+      {% if job.fields['Campaign'] %} &nbsp;·&nbsp; {{ job.fields['Campaign'] }}{% endif %}
+      &nbsp;·&nbsp; {{ job.fields['Mail Class'] }}
+      &nbsp;·&nbsp; {{ job.fields['Piece Count'] }} pieces
+    </div>
+  </div>
+  <div class="topbar-actions">
+    {% if current_status == 'Mailed' %}
+      <span class="badge badge-green" style="font-size:14px; padding: 8px 16px;">✅ Mailed</span>
+    {% else %}
+      <form method="POST" action="{{ url_for('admin.mailing_job_advance', job_id=job.id) }}" style="display:inline;">
+        <button type="submit" class="btn btn-primary">Advance Status →</button>
+      </form>
+    {% endif %}
+    <a href="{{ url_for('admin.mailing_jobs') }}" class="btn btn-secondary">← Back</a>
+  </div>
+</div>
+
+<!-- ── Workflow Stepper ─────────────────────────────────────────────────── -->
+<div class="card" style="margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; gap: 0; overflow-x: auto;">
+    {% set stage_labels = ['Address Processing', 'Presort Ready', 'Print/Printing', 'Tray Assembly', 'BMEU Drop'] %}
+    {% set stage_statuses = [
+      ['Address Processing'],
+      ['Presort Ready'],
+      ['Print Queue', 'Printing'],
+      ['Tray Assembly'],
+      ['Ready to Drop', 'Mailed']
+    ] %}
+    {% for i in range(5) %}
+      {% set is_active = current_status in stage_statuses[i] %}
+      {% set is_done = stage_index > loop.index0 + (1 if i < 4 else 0) %}
+      {% if i == 0 %}
+        {% set is_done = stage_index > 0 %}
+      {% elif i == 1 %}
+        {% set is_done = stage_index > 1 %}
+      {% elif i == 2 %}
+        {% set is_done = stage_index > 3 %}
+      {% elif i == 3 %}
+        {% set is_done = stage_index > 4 %}
+      {% elif i == 4 %}
+        {% set is_done = current_status == 'Mailed' %}
+      {% endif %}
+      <div style="flex: 1; display:flex; flex-direction:column; align-items:center; position:relative; min-width: 100px;">
+        {% if i > 0 %}
+          <div style="position:absolute; top:18px; left:0; right:50%; height:2px; background: {% if is_active or is_done %}#e63946{% else %}#2d3748{% endif %};"></div>
+          <div style="position:absolute; top:18px; left:50%; right:0; height:2px; background: {% if is_done %}#e63946{% else %}#2d3748{% endif %};"></div>
+        {% else %}
+          <div style="position:absolute; top:18px; left:50%; right:0; height:2px; background: {% if stage_index > 0 %}#e63946{% else %}#2d3748{% endif %};"></div>
+        {% endif %}
+        <div style="
+          width: 36px; height: 36px; border-radius: 50%; z-index:1;
+          display:flex; align-items:center; justify-content:center;
+          font-weight: bold; font-size: 14px;
+          background: {% if is_active %}#e63946{% elif is_done %}#1e8a4a{% else %}#2d3748{% endif %};
+          color: #fff;
+          border: 2px solid {% if is_active %}#e63946{% elif is_done %}#1e8a4a{% else %}#3d4a5c{% endif %};
+        ">
+          {% if is_done %}✓{% else %}{{ loop.index }}{% endif %}
+        </div>
+        <div style="margin-top:8px; font-size:11px; text-align:center; color: {% if is_active %}#e63946{% elif is_done %}#48bb78{% else %}#8892a4{% endif %}; font-weight: {% if is_active %}bold{% else %}normal{% endif %};">
+          {% if i == 2 %}Print Files{% else %}{{ stage_labels[i] }}{% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ── Stage 1: Address Processing ──────────────────────────────────────── -->
+<div class="card" style="{% if current_status == 'Address Processing' %}border-left: 3px solid #e63946;{% endif %} margin-bottom: 16px;">
+  <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+    <span style="font-size: 18px; font-weight:700; color: {% if current_status == 'Address Processing' %}#e63946{% else %}#8892a4{% endif %};">① Address Processing</span>
+    {% if current_status == 'Address Processing' %}<span class="badge badge-blue">Current Stage</span>{% endif %}
+  </div>
+
+  <div style="margin-bottom:12px; color:#a0aec0; font-size:13px;">
+    📁 List File:
+    {% if job.fields['List Filename'] %}
+      <strong>{{ job.fields['List Filename'] }}</strong>
+      {% if job.fields['List Uploaded At'] %}<span style="color:#8892a4"> (uploaded {{ job.fields['List Uploaded At'][:10] }})</span>{% endif %}
+    {% else %}
+      <em>No list uploaded yet</em>
+    {% endif %}
+  </div>
+
+  <form method="POST" action="{{ url_for('admin.mailing_job_update_cass', job_id=job.id) }}">
+    <div style="display:flex; gap:16px; flex-wrap:wrap;">
+      <div class="form-group" style="flex:1; min-width:180px;">
+        <label class="form-label">CASS Status</label>
+        <select name="cass_status" class="form-control">
+          {% for opt in ['Pending', 'In Progress', 'Certified', 'Failed'] %}
+          <option value="{{ opt }}" {% if job.fields['CASS Status'] == opt %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="flex:2; min-width:240px;">
+        <label class="form-label">CASS Notes</label>
+        <textarea name="cass_notes" class="form-control" rows="2">{{ job.fields['CASS Notes'] }}</textarea>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-secondary">Save CASS Info</button>
+  </form>
+</div>
+
+<!-- ── Stage 2: Presort Ready ────────────────────────────────────────────── -->
+<div class="card" style="{% if current_status == 'Presort Ready' %}border-left: 3px solid #e63946;{% endif %} margin-bottom: 16px;">
+  <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+    <span style="font-size: 18px; font-weight:700; color: {% if current_status == 'Presort Ready' %}#e63946{% else %}#8892a4{% endif %};">② Presort Ready</span>
+    {% if current_status == 'Presort Ready' %}<span class="badge badge-blue">Current Stage</span>{% endif %}
+  </div>
+  <p style="color:#a0aec0; font-size:13px; margin-bottom:16px;">Confirm that the list has been sorted, deduped, and is ready for presort processing.</p>
+  {% if current_status == 'Address Processing' %}
+  <form method="POST" action="{{ url_for('admin.mailing_job_advance', job_id=job.id) }}">
+    <button type="submit" class="btn btn-primary">Mark as Presort Ready →</button>
+  </form>
+  {% endif %}
+</div>
+
+<!-- ── Stage 3: Print Queue / Printing ───────────────────────────────────── -->
+<div class="card" style="{% if current_status in ['Print Queue', 'Printing'] %}border-left: 3px solid #e63946;{% endif %} margin-bottom: 16px;">
+  <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+    <span style="font-size: 18px; font-weight:700; color: {% if current_status in ['Print Queue', 'Printing'] %}#e63946{% else %}#8892a4{% endif %};">③ Print Files</span>
+    {% if current_status in ['Print Queue', 'Printing'] %}<span class="badge badge-blue">Current Stage</span>{% endif %}
+  </div>
+
+  <form method="POST" action="{{ url_for('admin.mailing_job_update_print', job_id=job.id) }}" style="margin-bottom:16px;">
+    <input type="hidden" name="action" value="save_print">
+    <div style="display:flex; gap:16px; flex-wrap:wrap;">
+      <div class="form-group" style="flex:2; min-width:240px;">
+        <label class="form-label">Print File URL</label>
+        <input type="text" name="print_file_url" class="form-control" value="{{ job.fields['Print File URL'] }}" placeholder="https://...">
+      </div>
+      <div class="form-group" style="flex:1; min-width:120px;">
+        <label class="form-label">Sheet Count</label>
+        <input type="number" name="sheet_count" class="form-control" value="{{ job.fields['Sheet Count'] or '' }}" min="0">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-secondary">Save Print Info</button>
+  </form>
+
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    {% if current_status == 'Print Queue' or current_status == 'Presort Ready' %}
+    <form method="POST" action="{{ url_for('admin.mailing_job_update_print', job_id=job.id) }}">
+      <input type="hidden" name="action" value="start_print">
+      <button type="submit" class="btn btn-primary">▶ Mark Print Started</button>
+    </form>
+    {% endif %}
+    {% if current_status == 'Printing' %}
+    <form method="POST" action="{{ url_for('admin.mailing_job_update_print', job_id=job.id) }}">
+      <input type="hidden" name="action" value="complete_print">
+      <button type="submit" class="btn btn-primary">✅ Mark Print Complete</button>
+    </form>
+    {% endif %}
+  </div>
+
+  {% if job.fields['Print Started At'] %}
+  <div style="margin-top:12px; font-size:12px; color:#8892a4;">
+    Print started: {{ job.fields['Print Started At'][:16] }}
+    {% if job.fields['Print Completed At'] %} &nbsp;·&nbsp; Completed: {{ job.fields['Print Completed At'][:16] }}{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Stage 4: Tray Assembly ─────────────────────────────────────────────── -->
+<div class="card" style="{% if current_status == 'Tray Assembly' %}border-left: 3px solid #e63946;{% endif %} margin-bottom: 16px;">
+  <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+    <span style="font-size: 18px; font-weight:700; color: {% if current_status == 'Tray Assembly' %}#e63946{% else %}#8892a4{% endif %};">④ Tray Assembly</span>
+    {% if current_status == 'Tray Assembly' %}<span class="badge badge-blue">Current Stage</span>{% endif %}
+  </div>
+
+  <form method="POST" action="{{ url_for('admin.mailing_job_add_tray', job_id=job.id) }}" style="margin-bottom:20px;">
+    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+      <div class="form-group" style="flex:1; min-width:80px;">
+        <label class="form-label">Tray #</label>
+        <input type="number" name="tray_number" class="form-control" min="1" placeholder="{{ (trays|length)+1 }}">
+      </div>
+      <div class="form-group" style="flex:1; min-width:100px;">
+        <label class="form-label">Pieces</label>
+        <input type="number" name="piece_count" class="form-control" min="0">
+      </div>
+      <div class="form-group" style="flex:1; min-width:120px;">
+        <label class="form-label">ZIP Range</label>
+        <input type="text" name="zip_range" class="form-control" placeholder="30001–30099">
+      </div>
+      <div class="form-group" style="flex:2; min-width:160px;">
+        <label class="form-label">Tray Label</label>
+        <input type="text" name="tray_label" class="form-control" placeholder="e.g. ATL NDC 300">
+      </div>
+      <div class="form-group">
+        <button type="submit" class="btn btn-primary">+ Add Tray</button>
+      </div>
+    </div>
+  </form>
+
+  {% if trays %}
+  <table class="table" style="margin-bottom:12px;">
+    <thead>
+      <tr>
+        <th>Tray #</th>
+        <th>Pieces</th>
+        <th>ZIP Range</th>
+        <th>Label</th>
+        <th>Added</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tray in trays %}
+      <tr>
+        <td>{{ tray.tray_number or '—' }}</td>
+        <td>{{ tray.piece_count or '—' }}</td>
+        <td>{{ tray.zip_range or '—' }}</td>
+        <td>{{ tray.tray_label or '—' }}</td>
+        <td style="color:#8892a4; font-size:12px;">{{ tray.created_at|string|truncate(16, True, '') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div style="font-size:13px; color:#a0aec0;">
+    Total trays: <strong>{{ trays|length }}</strong> &nbsp;·&nbsp;
+    Total pieces: <strong>{{ trays|sum(attribute='piece_count') or 0 }}</strong>
+  </div>
+  {% else %}
+  <p style="color:#8892a4; font-size:13px; font-style:italic;">No trays logged yet.</p>
+  {% endif %}
+</div>
+
+<!-- ── Stage 5: BMEU Drop ──────────────────────────────────────────────────── -->
+<div class="card" style="{% if current_status in ['Ready to Drop', 'Mailed'] %}border-left: 3px solid #e63946;{% endif %} margin-bottom: 16px;">
+  <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+    <span style="font-size: 18px; font-weight:700; color: {% if current_status in ['Ready to Drop', 'Mailed'] %}#e63946{% else %}#8892a4{% endif %};">⑤ BMEU Drop</span>
+    {% if current_status in ['Ready to Drop', 'Mailed'] %}<span class="badge badge-{% if current_status == 'Mailed' %}green{% else %}blue{% endif %}">{{ current_status }}</span>{% endif %}
+  </div>
+
+  <form method="POST" action="{{ url_for('admin.mailing_job_update_drop', job_id=job.id) }}" style="margin-bottom:20px;">
+    <div style="display:flex; gap:16px; flex-wrap:wrap;">
+      <div class="form-group" style="flex:1; min-width:140px;">
+        <label class="form-label">Drop Date</label>
+        <input type="date" name="drop_date" class="form-control" value="{{ job.fields['Drop Date'] }}">
+      </div>
+      <div class="form-group" style="flex:2; min-width:200px;">
+        <label class="form-label">BMEU Location</label>
+        <input type="text" name="bmeu_location" class="form-control" value="{{ job.fields['BMEU Location'] }}" placeholder="e.g. Newnan BMEU">
+      </div>
+      <div class="form-group" style="flex:1; min-width:140px;">
+        <label class="form-label">PS Form 3602 Ref</label>
+        <input type="text" name="form_3602_ref" class="form-control" value="{{ job.fields['Form 3602 Ref'] }}" placeholder="e.g. 3602-0001">
+      </div>
+      <div class="form-group" style="flex:1; min-width:120px;">
+        <label class="form-label">Postage Paid ($)</label>
+        <input type="number" name="postage_paid" class="form-control" step="0.01" min="0" value="{{ job.fields['Postage Paid'] or '' }}">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-secondary">Save Drop Info</button>
+  </form>
+
+  {% if current_status != 'Mailed' %}
+  <form method="POST" action="{{ url_for('admin.mailing_job_complete', job_id=job.id) }}">
+    <button type="submit" class="btn btn-primary" style="background:#1e8a4a; border-color:#1e8a4a;">Mark as Mailed ✅</button>
+  </form>
+  {% else %}
+  <div style="font-size:15px; color:#48bb78; font-weight:bold; margin-top:8px;">✅ This job has been mailed!</div>
+  {% endif %}
+</div>
+
+{% endblock %}

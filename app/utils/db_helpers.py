@@ -71,6 +71,26 @@ _SELECT = {
         FROM users u
         LEFT JOIN clients cl ON u.client_id = cl.id
     """,
+    'mailing_jobs': """
+        SELECT mj.id, mj.job_name, mj.status, mj.piece_count, mj.sheet_count,
+               mj.list_filename, mj.list_uploaded_at, mj.cass_status, mj.cass_notes,
+               mj.print_file_url, mj.print_started_at, mj.print_completed_at,
+               mj.tray_count, mj.tray_notes, mj.drop_date, mj.bmeu_location,
+               mj.form_3602_ref, mj.mail_class, mj.postage_paid, mj.notes, mj.created_at,
+               mj.campaign_id, mj.client_id,
+               c.name AS campaign_name,
+               cl.company_name AS client_name
+        FROM mailing_jobs mj
+        LEFT JOIN campaigns c ON mj.campaign_id = c.id
+        LEFT JOIN clients cl ON mj.client_id = cl.id
+    """,
+    'mailing_trays': """
+        SELECT mt.id, mt.tray_number, mt.piece_count, mt.zip_range, mt.tray_label, mt.created_at,
+               mt.mailing_job_id,
+               mj.job_name AS job_name
+        FROM mailing_trays mt
+        LEFT JOIN mailing_jobs mj ON mt.mailing_job_id = mj.id
+    """,
 }
 
 
@@ -165,6 +185,39 @@ def _row_to_record(table, row):
             'Client':        r.get('client_name') or '',
             'Password Hash': r.get('password_hash') or '',
             'Last Login':    r.get('last_login').isoformat() if hasattr(r.get('last_login'), 'isoformat') else (r.get('last_login') or ''),
+        }
+    elif table == 'mailing_jobs':
+        fields = {
+            'Job Name':           r.get('job_name') or '',
+            'Status':             r.get('status') or 'Address Processing',
+            'Piece Count':        r.get('piece_count') or 0,
+            'Sheet Count':        r.get('sheet_count') or 0,
+            'List Filename':      r.get('list_filename') or '',
+            'List Uploaded At':   _date_str(r.get('list_uploaded_at')),
+            'CASS Status':        r.get('cass_status') or 'Pending',
+            'CASS Notes':         r.get('cass_notes') or '',
+            'Print File URL':     r.get('print_file_url') or '',
+            'Print Started At':   _date_str(r.get('print_started_at')),
+            'Print Completed At': _date_str(r.get('print_completed_at')),
+            'Tray Count':         r.get('tray_count') or 0,
+            'Tray Notes':         r.get('tray_notes') or '',
+            'Drop Date':          _date_str(r.get('drop_date')),
+            'BMEU Location':      r.get('bmeu_location') or '',
+            'Form 3602 Ref':      r.get('form_3602_ref') or '',
+            'Mail Class':         r.get('mail_class') or 'USPS Marketing Mail',
+            'Postage Paid':       float(r['postage_paid']) if r.get('postage_paid') is not None else 0.0,
+            'Notes':              r.get('notes') or '',
+            'Campaign':           r.get('campaign_name') or '',
+            'Client':             r.get('client_name') or '',
+        }
+    elif table == 'mailing_trays':
+        fields = {
+            'Tray Number':    r.get('tray_number') or 0,
+            'Piece Count':    r.get('piece_count') or 0,
+            'ZIP Range':      r.get('zip_range') or '',
+            'Tray Label':     r.get('tray_label') or '',
+            'Job Name':       r.get('job_name') or '',
+            'Mailing Job ID': r.get('mailing_job_id'),
         }
 
     return {
@@ -335,6 +388,48 @@ def _fields_to_pg(table, fields, db):
                 pg[pg_col] = fields[at_key] if fields[at_key] != '' else None
         if 'Client' in fields:
             pg['client_id'] = _lookup_client_id(db, fields['Client'])
+
+    elif table == 'mailing_jobs':
+        MAP = {
+            'Job Name':           'job_name',
+            'Status':             'status',
+            'Piece Count':        'piece_count',
+            'Sheet Count':        'sheet_count',
+            'List Filename':      'list_filename',
+            'List Uploaded At':   'list_uploaded_at',
+            'CASS Status':        'cass_status',
+            'CASS Notes':         'cass_notes',
+            'Print File URL':     'print_file_url',
+            'Print Started At':   'print_started_at',
+            'Print Completed At': 'print_completed_at',
+            'Tray Count':         'tray_count',
+            'Tray Notes':         'tray_notes',
+            'Drop Date':          'drop_date',
+            'BMEU Location':      'bmeu_location',
+            'Form 3602 Ref':      'form_3602_ref',
+            'Mail Class':         'mail_class',
+            'Postage Paid':       'postage_paid',
+            'Notes':              'notes',
+        }
+        for at_key, pg_col in MAP.items():
+            if at_key in fields:
+                pg[pg_col] = fields[at_key] if fields[at_key] != '' else None
+        if 'Client' in fields:
+            pg['client_id'] = _lookup_client_id(db, fields['Client'])
+        if 'Campaign' in fields:
+            pg['campaign_id'] = _lookup_campaign_id(db, fields['Campaign'])
+
+    elif table == 'mailing_trays':
+        MAP = {
+            'Tray Number':    'tray_number',
+            'Piece Count':    'piece_count',
+            'ZIP Range':      'zip_range',
+            'Tray Label':     'tray_label',
+            'Mailing Job ID': 'mailing_job_id',
+        }
+        for at_key, pg_col in MAP.items():
+            if at_key in fields:
+                pg[pg_col] = fields[at_key] if fields[at_key] != '' else None
 
     return pg
 
@@ -602,12 +697,14 @@ def at_str(value):
 def _table_alias(table):
     """Return the main table alias used in SELECT queries."""
     aliases = {
-        'clients':    'c',
-        'campaigns':  'c',
-        'artwork':    'a',
-        'invoices':   'i',
-        'print_jobs': 'pj',
-        'new_movers': 'new_movers',
-        'users':      'u',
+        'clients':       'c',
+        'campaigns':     'c',
+        'artwork':       'a',
+        'invoices':      'i',
+        'print_jobs':    'pj',
+        'new_movers':    'new_movers',
+        'users':         'u',
+        'mailing_jobs':  'mj',
+        'mailing_trays': 'mt',
     }
     return aliases.get(table, table)

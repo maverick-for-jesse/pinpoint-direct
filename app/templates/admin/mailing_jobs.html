@@ -1,0 +1,61 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Mailing Operations{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <h1 class="page-title">📮 Mailing Operations</h1>
+  <div class="topbar-actions">
+    <a href="{{ url_for('admin.mailing_job_new') }}" class="btn btn-primary">+ New Mailing Job</a>
+  </div>
+</div>
+
+<div class="card">
+  {% if jobs %}
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Job Name</th>
+        <th>Client</th>
+        <th>Campaign</th>
+        <th>Status</th>
+        <th>Piece Count</th>
+        <th>Drop Date</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for job in jobs %}
+      <tr>
+        <td><strong>{{ job.fields['Job Name'] }}</strong></td>
+        <td>{{ job.fields['Client'] or '—' }}</td>
+        <td>{{ job.fields['Campaign'] or '—' }}</td>
+        <td>
+          {% set s = job.fields['Status'] %}
+          {% if s == 'Mailed' %}
+            <span class="badge badge-green">{{ s }}</span>
+          {% elif s in ['Address Processing', 'Print Queue', 'Printing', 'Tray Assembly', 'Ready to Drop'] %}
+            <span class="badge badge-blue">{{ s }}</span>
+          {% elif s == 'Presort Ready' %}
+            <span class="badge badge-yellow">{{ s }}</span>
+          {% else %}
+            <span class="badge">{{ s }}</span>
+          {% endif %}
+        </td>
+        <td>{{ job.fields['Piece Count'] or '—' }}</td>
+        <td>{{ job.fields['Drop Date'] or '—' }}</td>
+        <td>
+          <a href="{{ url_for('admin.mailing_job_detail', job_id=job.id) }}" class="btn btn-secondary btn-sm">View</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <p>No mailing jobs yet.</p>
+    <a href="{{ url_for('admin.mailing_job_new') }}" class="btn btn-primary">Create your first mailing job</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

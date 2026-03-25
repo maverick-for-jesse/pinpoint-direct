@@ -286,6 +286,9 @@
       <a href="{{ url_for('admin.production_list') }}" class="nav-item {% if 'production' in request.endpoint %}active{% endif %}">
         <span class="icon">🖨️</span> Production
       </a>
+      <a href="{{ url_for('admin.mailing_jobs') }}" class="nav-item {% if 'mailing' in request.endpoint %}active{% endif %}">
+        <span class="icon">📮</span> Mailing Ops
+      </a>
     </div>
 
     <div class="sidebar-footer">

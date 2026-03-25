@@ -300,6 +300,46 @@ if DATABASE_URL:
                         UNIQUE(campaign_id, mover_id, month_number)
                     )
                 """)
+                # ── Mailing Operations tables ─────────────────────────────────────
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS mailing_jobs (
+                        id SERIAL PRIMARY KEY,
+                        job_name VARCHAR(255) NOT NULL,
+                        campaign_id INTEGER REFERENCES campaigns(id),
+                        client_id INTEGER REFERENCES clients(id),
+                        status VARCHAR(50) DEFAULT 'Address Processing',
+                        piece_count INTEGER DEFAULT 0,
+                        sheet_count INTEGER DEFAULT 0,
+                        list_filename VARCHAR(255),
+                        list_uploaded_at TIMESTAMP,
+                        cass_status VARCHAR(50) DEFAULT 'Pending',
+                        cass_notes TEXT,
+                        print_file_url VARCHAR(500),
+                        print_started_at TIMESTAMP,
+                        print_completed_at TIMESTAMP,
+                        tray_count INTEGER DEFAULT 0,
+                        tray_notes TEXT,
+                        drop_date DATE,
+                        bmeu_location VARCHAR(255),
+                        form_3602_ref VARCHAR(100),
+                        mail_class VARCHAR(50) DEFAULT 'USPS Marketing Mail',
+                        postage_paid DECIMAL(10,2),
+                        notes TEXT,
+                        created_at TIMESTAMP DEFAULT NOW()
+                    )
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS mailing_trays (
+                        id SERIAL PRIMARY KEY,
+                        mailing_job_id INTEGER REFERENCES mailing_jobs(id),
+                        tray_number INTEGER,
+                        piece_count INTEGER,
+                        zip_range VARCHAR(100),
+                        tray_label VARCHAR(255),
+                        created_at TIMESTAMP DEFAULT NOW()
+                    )
+                """)
+
                 # ── Production tables ─────────────────────────────────────────────
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS production_jobs (
@@ -511,6 +551,40 @@ else:
                     month_number    INTEGER NOT NULL,
                     mailed_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(campaign_id, mover_id, month_number)
+                );
+                CREATE TABLE IF NOT EXISTS mailing_jobs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    job_name VARCHAR(255) NOT NULL,
+                    campaign_id INTEGER REFERENCES campaigns(id),
+                    client_id INTEGER REFERENCES clients(id),
+                    status VARCHAR(50) DEFAULT 'Address Processing',
+                    piece_count INTEGER DEFAULT 0,
+                    sheet_count INTEGER DEFAULT 0,
+                    list_filename VARCHAR(255),
+                    list_uploaded_at DATETIME,
+                    cass_status VARCHAR(50) DEFAULT 'Pending',
+                    cass_notes TEXT,
+                    print_file_url VARCHAR(500),
+                    print_started_at DATETIME,
+                    print_completed_at DATETIME,
+                    tray_count INTEGER DEFAULT 0,
+                    tray_notes TEXT,
+                    drop_date DATE,
+                    bmeu_location VARCHAR(255),
+                    form_3602_ref VARCHAR(100),
+                    mail_class VARCHAR(50) DEFAULT 'USPS Marketing Mail',
+                    postage_paid REAL,
+                    notes TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS mailing_trays (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    mailing_job_id INTEGER REFERENCES mailing_jobs(id),
+                    tray_number INTEGER,
+                    piece_count INTEGER,
+                    zip_range VARCHAR(100),
+                    tray_label VARCHAR(255),
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
                 CREATE TABLE IF NOT EXISTS production_jobs (
                     id              INTEGER PRIMARY KEY AUTOINCREMENT,
