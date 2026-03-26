@@ -64,9 +64,9 @@
   <div class="card">
     <div class="card-title">Quick Actions</div>
     <div style="display: flex; flex-direction: column; gap: 10px;">
-      <a href="{{ url_for('admin.postcard_builder') }}?campaign={{ campaign.id }}" class="btn btn-primary">
-        🎨 Open Postcard Builder
-      </a>
+      <span class="btn btn-secondary" style="cursor:default; opacity:0.6;">
+        🎨 Upload artwork files directly using the file upload below.
+      </span>
       <a href="{{ url_for('admin.lists') }}?campaign={{ campaign.id }}" class="btn btn-secondary">
         📋 Assign Mailing List
       </a>
@@ -209,7 +209,7 @@
   </div>
   {% else %}
   <div class="empty-state" style="padding: 24px;">
-    <p>No artwork uploaded yet. Use the <a href="{{ url_for('admin.postcard_builder') }}?campaign={{ campaign.id }}">Postcard Builder</a> to create it.</p>
+    <p>No artwork uploaded yet. Upload artwork files directly using the file upload below.</p>
   </div>
   {% endif %}
 </div>

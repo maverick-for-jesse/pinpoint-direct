@@ -68,7 +68,7 @@
         <div class="empty-state" style="padding:20px;">
           <div class="empty-icon" style="font-size:28px;">📄</div>
           <p>No PDF attached yet.</p>
-          <p style="font-size:12px; margin-top:6px;">Generate one from the <a href="{{ url_for('admin.postcard_builder') }}">Postcard Builder</a> and link it here.</p>
+          <p style="font-size:12px; margin-top:6px;">Upload the print-ready PDF directly.</p>
         </div>
         <form method="POST" action="{{ url_for('admin.print_job_update', record_id=job.id) }}" style="margin-top:12px;">
           <input type="hidden" name="action" value="add_pdf">

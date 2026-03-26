@@ -62,15 +62,12 @@ def create_app():
     from app.routes.auth import auth_bp
     from app.routes.admin import admin_bp
     from app.routes.client import client_bp
-    from app.routes.wizard import wizard_bp
     from app.routes.marketing import marketing_bp
-    from app.routes import admin_wizard as _aw  # registers additional routes on admin_bp  # noqa: F401
 
     app.register_blueprint(marketing_bp)          # root '/' — public marketing site
     app.register_blueprint(auth_bp)               # /login, /logout
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(client_bp, url_prefix='/portal')
-    app.register_blueprint(wizard_bp, url_prefix='/portal')
 
     @app.template_filter('format_number')
     def format_number(value):
