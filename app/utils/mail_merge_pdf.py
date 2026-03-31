@@ -141,13 +141,41 @@ def _draw_address_block(c, record, column_map, address_zone, card_x, card_y):
 
 
 def _draw_card_image(c, image_path, card_x, card_y):
-    """Draw the postcard image at the given card position."""
+    """
+    Draw the postcard image at the given card position.
+    Image is scaled to fill the card box (preserving aspect ratio),
+    centered within the box. Source image data is embedded at full resolution.
+    """
+    from reportlab.lib.utils import ImageReader
+    from PIL import Image as PILImage
+
+    # Get native image dimensions
+    with PILImage.open(image_path) as img:
+        img_w, img_h = img.size  # pixels
+
+    # Scale to fill card box, preserving aspect ratio (cover, not fit)
+    # This means the image fills the entire card area — matching bleed intent
+    img_aspect = img_w / img_h
+    card_aspect = CARD_W / CARD_H
+
+    if img_aspect > card_aspect:
+        # Image is wider than card — scale by height
+        draw_h = CARD_H
+        draw_w = CARD_H * img_aspect
+    else:
+        # Image is taller than card — scale by width
+        draw_w = CARD_W
+        draw_h = CARD_W / img_aspect
+
+    # Center the image within the card box
+    offset_x = card_x + (CARD_W - draw_w) / 2
+    offset_y = card_y + (CARD_H - draw_h) / 2
+
     c.drawImage(
         image_path,
-        card_x, card_y,
-        width=CARD_W,
-        height=CARD_H,
-        preserveAspectRatio=False,
+        offset_x, offset_y,
+        width=draw_w,
+        height=draw_h,
         mask='auto',
     )
 
