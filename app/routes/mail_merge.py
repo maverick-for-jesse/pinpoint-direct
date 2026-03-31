@@ -129,15 +129,24 @@ def upload_csv():
         csv_path = os.path.join(upload_folder, csv_filename)
         csv_file.save(csv_path)
 
-        with open(csv_path, newline='', encoding='utf-8-sig') as f:
-            reader = csv.DictReader(f)
-            columns = reader.fieldnames or []
-            preview = []
-            count = 0
-            for row in reader:
-                count += 1
-                if count <= 3:
-                    preview.append(dict(row))
+        # Try UTF-8 first, fall back to Latin-1 (Melissa exports are often Latin-1)
+        for enc in ('utf-8-sig', 'latin-1', 'cp1252'):
+            try:
+                with open(csv_path, newline='', encoding=enc) as f:
+                    reader = csv.DictReader(f)
+                    columns = reader.fieldnames or []
+                    rows_preview = []
+                    for row in reader:
+                        rows_preview.append(dict(row))
+                csv_encoding = enc
+                break
+            except (UnicodeDecodeError, Exception):
+                continue
+        else:
+            return jsonify({'success': False, 'error': 'Could not decode CSV — try saving as UTF-8.'}), 400
+
+        count = len(rows_preview)
+        preview = rows_preview[:3]
 
         return jsonify({
             'success': True,
@@ -182,12 +191,16 @@ def generate():
             if not os.path.exists(path):
                 return jsonify({'success': False, 'error': f'{label} not found.'}), 400
 
-        # Load records from CSV
+        # Load records from CSV — auto-detect encoding
         records = []
-        with open(csv_path, newline='', encoding='utf-8-sig') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                records.append(dict(row))
+        for enc in ('utf-8-sig', 'latin-1', 'cp1252'):
+            try:
+                with open(csv_path, newline='', encoding=enc) as f:
+                    reader = csv.DictReader(f)
+                    records = [dict(row) for row in reader]
+                break
+            except UnicodeDecodeError:
+                continue
 
         if not records:
             return jsonify({'success': False, 'error': 'CSV has no records.'}), 400
