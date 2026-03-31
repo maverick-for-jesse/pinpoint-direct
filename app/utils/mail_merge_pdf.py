@@ -49,35 +49,29 @@ def _get_address_lines(record, column_map):
     zip_code = val('zip')
     plus4 = val('plus4')
 
-    lines = []
-
-    # Line 1: Name, Title
-    line1_parts = [p for p in [name, title] if p]
-    if line1_parts:
-        lines.append(', '.join(line1_parts))
-
-    # Line 2: Organization
-    if org:
-        lines.append(org)
-
-    # Line 3: Street
-    if address:
-        lines.append(address)
-
-    # Line 4: City, State ZIP-Plus4
+    # City/State/ZIP line
     city_state_zip = ''
     if city and state and zip_code:
-        if plus4:
-            city_state_zip = f"{city}, {state} {zip_code}-{plus4}"
-        else:
-            city_state_zip = f"{city}, {state} {zip_code}"
+        city_state_zip = f"{city}, {state} {zip_code}-{plus4}" if plus4 else f"{city}, {state} {zip_code}"
     elif city and state:
         city_state_zip = f"{city}, {state}"
     elif city:
         city_state_zip = city
-    if city_state_zip:
-        lines.append(city_state_zip)
 
+    name_title = ', '.join(p for p in [name, title] if p)
+
+    # Build named slots — order controlled by line_order passed in column_map
+    slots = {
+        'org':          org,
+        'name_title':   name_title,
+        'address':      address,
+        'city_state_zip': city_state_zip,
+    }
+
+    # Default order: org first, then name/title, street, city
+    line_order = column_map.get('line_order') or ['org', 'name_title', 'address', 'city_state_zip']
+
+    lines = [slots[key] for key in line_order if slots.get(key)]
     return lines
 
 

@@ -123,6 +123,25 @@
   }
   .csv-preview-table th { background: #fafafa; font-weight: 700; color: #888; }
 
+  .line-order-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    margin-bottom: 6px;
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    cursor: grab;
+    font-size: 13px;
+    color: #333;
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .line-order-item:active { cursor: grabbing; }
+  .line-order-item.drag-over { background: #e8f0fe; border-color: #4a90e2; }
+  .line-order-item::before { content: '⠿'; color: #bbb; font-size: 16px; }
+
   .mapping-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -298,6 +317,16 @@
         <label class="form-label">ZIP+4 Extension</label>
         <select class="form-control" id="map-plus4"></select>
       </div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <p class="form-label" style="margin-bottom:8px;">Address line order <span style="font-weight:400;color:#aaa;">(drag to reorder)</span></p>
+      <ul id="line-order-list" style="list-style:none;padding:0;margin:0;max-width:320px;">
+        <li data-key="org"           draggable="true" class="line-order-item">🏢 Organization / Agency</li>
+        <li data-key="name_title"    draggable="true" class="line-order-item">👤 Name, Title</li>
+        <li data-key="address"       draggable="true" class="line-order-item">📍 Street Address</li>
+        <li data-key="city_state_zip" draggable="true" class="line-order-item">🏙️ City, State ZIP</li>
+      </ul>
     </div>
 
     <div style="margin-top:16px;">
@@ -714,6 +743,7 @@
       state:   document.getElementById('map-state').value,
       zip:     document.getElementById('map-zip').value,
       plus4:   document.getElementById('map-plus4').value,
+      line_order: getLineOrder(),
     };
 
     const origText = btn.innerHTML;
@@ -754,5 +784,57 @@
       btn.disabled = false;
     }
   }
+
+  // ── Address line order drag-and-drop ────────────────────────────────────────
+  function getLineOrder() {
+    return Array.from(document.querySelectorAll('#line-order-list li'))
+      .map(li => li.dataset.key);
+  }
+
+  (function initDragOrder() {
+    const list = document.getElementById('line-order-list');
+    let dragSrc = null;
+
+    list.addEventListener('dragstart', e => {
+      dragSrc = e.target.closest('li');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+
+    list.addEventListener('dragover', e => {
+      e.preventDefault();
+      const target = e.target.closest('li');
+      if (target && target !== dragSrc) {
+        list.querySelectorAll('li').forEach(li => li.classList.remove('drag-over'));
+        target.classList.add('drag-over');
+      }
+    });
+
+    list.addEventListener('dragleave', e => {
+      const target = e.target.closest('li');
+      if (target) target.classList.remove('drag-over');
+    });
+
+    list.addEventListener('drop', e => {
+      e.preventDefault();
+      const target = e.target.closest('li');
+      if (target && target !== dragSrc) {
+        target.classList.remove('drag-over');
+        // Insert dragSrc before or after target based on pointer position
+        const rect = target.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        if (e.clientY < midY) {
+          list.insertBefore(dragSrc, target);
+        } else {
+          list.insertBefore(dragSrc, target.nextSibling);
+        }
+      }
+    });
+
+    list.addEventListener('dragend', () => {
+      list.querySelectorAll('li').forEach(li => li.classList.remove('drag-over'));
+      dragSrc = null;
+    });
+  })();
+
 </script>
 {% endblock %}
