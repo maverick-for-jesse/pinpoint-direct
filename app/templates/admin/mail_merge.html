@@ -233,10 +233,10 @@
   </div>
 
   <div class="zone-values" id="zone-values" style="display:none;">
-    <div class="zone-val">X: <strong id="zv-x">0</strong>%</div>
-    <div class="zone-val">Y: <strong id="zv-y">0</strong>%</div>
-    <div class="zone-val">Width: <strong id="zv-w">0</strong>%</div>
-    <div class="zone-val">Height: <strong id="zv-h">0</strong>%</div>
+    <div class="zone-val">X: <strong id="zv-x">0</strong>"</div>
+    <div class="zone-val">Y: <strong id="zv-y">0</strong>"</div>
+    <div class="zone-val">Width: <strong id="zv-w">0</strong>"</div>
+    <div class="zone-val">Height: <strong id="zv-h">0</strong>"</div>
   </div>
   <p id="zone-hint" style="font-size:13px;color:#aaa;margin-top:8px;">Click and drag on the image above to draw the address zone.</p>
 
@@ -587,10 +587,13 @@
 
   function updateZoneValues() {
     if (!state.addressZone) return;
-    document.getElementById('zv-x').textContent = state.addressZone.x_pct.toFixed(1);
-    document.getElementById('zv-y').textContent = state.addressZone.y_pct.toFixed(1);
-    document.getElementById('zv-w').textContent = state.addressZone.w_pct.toFixed(1);
-    document.getElementById('zv-h').textContent = state.addressZone.h_pct.toFixed(1);
+    // Card dimensions in inches (bleed size)
+    const CARD_W_IN = 6.41;
+    const CARD_H_IN = 9.48;
+    document.getElementById('zv-x').textContent = (state.addressZone.x_pct / 100 * CARD_W_IN).toFixed(2);
+    document.getElementById('zv-y').textContent = (state.addressZone.y_pct / 100 * CARD_H_IN).toFixed(2);
+    document.getElementById('zv-w').textContent = (state.addressZone.w_pct / 100 * CARD_W_IN).toFixed(2);
+    document.getElementById('zv-h').textContent = (state.addressZone.h_pct / 100 * CARD_H_IN).toFixed(2);
     document.getElementById('zone-values').style.display = 'flex';
     document.getElementById('zone-hint').style.display = 'none';
   }
