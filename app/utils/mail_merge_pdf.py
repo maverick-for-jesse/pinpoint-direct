@@ -81,9 +81,74 @@ def _get_address_lines(record, column_map):
     return lines
 
 
+def _draw_imb_barcode(c, imb_alpha, zone_x, zone_y_bottom, zone_w):
+    """
+    Draw an Intelligent Mail Barcode from the MD_IMBAlphaCode string.
+
+    USPS Publication 197 bar dimensions (at 300 dpi):
+      Bar width:   0.015" = 1.08pt
+      Bar spacing: 0.0437" = 3.15pt (center-to-center)
+      Full bar:    0.125" = 9.0pt  (full height, tracker + ascender + descender)
+      Ascender:    0.091" = 6.55pt (top half: tracker + ascender)
+      Descender:   0.091" = 6.55pt (bottom half: tracker + descender)
+      Tracker:     0.057" = 4.10pt (middle only)
+      Tracker baseline offset from barcode bottom: 0.034" = 2.45pt
+
+    Bar types:
+      F = Full bar    (bottom of descender to top of ascender)
+      A = Ascender    (tracker baseline up through ascender top)
+      D = Descender   (descender bottom up through tracker top)
+      T = Tracker     (tracker only — middle band)
+    """
+    if not imb_alpha or len(imb_alpha) < 65:
+        return
+
+    # USPS spec dimensions in points
+    BAR_W       = 1.08   # bar width
+    BAR_PITCH   = 3.15   # center-to-center spacing
+    FULL_H      = 9.0    # F bar height
+    HALF_H      = 6.55   # A and D bar height
+    TRACKER_H   = 4.10   # T bar height
+    # Tracker bottom sits at zone_y_bottom + TRACKER_OFFSET
+    TRACKER_BOT_OFFSET = 2.45
+    # Full bar baseline = zone_y_bottom (descender goes all the way down)
+    FULL_BOT_OFFSET    = 0.0
+    # Descender bottom = zone_y_bottom
+    DESC_BOT_OFFSET    = 0.0
+    # Ascender bottom = tracker top = TRACKER_BOT_OFFSET + TRACKER_H
+    ASC_BOT_OFFSET     = TRACKER_BOT_OFFSET + TRACKER_H
+
+    total_barcode_w = 65 * BAR_PITCH
+    # Center barcode within zone_w
+    start_x = zone_x + (zone_w - total_barcode_w) / 2
+
+    c.setFillColorRGB(0, 0, 0)
+
+    for i, ch in enumerate(imb_alpha[:65]):
+        bar_x = start_x + i * BAR_PITCH - BAR_W / 2
+        ch = ch.upper()
+
+        if ch == 'F':
+            bar_bottom = zone_y_bottom + FULL_BOT_OFFSET
+            bar_height = FULL_H
+        elif ch == 'A':
+            bar_bottom = zone_y_bottom + ASC_BOT_OFFSET
+            bar_height = HALF_H
+        elif ch == 'D':
+            bar_bottom = zone_y_bottom + DESC_BOT_OFFSET
+            bar_height = HALF_H
+        elif ch == 'T':
+            bar_bottom = zone_y_bottom + TRACKER_BOT_OFFSET
+            bar_height = TRACKER_H
+        else:
+            continue  # skip unexpected characters
+
+        c.rect(bar_x, bar_bottom, BAR_W, bar_height, fill=1, stroke=0)
+
+
 def _draw_address_block(c, record, column_map, address_zone, card_x, card_y):
     """
-    Render address text block onto the canvas within the address zone.
+    Render IMb barcode + address text block onto the canvas within the address zone.
 
     address_zone: dict with x_pct, y_pct, w_pct, h_pct (0-100 floats)
                   measured from the top-left of the card image.
@@ -100,38 +165,55 @@ def _draw_address_block(c, record, column_map, address_zone, card_x, card_y):
     zone_h = (h_pct / 100.0) * CARD_H
 
     # Convert card-top-relative y to reportlab bottom-relative
-    # zone_top in reportlab = card_y + CARD_H - zone_y_from_card_top
-    # zone_bottom in reportlab = zone_top - zone_h
     zone_bottom = card_y + CARD_H - zone_y_from_card_top - zone_h
 
     lines = _get_address_lines(record, column_map)
     if not lines:
         return
 
-    c.setFillColorRGB(0, 0, 0)
-    c.setFont('Helvetica', 11)
+    # --- IMb barcode ---
+    # Barcode sits at the top of the address zone
+    # Full bar height = 9pt, add 4pt padding below barcode before text starts
+    IMB_HEIGHT   = 9.0   # Full bar height in points
+    IMB_PADDING  = 4.0   # Gap between barcode bottom and first text line
 
-    # Auto-size font to fit all lines within zone_h and zone_w
+    imb_alpha = str(record.get('MD_IMBAlphaCode', '') or '').strip()
+    barcode_drawn = bool(imb_alpha and len(imb_alpha) >= 65)
+
+    if barcode_drawn:
+        # Barcode top = zone top - 2pt padding
+        barcode_top = zone_bottom + zone_h - 2
+        barcode_bottom = barcode_top - IMB_HEIGHT
+        _draw_imb_barcode(c, imb_alpha, zone_x, barcode_bottom, zone_w)
+        # Address text starts below barcode
+        text_top = barcode_bottom - IMB_PADDING
+    else:
+        text_top = zone_bottom + zone_h - 2
+
+    # Height available for text
+    text_zone_h = text_top - zone_bottom
+
+    c.setFillColorRGB(0, 0, 0)
+
+    # Auto-size font to fit all lines within available text height and zone width
     font_size = 11
     line_spacing_factor = 1.3
-    while font_size >= 7:
+    while font_size >= 6:
         total_text_h = len(lines) * font_size * line_spacing_factor
         max_line_w = max(
             c.stringWidth(line, 'Helvetica', font_size)
             for line in lines
         ) if lines else 0
-        if total_text_h <= zone_h and max_line_w <= zone_w:
+        if total_text_h <= text_zone_h and max_line_w <= zone_w:
             break
         font_size -= 0.5
 
     font_size = max(font_size, 6)
     line_height = font_size * line_spacing_factor
-
     c.setFont('Helvetica', font_size)
 
-    # Draw lines top-to-bottom within the zone
-    # Start at top of zone, pad slightly
-    y_cursor = zone_bottom + zone_h - font_size - 2
+    # Draw lines top-to-bottom
+    y_cursor = text_top - font_size
 
     for line in lines:
         if y_cursor < zone_bottom:
