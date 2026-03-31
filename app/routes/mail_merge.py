@@ -71,8 +71,26 @@ def upload_images():
         front_file.save(front_path)
         back_file.save(back_path)
 
-        # Get back image dimensions
+        # Convert to RGB if needed (handles CMYK from InDesign exports, etc.)
         from PIL import Image
+        for path in (front_path, back_path):
+            with Image.open(path) as img:
+                if img.mode not in ('RGB', 'RGBA'):
+                    converted = img.convert('RGB')
+                    # Save back as PNG regardless of original format for lossless quality
+                    png_path = os.path.splitext(path)[0] + '.png'
+                    converted.save(png_path, 'PNG', optimize=False)
+                    if png_path != path:
+                        os.remove(path)
+                    # Update path variables if filename changed
+                    if path == front_path:
+                        front_path = png_path
+                        front_filename = os.path.basename(png_path)
+                    else:
+                        back_path = png_path
+                        back_filename = os.path.basename(png_path)
+
+        # Get back image dimensions
         with Image.open(back_path) as img:
             back_width, back_height = img.size
 
