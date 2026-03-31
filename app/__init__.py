@@ -63,11 +63,13 @@ def create_app():
     from app.routes.admin import admin_bp
     from app.routes.client import client_bp
     from app.routes.marketing import marketing_bp
+    from app.routes.mail_merge import mail_merge_bp
 
     app.register_blueprint(marketing_bp)          # root '/' — public marketing site
     app.register_blueprint(auth_bp)               # /login, /logout
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(client_bp, url_prefix='/portal')
+    app.register_blueprint(mail_merge_bp, url_prefix='/admin')
 
     @app.template_filter('format_number')
     def format_number(value):

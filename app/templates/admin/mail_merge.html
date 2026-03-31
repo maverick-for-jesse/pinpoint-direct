@@ -1,0 +1,755 @@
+{% extends "admin/base.html" %}
+{% block title %}Mail Merge & Print{% endblock %}
+{% block page_title %}Mail Merge & Print{% endblock %}
+
+{% block content %}
+<style>
+  .wizard-steps {
+    display: flex;
+    gap: 0;
+    margin-bottom: 28px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    overflow: hidden;
+  }
+  .wizard-step-tab {
+    flex: 1;
+    padding: 14px 10px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #bbb;
+    border-bottom: 3px solid transparent;
+    cursor: default;
+    user-select: none;
+  }
+  .wizard-step-tab.active {
+    color: #e63946;
+    border-bottom-color: #e63946;
+    background: #fff5f5;
+  }
+  .wizard-step-tab.done {
+    color: #27ae60;
+    border-bottom-color: #27ae60;
+  }
+  .wizard-step-tab span.step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #eee;
+    color: #999;
+    font-size: 11px;
+    font-weight: 700;
+    margin-right: 6px;
+  }
+  .wizard-step-tab.active span.step-num { background: #e63946; color: white; }
+  .wizard-step-tab.done span.step-num { background: #27ae60; color: white; }
+
+  .step-panel { display: none; }
+  .step-panel.active { display: block; }
+
+  .upload-zone {
+    border: 2px dashed #e0e0e0;
+    border-radius: 10px;
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .upload-zone:hover { border-color: #e63946; background: #fff5f5; }
+  .upload-zone input[type=file] { display: none; }
+  .upload-zone .upload-icon { font-size: 32px; margin-bottom: 8px; }
+  .upload-zone p { font-size: 13px; color: #aaa; margin-top: 6px; }
+  .upload-zone strong { font-size: 14px; color: #555; }
+
+  .thumb-preview {
+    width: 140px;
+    height: 90px;
+    object-fit: cover;
+    border-radius: 7px;
+    border: 1.5px solid #e0e0e0;
+    margin-top: 12px;
+  }
+
+  .zone-container {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+  }
+  .zone-container img {
+    display: block;
+    max-width: 100%;
+    max-height: 500px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+  }
+  #zone-canvas {
+    position: absolute;
+    top: 0; left: 0;
+    cursor: crosshair;
+    border-radius: 8px;
+  }
+
+  .zone-values {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .zone-val {
+    background: #f5f5f5;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    color: #444;
+  }
+  .zone-val strong { color: #e63946; }
+
+  .csv-preview-table {
+    font-size: 12px;
+    border-collapse: collapse;
+    width: 100%;
+    overflow-x: auto;
+    display: block;
+  }
+  .csv-preview-table th, .csv-preview-table td {
+    padding: 6px 10px;
+    border: 1px solid #f0f0f0;
+    white-space: nowrap;
+  }
+  .csv-preview-table th { background: #fafafa; font-weight: 700; color: #888; }
+
+  .mapping-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 16px;
+  }
+
+  .generate-summary {
+    background: #f5f5f5;
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 20px;
+  }
+  .generate-summary strong { color: #1a1a2e; font-size: 18px; }
+
+  .spinner {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 3px solid rgba(255,255,255,0.4);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .download-box {
+    background: #e8f5e9;
+    border: 1px solid #c8e6c9;
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin-top: 16px;
+  }
+  .download-box p { font-size: 14px; color: #2e7d32; margin-bottom: 10px; font-weight: 600; }
+
+  .nav-btns {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 24px;
+  }
+</style>
+
+<!-- Wizard step tabs -->
+<div class="wizard-steps" id="wizard-tabs">
+  <div class="wizard-step-tab active" id="tab-1"><span class="step-num">1</span> Upload Images</div>
+  <div class="wizard-step-tab" id="tab-2"><span class="step-num">2</span> Address Zone</div>
+  <div class="wizard-step-tab" id="tab-3"><span class="step-num">3</span> CSV & Mapping</div>
+  <div class="wizard-step-tab" id="tab-4"><span class="step-num">4</span> Generate PDF</div>
+</div>
+
+<!-- Step 1: Upload Images -->
+<div class="step-panel active card" id="step-1">
+  <div class="card-title">Step 1 — Upload Postcard Images</div>
+  <p style="font-size:13px;color:#888;margin-bottom:20px;">Upload the front and back images for your 6×9 postcard (with bleed: 6.41" × 9.48").</p>
+
+  <div class="form-row">
+    <div>
+      <label class="form-label">Front Image (PNG or JPG)</label>
+      <div class="upload-zone" id="front-zone" onclick="document.getElementById('front-input').click()">
+        <div class="upload-icon">🖼️</div>
+        <strong>Click to upload front image</strong>
+        <p>PNG or JPG, 6.41" × 9.48" at 300dpi</p>
+        <img id="front-thumb" class="thumb-preview" style="display:none;" alt="Front preview">
+        <input type="file" id="front-input" accept=".png,.jpg,.jpeg">
+      </div>
+      <p id="front-name" style="font-size:12px;color:#888;margin-top:6px;"></p>
+    </div>
+    <div>
+      <label class="form-label">Back Image (PNG or JPG)</label>
+      <div class="upload-zone" id="back-zone" onclick="document.getElementById('back-input').click()">
+        <div class="upload-icon">🖼️</div>
+        <strong>Click to upload back image</strong>
+        <p>PNG or JPG, 6.41" × 9.48" at 300dpi</p>
+        <img id="back-thumb" class="thumb-preview" style="display:none;" alt="Back preview">
+        <input type="file" id="back-input" accept=".png,.jpg,.jpeg">
+      </div>
+      <p id="back-name" style="font-size:12px;color:#888;margin-top:6px;"></p>
+    </div>
+  </div>
+
+  <div id="upload-error" style="display:none;" class="flash flash-error"></div>
+
+  <div class="nav-btns">
+    <div></div>
+    <button class="btn btn-primary" id="step1-next" onclick="uploadImages()" disabled>
+      Upload & Continue →
+    </button>
+  </div>
+</div>
+
+<!-- Step 2: Address Zone Picker -->
+<div class="step-panel card" id="step-2">
+  <div class="card-title">Step 2 — Define Address Block Zone</div>
+  <p style="font-size:13px;color:#888;margin-bottom:16px;">Draw a rectangle on the back image to define where address text will be placed.</p>
+
+  <div style="margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;">
+    <button class="btn btn-secondary" onclick="resetZone()">↺ Reset</button>
+    <button class="btn btn-secondary" onclick="useDefaultZone()">📍 Use Default Zone (lower 40%, right 60%)</button>
+  </div>
+
+  <div class="zone-container" id="zone-container">
+    <img id="back-img-preview" src="" alt="Back image">
+    <canvas id="zone-canvas"></canvas>
+  </div>
+
+  <div class="zone-values" id="zone-values" style="display:none;">
+    <div class="zone-val">X: <strong id="zv-x">0</strong>%</div>
+    <div class="zone-val">Y: <strong id="zv-y">0</strong>%</div>
+    <div class="zone-val">Width: <strong id="zv-w">0</strong>%</div>
+    <div class="zone-val">Height: <strong id="zv-h">0</strong>%</div>
+  </div>
+  <p id="zone-hint" style="font-size:13px;color:#aaa;margin-top:8px;">Click and drag on the image above to draw the address zone.</p>
+
+  <div class="nav-btns">
+    <button class="btn btn-secondary" onclick="goStep(1)">← Back</button>
+    <button class="btn btn-primary" id="step2-next" onclick="goStep(3)" disabled>
+      Continue →
+    </button>
+  </div>
+</div>
+
+<!-- Step 3: CSV Upload & Column Mapping -->
+<div class="step-panel card" id="step-3">
+  <div class="card-title">Step 3 — Upload CSV & Map Columns</div>
+  <p style="font-size:13px;color:#888;margin-bottom:16px;">Upload your Melissa-processed CSV and map columns to address fields.</p>
+
+  <div class="upload-zone" id="csv-zone" onclick="document.getElementById('csv-input').click()">
+    <div class="upload-icon">📄</div>
+    <strong>Click to upload CSV file</strong>
+    <p>Melissa-processed address list</p>
+    <input type="file" id="csv-input" accept=".csv">
+  </div>
+
+  <div id="csv-error" style="display:none;margin-top:12px;" class="flash flash-error"></div>
+  <div id="csv-info" style="display:none;margin-top:12px;" class="flash flash-info"></div>
+
+  <div id="csv-mapping-section" style="display:none;margin-top:20px;">
+    <p class="form-label" style="margin-bottom:12px;">Map CSV columns to address fields:</p>
+    <div class="mapping-grid">
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <select class="form-control" id="map-name"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Title / Rank</label>
+        <select class="form-control" id="map-title"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Organization / Agency</label>
+        <select class="form-control" id="map-org"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Street Address</label>
+        <select class="form-control" id="map-address"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">City</label>
+        <select class="form-control" id="map-city"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">State</label>
+        <select class="form-control" id="map-state"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ZIP Code</label>
+        <select class="form-control" id="map-zip"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ZIP+4 Extension</label>
+        <select class="form-control" id="map-plus4"></select>
+      </div>
+    </div>
+
+    <div style="margin-top:16px;">
+      <p class="form-label">CSV Preview (first 3 rows):</p>
+      <div style="overflow-x:auto;margin-top:8px;">
+        <table class="csv-preview-table" id="csv-preview-table"></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-btns">
+    <button class="btn btn-secondary" onclick="goStep(2)">← Back</button>
+    <button class="btn btn-primary" id="step3-next" onclick="goStep(4)" disabled>
+      Continue →
+    </button>
+  </div>
+</div>
+
+<!-- Step 4: Generate PDF -->
+<div class="step-panel card" id="step-4">
+  <div class="card-title">Step 4 — Generate Print-Ready PDF</div>
+
+  <div class="generate-summary" id="gen-summary">
+    <strong id="gen-records">—</strong> records →
+    <strong id="gen-sheets">—</strong> sheets →
+    <strong id="gen-pages">—</strong> pages (duplex)
+  </div>
+
+  <p style="font-size:13px;color:#888;margin-bottom:20px;">
+    The PDF will be 11" × 17" with 2 postcards per sheet. Print duplex (flip on long edge) and cut to finish.
+  </p>
+
+  <div id="gen-error" style="display:none;margin-bottom:12px;" class="flash flash-error"></div>
+
+  <button class="btn btn-primary" id="generate-btn" onclick="generatePDF()" style="font-size:15px;padding:12px 28px;">
+    🖨️ Generate PDF
+  </button>
+
+  <div id="download-box" class="download-box" style="display:none;">
+    <p>✅ PDF generated successfully!</p>
+    <a id="download-link" href="#" class="btn btn-primary" style="display:inline-block;">
+      ⬇️ Download PDF
+    </a>
+    <span id="download-meta" style="font-size:12px;color:#666;margin-left:12px;"></span>
+  </div>
+
+  <div class="nav-btns">
+    <button class="btn btn-secondary" onclick="goStep(3)">← Back</button>
+    <div></div>
+  </div>
+</div>
+
+<script>
+  // State
+  const state = {
+    frontFilename: null,
+    backFilename: null,
+    csvFilename: null,
+    backWidth: 0,
+    backHeight: 0,
+    csvColumns: [],
+    csvCount: 0,
+    addressZone: null,  // {x_pct, y_pct, w_pct, h_pct}
+  };
+
+  // ── Wizard navigation ──────────────────────────────────────────────────────
+
+  function goStep(n) {
+    document.querySelectorAll('.step-panel').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.wizard-step-tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('step-' + n).classList.add('active');
+    document.getElementById('tab-' + n).classList.add('active');
+
+    if (n === 2 && state.backFilename) {
+      initZoneCanvas();
+    }
+    if (n === 4) {
+      updateGenSummary();
+    }
+  }
+
+  // ── Step 1: Image Upload ───────────────────────────────────────────────────
+
+  ['front', 'back'].forEach(side => {
+    document.getElementById(side + '-input').addEventListener('change', function() {
+      const file = this.files[0];
+      if (!file) return;
+      const thumb = document.getElementById(side + '-thumb');
+      thumb.src = URL.createObjectURL(file);
+      thumb.style.display = 'block';
+      document.getElementById(side + '-name').textContent = file.name;
+      checkStep1Ready();
+    });
+  });
+
+  function checkStep1Ready() {
+    const frontFile = document.getElementById('front-input').files[0];
+    const backFile = document.getElementById('back-input').files[0];
+    document.getElementById('step1-next').disabled = !(frontFile && backFile);
+  }
+
+  async function uploadImages() {
+    const btn = document.getElementById('step1-next');
+    const errDiv = document.getElementById('upload-error');
+    errDiv.style.display = 'none';
+
+    const frontFile = document.getElementById('front-input').files[0];
+    const backFile = document.getElementById('back-input').files[0];
+
+    if (!frontFile || !backFile) {
+      errDiv.textContent = 'Please select both front and back images.';
+      errDiv.style.display = 'block';
+      return;
+    }
+
+    const origText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span> Uploading...';
+    btn.disabled = true;
+
+    try {
+      const fd = new FormData();
+      fd.append('front_image', frontFile);
+      fd.append('back_image', backFile);
+
+      const res = await fetch('/admin/mail-merge/upload-images', { method: 'POST', body: fd });
+      const data = await res.json();
+
+      if (!data.success) {
+        errDiv.textContent = data.error || 'Upload failed.';
+        errDiv.style.display = 'block';
+        return;
+      }
+
+      state.frontFilename = data.front_filename;
+      state.backFilename = data.back_filename;
+      state.backWidth = data.back_width;
+      state.backHeight = data.back_height;
+
+      document.getElementById('tab-1').classList.remove('active');
+      document.getElementById('tab-1').classList.add('done');
+      goStep(2);
+
+    } catch(e) {
+      errDiv.textContent = 'Upload error: ' + e.message;
+      errDiv.style.display = 'block';
+    } finally {
+      btn.innerHTML = origText;
+      btn.disabled = false;
+    }
+  }
+
+  // ── Step 2: Address Zone Picker ────────────────────────────────────────────
+
+  let drawing = false;
+  let startX = 0, startY = 0;
+  let currentRect = null;
+
+  function initZoneCanvas() {
+    const img = document.getElementById('back-img-preview');
+    const backUrl = '/admin/mail-merge/download/' + state.backFilename;
+    // Use the upload path instead
+    img.src = '/static/uploads/' + state.backFilename;
+    // Actually we need to serve the uploaded file. Use a data URL approach via the upload endpoint.
+    // Since uploads/ is not served statically, we need another approach.
+    // We'll use a trick: fetch the file from the upload route's back image.
+    // Actually, let's serve it via an inline route by fetching it as object URL.
+    loadBackImagePreview(img);
+  }
+
+  function loadBackImagePreview(img) {
+    // Fetch the back image from the server via a dedicated endpoint
+    fetch('/admin/mail-merge/preview-image/' + encodeURIComponent(state.backFilename))
+      .then(r => r.blob())
+      .then(blob => {
+        img.src = URL.createObjectURL(blob);
+        img.onload = () => setupCanvas(img);
+      })
+      .catch(() => {
+        // Fallback: just set up canvas with fixed dimensions
+        img.style.width = '400px';
+        img.style.height = '590px';
+        setupCanvas(img);
+      });
+  }
+
+  function setupCanvas(img) {
+    const canvas = document.getElementById('zone-canvas');
+    canvas.width = img.offsetWidth;
+    canvas.height = img.offsetHeight;
+    canvas.style.width = img.offsetWidth + 'px';
+    canvas.style.height = img.offsetHeight + 'px';
+
+    // Restore existing zone if any
+    if (state.addressZone) {
+      drawRect(
+        state.addressZone.x_pct / 100 * canvas.width,
+        state.addressZone.y_pct / 100 * canvas.height,
+        state.addressZone.w_pct / 100 * canvas.width,
+        state.addressZone.h_pct / 100 * canvas.height
+      );
+    }
+  }
+
+  document.getElementById('zone-canvas').addEventListener('mousedown', function(e) {
+    const rect = this.getBoundingClientRect();
+    startX = e.clientX - rect.left;
+    startY = e.clientY - rect.top;
+    drawing = true;
+  });
+
+  document.getElementById('zone-canvas').addEventListener('mousemove', function(e) {
+    if (!drawing) return;
+    const rect = this.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    clearCanvas();
+    drawRect(startX, startY, mx - startX, my - startY);
+  });
+
+  document.getElementById('zone-canvas').addEventListener('mouseup', function(e) {
+    if (!drawing) return;
+    drawing = false;
+    const rect = this.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const x = Math.min(startX, mx);
+    const y = Math.min(startY, my);
+    const w = Math.abs(mx - startX);
+    const h = Math.abs(my - startY);
+
+    if (w < 5 || h < 5) return;
+
+    clearCanvas();
+    drawRect(x, y, w, h);
+
+    const canvas = document.getElementById('zone-canvas');
+    state.addressZone = {
+      x_pct: parseFloat(((x / canvas.width) * 100).toFixed(2)),
+      y_pct: parseFloat(((y / canvas.height) * 100).toFixed(2)),
+      w_pct: parseFloat(((w / canvas.width) * 100).toFixed(2)),
+      h_pct: parseFloat(((h / canvas.height) * 100).toFixed(2)),
+    };
+    updateZoneValues();
+    document.getElementById('step2-next').disabled = false;
+    document.getElementById('tab-2').classList.add('done');
+  });
+
+  function drawRect(x, y, w, h) {
+    const canvas = document.getElementById('zone-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = '#e63946';
+    ctx.lineWidth = 2;
+    ctx.fillStyle = 'rgba(230, 57, 70, 0.12)';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeRect(x, y, w, h);
+  }
+
+  function clearCanvas() {
+    const canvas = document.getElementById('zone-canvas');
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  function resetZone() {
+    clearCanvas();
+    state.addressZone = null;
+    document.getElementById('zone-values').style.display = 'none';
+    document.getElementById('zone-hint').style.display = 'block';
+    document.getElementById('step2-next').disabled = true;
+  }
+
+  function useDefaultZone() {
+    // Default: lower 40% of height, right 60% of width
+    const canvas = document.getElementById('zone-canvas');
+    state.addressZone = { x_pct: 40, y_pct: 60, w_pct: 60, h_pct: 40 };
+    clearCanvas();
+    drawRect(
+      state.addressZone.x_pct / 100 * canvas.width,
+      state.addressZone.y_pct / 100 * canvas.height,
+      state.addressZone.w_pct / 100 * canvas.width,
+      state.addressZone.h_pct / 100 * canvas.height
+    );
+    updateZoneValues();
+    document.getElementById('step2-next').disabled = false;
+    document.getElementById('tab-2').classList.add('done');
+  }
+
+  function updateZoneValues() {
+    if (!state.addressZone) return;
+    document.getElementById('zv-x').textContent = state.addressZone.x_pct.toFixed(1);
+    document.getElementById('zv-y').textContent = state.addressZone.y_pct.toFixed(1);
+    document.getElementById('zv-w').textContent = state.addressZone.w_pct.toFixed(1);
+    document.getElementById('zv-h').textContent = state.addressZone.h_pct.toFixed(1);
+    document.getElementById('zone-values').style.display = 'flex';
+    document.getElementById('zone-hint').style.display = 'none';
+  }
+
+  // ── Step 3: CSV Upload & Mapping ───────────────────────────────────────────
+
+  const FIELD_DEFAULTS = {
+    'map-name':    'MD_NameFull',
+    'map-title':   'Leader Title',
+    'map-org':     'Agency Name',
+    'map-address': 'MD_Address1',
+    'map-city':    'MD_City',
+    'map-state':   'MD_State',
+    'map-zip':     'MD_PostalCode',
+    'map-plus4':   'MD_Plus4',
+  };
+
+  document.getElementById('csv-input').addEventListener('change', async function() {
+    const file = this.files[0];
+    if (!file) return;
+
+    const errDiv = document.getElementById('csv-error');
+    const infoDiv = document.getElementById('csv-info');
+    errDiv.style.display = 'none';
+    infoDiv.style.display = 'none';
+
+    const fd = new FormData();
+    fd.append('csv_file', file);
+
+    try {
+      const res = await fetch('/admin/mail-merge/upload-csv', { method: 'POST', body: fd });
+      const data = await res.json();
+
+      if (!data.success) {
+        errDiv.textContent = data.error || 'Upload failed.';
+        errDiv.style.display = 'block';
+        return;
+      }
+
+      state.csvFilename = data.csv_filename;
+      state.csvColumns = data.columns;
+      state.csvCount = data.count;
+
+      infoDiv.textContent = `✅ Loaded ${data.count.toLocaleString()} records from ${file.name}`;
+      infoDiv.style.display = 'block';
+
+      // Populate dropdowns
+      const emptyOption = '<option value="">(not mapped)</option>';
+      const options = emptyOption + data.columns.map(c =>
+        `<option value="${escHtml(c)}">${escHtml(c)}</option>`
+      ).join('');
+
+      Object.keys(FIELD_DEFAULTS).forEach(id => {
+        const sel = document.getElementById(id);
+        sel.innerHTML = options;
+        const def = FIELD_DEFAULTS[id];
+        if (data.columns.includes(def)) sel.value = def;
+      });
+
+      // Render preview table
+      renderPreviewTable(data.columns, data.preview);
+
+      document.getElementById('csv-mapping-section').style.display = 'block';
+      document.getElementById('step3-next').disabled = false;
+      document.getElementById('tab-3').classList.add('done');
+
+    } catch(e) {
+      errDiv.textContent = 'Error: ' + e.message;
+      errDiv.style.display = 'block';
+    }
+  });
+
+  function renderPreviewTable(columns, rows) {
+    const tbl = document.getElementById('csv-preview-table');
+    const visibleCols = columns.slice(0, 12); // limit columns for readability
+    let html = '<thead><tr>' + visibleCols.map(c => `<th>${escHtml(c)}</th>`).join('') + '</tr></thead><tbody>';
+    rows.forEach(row => {
+      html += '<tr>' + visibleCols.map(c => `<td>${escHtml(String(row[c] || ''))}</td>`).join('') + '</tr>';
+    });
+    html += '</tbody>';
+    tbl.innerHTML = html;
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Step 4: Generate ───────────────────────────────────────────────────────
+
+  function updateGenSummary() {
+    const count = state.csvCount || 0;
+    const sheets = Math.ceil(count / 2);
+    const pages = sheets * 2;
+    document.getElementById('gen-records').textContent = count.toLocaleString();
+    document.getElementById('gen-sheets').textContent = sheets.toLocaleString();
+    document.getElementById('gen-pages').textContent = pages.toLocaleString();
+  }
+
+  async function generatePDF() {
+    const btn = document.getElementById('generate-btn');
+    const errDiv = document.getElementById('gen-error');
+    const dlBox = document.getElementById('download-box');
+    errDiv.style.display = 'none';
+    dlBox.style.display = 'none';
+
+    if (!state.frontFilename || !state.backFilename || !state.csvFilename || !state.addressZone) {
+      errDiv.textContent = 'Missing required data. Please complete all previous steps.';
+      errDiv.style.display = 'block';
+      return;
+    }
+
+    const columnMap = {
+      name:    document.getElementById('map-name').value,
+      title:   document.getElementById('map-title').value,
+      org:     document.getElementById('map-org').value,
+      address: document.getElementById('map-address').value,
+      city:    document.getElementById('map-city').value,
+      state:   document.getElementById('map-state').value,
+      zip:     document.getElementById('map-zip').value,
+      plus4:   document.getElementById('map-plus4').value,
+    };
+
+    const origText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span> Generating PDF...';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('/admin/mail-merge/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          front_filename: state.frontFilename,
+          back_filename: state.backFilename,
+          csv_filename: state.csvFilename,
+          address_zone: state.addressZone,
+          column_map: columnMap,
+        }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        errDiv.textContent = data.error || 'Generation failed.';
+        errDiv.style.display = 'block';
+        return;
+      }
+
+      document.getElementById('download-link').href = data.download_url;
+      document.getElementById('download-link').download = data.filename;
+      document.getElementById('download-meta').textContent =
+        `${data.record_count} records · ${data.sheet_count} sheets · ${data.page_count} pages`;
+      dlBox.style.display = 'block';
+
+    } catch(e) {
+      errDiv.textContent = 'Error: ' + e.message;
+      errDiv.style.display = 'block';
+    } finally {
+      btn.innerHTML = origText;
+      btn.disabled = false;
+    }
+  }
+</script>
+{% endblock %}
