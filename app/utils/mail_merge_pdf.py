@@ -18,18 +18,18 @@ import os
 PAGE_W = 792.0   # 11"
 PAGE_H = 1224.0  # 17"
 
-# Card dimensions (points)
-CARD_W = 461.52  # 6.41"
-CARD_H = 682.56  # 9.48"
+# Card dimensions (points) — LANDSCAPE orientation: 9.48" wide × 6.41" tall
+CARD_W = 682.56  # 9.48"
+CARD_H = 461.52  # 6.41"
 
-# Card horizontal position (centered)
-CARD_X = (PAGE_W - CARD_W) / 2  # 165.24pt
+# Card horizontal position (centered on 11" page)
+CARD_X = (PAGE_W - CARD_W) / 2  # (792 - 682.56) / 2 = 54.72pt
 
 # Card vertical positions (reportlab bottom-left origin)
-# Card 1: top at 1" from page top
-CARD1_Y = PAGE_H - 72.0 - CARD_H    # 1224 - 72 - 682.56 = 469.44
-# Card 2: top at 9" from page top
-CARD2_Y = PAGE_H - 648.0 - CARD_H   # 1224 - 648 - 682.56 = -106.56 (intentional clip)
+# Card 1: top edge at 1" from page top
+CARD1_Y = PAGE_H - 72.0 - CARD_H    # 1224 - 72 - 461.52 = 690.48pt
+# Card 2: top edge at 9" from page top
+CARD2_Y = PAGE_H - 648.0 - CARD_H   # 1224 - 648 - 461.52 = 114.48pt (fits on page)
 
 
 def _get_address_lines(record, column_map):

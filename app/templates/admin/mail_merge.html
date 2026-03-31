@@ -587,9 +587,9 @@
 
   function updateZoneValues() {
     if (!state.addressZone) return;
-    // Card dimensions in inches (bleed size)
-    const CARD_W_IN = 6.41;
-    const CARD_H_IN = 9.48;
+    // Card dimensions in inches (bleed size, landscape)
+    const CARD_W_IN = 9.48;
+    const CARD_H_IN = 6.41;
     document.getElementById('zv-x').textContent = (state.addressZone.x_pct / 100 * CARD_W_IN).toFixed(2);
     document.getElementById('zv-y').textContent = (state.addressZone.y_pct / 100 * CARD_H_IN).toFixed(2);
     document.getElementById('zv-w').textContent = (state.addressZone.w_pct / 100 * CARD_W_IN).toFixed(2);
