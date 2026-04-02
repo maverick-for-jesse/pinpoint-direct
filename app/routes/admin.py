@@ -3347,14 +3347,19 @@ def master_list_enrich_zips():
     db = get_db()
     ph = '%s' if str(type(db)).find('psycopg') != -1 else '?'
 
-    # Fetch records missing zip
+    # Get true total count of records missing zip
+    from app.utils.database import db_fetchone
+    total_row = db_fetchone(db, "SELECT COUNT(*) as cnt FROM master_addresses WHERE (zip IS NULL OR zip = '')")
+    total_missing = total_row['cnt'] if total_row else 0
+
+    # Fetch a batch to process
     missing = db_fetchall(db,
-        f"SELECT id, address1, city, county, state, neighborhood FROM master_addresses WHERE (zip IS NULL OR zip = '') LIMIT 100"
+        "SELECT id, address1, city, county, state, neighborhood FROM master_addresses WHERE (zip IS NULL OR zip = '') LIMIT 25"
     )
 
     if not missing:
         if hasattr(db, 'close'): db.close()
-        return jsonify({'done': True, 'message': 'All records have ZIP codes!', 'updated': 0, 'remaining': 0})
+        return jsonify({'done': True, 'message': 'All ZIP codes enriched!', 'updated': 0, 'remaining': 0, 'total': 0})
 
     batch = missing[:25]
     session = req_lib.Session()
@@ -3449,13 +3454,14 @@ def master_list_enrich_zips():
     db.commit()
     if hasattr(db, 'close'): db.close()
 
-    remaining = max(0, len(missing) - len(batch))
+    remaining = max(0, total_missing - len(batch))
     return jsonify({
         'done':      remaining == 0,
         'updated':   updated,
         'failed':    failed,
         'remaining': remaining,
-        'message':   'All done! ZIP codes enriched.' if remaining == 0 else f'{remaining} records still need ZIPs...'
+        'total':     total_missing,
+        'message':   'All ZIP codes enriched!' if remaining == 0 else f'{remaining:,} remaining…'
     })
 
 

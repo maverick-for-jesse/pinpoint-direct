@@ -271,30 +271,37 @@ function startEnrichZips() {
   panel.style.display = 'block';
 
   let totalUpdated = 0;
-  let initialRemaining = null;
+  let grandTotal = null;  // set from first response
 
   function runBatch() {
-    fetch('{{ url_for("admin.master_list_enrich_zips") }}', { method: 'POST',
+    fetch('{{ url_for("admin.master_list_enrich_zips") }}', {
+      method: 'POST',
       headers: { 'X-CSRFToken': document.cookie.match(/csrf_token=([^;]+)/)?.[1] || '' }
     })
     .then(r => r.json())
     .then(data => {
       totalUpdated += data.updated || 0;
-      if (initialRemaining === null) initialRemaining = (data.remaining || 0) + (data.updated || 0);
-      const pct = initialRemaining > 0 ? Math.min(100, Math.round((totalUpdated / initialRemaining) * 100)) : 100;
-      bar.style.width = pct + '%';
-      status.textContent = data.message + (totalUpdated ? ` (${totalUpdated} updated)` : '');
+
+      // Set grandTotal from first response (total missing at start)
+      if (grandTotal === null) grandTotal = (data.total || 0);
+
+      const processed = grandTotal - (data.remaining || 0);
+      const pct = grandTotal > 0 ? Math.min(99, Math.round((processed / grandTotal) * 100)) : 99;
+      bar.style.width = (data.done ? 100 : pct) + '%';
+      status.textContent = data.done
+        ? `✅ Done — ${totalUpdated.toLocaleString()} ZIP codes added`
+        : `${processed.toLocaleString()} / ${grandTotal.toLocaleString()} processed (${totalUpdated.toLocaleString()} found)`;
 
       if (data.done) {
         btn.disabled = false;
         btn.textContent = '📮 Enrich ZIPs';
-        setTimeout(() => { panel.style.display = 'none'; location.reload(); }, 2000);
+        setTimeout(() => { panel.style.display = 'none'; location.reload(); }, 2500);
       } else {
-        setTimeout(runBatch, 500);
+        setTimeout(runBatch, 400);
       }
     })
     .catch(err => {
-      status.textContent = 'Error: ' + err;
+      status.textContent = '❌ Error: ' + err;
       btn.disabled = false;
       btn.textContent = '📮 Enrich ZIPs';
     });
