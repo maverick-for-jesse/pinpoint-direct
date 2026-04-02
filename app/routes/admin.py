@@ -3313,6 +3313,7 @@ def master_list():
     list_type = request.args.get('list_type', '')
     permit_category = request.args.get('permit_category', '')
     upload_batch = request.args.get('upload_batch', '')
+    tier = request.args.get('tier', '')
 
     page = int(request.args.get('page', 1))
     per_page = 100
@@ -3333,6 +3334,9 @@ def master_list():
     if upload_batch:
         where.append('upload_batch = ?')
         params.append(upload_batch)
+    if tier:
+        where.append('tier = ?')
+        params.append(tier)
 
     where_sql = ' AND '.join(where)
 
@@ -3370,70 +3374,96 @@ def master_list():
         batches=[r['upload_batch'] for r in batches],
         categories=[r['permit_category'] for r in categories],
         stats=stats,
-        filters={'county': county, 'list_type': list_type, 'permit_category': permit_category, 'upload_batch': upload_batch}
+        filters={'county': county, 'list_type': list_type, 'permit_category': permit_category, 'upload_batch': upload_batch, 'tier': tier}
     )
 
 
 @admin_bp.route('/master-list/upload', methods=['GET', 'POST'])
 @login_required
 def master_list_upload():
-    """Upload new addresses to the master list."""
+    """Upload new addresses to the master list. Supports multiple files in one go."""
     from app.utils.database import get_db, db_fetchall, db_exec, DATABASE_URL
     from app.utils.master_list_parser import parse_master_list_file
 
+    KNOWN_COUNTIES = [
+        'Coweta County GA',
+        'Fayette County GA',
+        'Fulton County GA',
+    ]
+
     if request.method == 'GET':
         db = get_db()
-        counties = db_fetchall(db, 'SELECT DISTINCT county FROM master_addresses WHERE county IS NOT NULL ORDER BY county')
-        existing_counties = [r['county'] for r in counties]
+        existing_counties = db_fetchall(db, 'SELECT DISTINCT county FROM master_addresses WHERE county IS NOT NULL ORDER BY county')
+        existing_counties = [r['county'] for r in existing_counties]
         if hasattr(db, 'close'):
             db.close()
-        return render_template('admin/master_list_upload.html', existing_counties=existing_counties)
+        # Merge known counties with any already in DB (deduped, sorted)
+        all_counties = sorted(set(KNOWN_COUNTIES) | set(existing_counties))
+        return render_template('admin/master_list_upload.html', known_counties=KNOWN_COUNTIES, existing_counties=all_counties)
 
-    # POST — process the upload
-    file = request.files.get('file')
+    # POST — process one or more files
+    files = request.files.getlist('file')
     county = request.form.get('county', '').strip()
     list_type_override = request.form.get('list_type', '') or None
     batch_label = request.form.get('batch_label', '').strip() or None
 
-    if not file or not file.filename:
+    files = [f for f in files if f and f.filename]
+    if not files:
         flash('No file selected.', 'error')
         return redirect(url_for('admin.master_list_upload'))
     if not county:
         flash('Please specify a county.', 'error')
         return redirect(url_for('admin.master_list_upload'))
 
-    try:
-        records, detected_type, category_summary, warnings, skipped = parse_master_list_file(
-            file, county, list_type_override, batch_label
-        )
-    except ValueError as e:
-        flash(str(e), 'error')
+    # Parse all files, collect records
+    all_records = []
+    all_warnings = []
+    total_skipped = 0
+
+    for file in files:
+        try:
+            records, detected_type, category_summary, warnings, skipped = parse_master_list_file(
+                file, county, list_type_override, batch_label
+            )
+            all_records.extend(records)
+            all_warnings.extend(warnings)
+            total_skipped += skipped
+        except ValueError as e:
+            flash(f'{file.filename}: {e}', 'error')
+
+    if not all_records:
+        flash('No valid records found in the uploaded file(s).', 'error')
         return redirect(url_for('admin.master_list_upload'))
 
-    if not records:
-        flash('No valid records found in file.', 'error')
-        return redirect(url_for('admin.master_list_upload'))
-
-    # Insert records, deduping against existing by address_hash
+    # Insert, deduping against existing
     db = get_db()
     try:
         existing = db_fetchall(db, 'SELECT address_hash FROM master_addresses')
         existing_hashes = {r['address_hash'] for r in existing}
 
-        new_records = [r for r in records if r['address_hash'] not in existing_hashes]
-        dupes = len(records) - len(new_records)
+        # Also dedup within this batch
+        seen = set()
+        new_records = []
+        for r in all_records:
+            h = r['address_hash']
+            if h not in existing_hashes and h not in seen:
+                new_records.append(r)
+                seen.add(h)
+        dupes = len(all_records) - len(new_records)
 
         for r in new_records:
             sql = """INSERT INTO master_addresses
                 (first_name, last_name, address1, address2, city, state, zip, county,
                  list_type, permit_category, permit_description, permit_value, permit_date, permit_number,
+                 sale_price, sale_date, tier,
                  upload_batch, source_file, added_date, address_hash)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""
             params = (
                 r['first_name'], r['last_name'], r['address1'], r['address2'],
                 r['city'], r['state'], r['zip'], r['county'],
                 r['list_type'], r.get('permit_category'), r.get('permit_description'),
                 r.get('permit_value'), r.get('permit_date'), r.get('permit_number'),
+                r.get('sale_price'), r.get('sale_date'), r.get('tier'),
                 r['upload_batch'], r['source_file'], r['added_date'], r['address_hash']
             )
             db_exec(db, sql, params)
@@ -3442,16 +3472,12 @@ def master_list_upload():
         if hasattr(db, 'close'):
             db.close()
 
-        # Build flash message
-        msg = f"✅ Imported {len(new_records):,} new addresses"
+        msg = f"✅ Imported {len(new_records):,} addresses from {len(files)} file(s)"
         if dupes:
             msg += f" ({dupes:,} duplicates skipped)"
-        if skipped:
-            msg += f", {skipped:,} blank rows skipped"
-        if category_summary:
-            breakdown = ', '.join(f"{cat}: {cnt}" for cat, cnt in sorted(category_summary.items(), key=lambda x: -x[1]))
-            msg += f" | Categories: {breakdown}"
-        for w in warnings:
+        if total_skipped:
+            msg += f", {total_skipped:,} blank rows skipped"
+        for w in all_warnings:
             flash(w, 'info')
         flash(msg, 'success')
         return redirect(url_for('admin.master_list'))

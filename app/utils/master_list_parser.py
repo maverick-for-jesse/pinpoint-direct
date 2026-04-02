@@ -1,6 +1,7 @@
 """
 Smart CSV parser for the master address list uploader.
 Handles: new movers (qPublic format), permit lists (various county formats), generic address lists.
+Supports Coweta, Fayette, and Fulton counties (GA) out of the box.
 """
 
 import pandas as pd
@@ -25,6 +26,28 @@ COLUMN_MAP = {
     'sale_price':          ['sale_price', 'price', 'amount', 'sales_price', 'sale_amount'],
     'sale_date':           ['sale_date', 'transfer_date', 'deed_date', 'close_date', 'closing_date'],
 }
+
+# County defaults — used when city/state not present in the CSV
+COUNTY_DEFAULTS = {
+    'Coweta County GA':  {'state': 'GA', 'city': 'Newnan'},
+    'Fayette County GA': {'state': 'GA', 'city': 'Fayetteville'},
+    'Fulton County GA':  {'state': 'GA', 'city': 'Atlanta'},
+}
+
+# Price tiers for new mover records
+TIER_STANDARD      = 'Standard'       # < $500k
+TIER_PREMIUM       = 'Premium'        # $500k – $749,999
+TIER_ULTRA_PREMIUM = 'Ultra-Premium'  # $750k+
+
+def _get_tier(price):
+    if price is None:
+        return None
+    if price >= 750_000:
+        return TIER_ULTRA_PREMIUM
+    elif price >= 500_000:
+        return TIER_PREMIUM
+    else:
+        return TIER_STANDARD
 
 
 def _normalize_col(col):
@@ -126,8 +149,9 @@ def parse_master_list_file(file_storage, county, list_type_override=None, batch_
     for _, row in df.iterrows():
         address1 = row.get('address1', '').strip()
         zip_code = str(row.get('zip', '')).strip().split('.')[0]
-        city = row.get('city', '').strip()
-        state = row.get('state', '').strip() or 'GA'
+        county_defaults = COUNTY_DEFAULTS.get(county, {'state': 'GA', 'city': ''})
+        city = row.get('city', '').strip() or county_defaults['city']
+        state = row.get('state', '').strip() or county_defaults['state']
         first_name = row.get('first_name', '').strip()
         last_name = row.get('last_name', '').strip()
 
@@ -148,6 +172,11 @@ def parse_master_list_file(file_storage, county, list_type_override=None, batch_
         permit_date = row.get('permit_date', '').strip()
         permit_number = row.get('permit_number', '').strip()
 
+        # New mover fields
+        sale_price = _parse_value(row.get('sale_price', ''))
+        sale_date = row.get('sale_date', '').strip()
+        tier = _get_tier(sale_price) if detected_type == 'new_mover' else None
+
         rec = {
             'first_name':         first_name,
             'last_name':          last_name,
@@ -163,6 +192,9 @@ def parse_master_list_file(file_storage, county, list_type_override=None, batch_
             'permit_value':       permit_value,
             'permit_date':        permit_date,
             'permit_number':      permit_number,
+            'sale_price':         sale_price,
+            'sale_date':          sale_date,
+            'tier':               tier,
             'upload_batch':       batch,
             'source_file':        source_file,
             'added_date':         today,

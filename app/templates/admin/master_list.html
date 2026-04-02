@@ -50,6 +50,15 @@
       </select>
     </div>
     <div>
+      <label class="form-label" style="margin-bottom: 4px;">Tier</label>
+      <select name="tier" class="form-control" style="min-width: 160px;">
+        <option value="">All Tiers</option>
+        <option value="Standard" {% if filters.tier == 'Standard' %}selected{% endif %}>Standard (&lt;$500k)</option>
+        <option value="Premium" {% if filters.tier == 'Premium' %}selected{% endif %}>Premium ($500k–$749k)</option>
+        <option value="Ultra-Premium" {% if filters.tier == 'Ultra-Premium' %}selected{% endif %}>Ultra-Premium ($750k+)</option>
+      </select>
+    </div>
+    <div>
       <label class="form-label" style="margin-bottom: 4px;">Permit Category</label>
       <select name="permit_category" class="form-control" style="min-width: 160px;">
         <option value="">All Categories</option>
@@ -93,9 +102,10 @@
           <th>Address</th>
           <th>City / Zip</th>
           <th>County</th>
-          <th>List Type</th>
-          <th>Permit Category</th>
-          <th>Permit Value</th>
+          <th>Type</th>
+          <th>Tier / Category</th>
+          <th>Sale Price / Permit Value</th>
+          <th>Sale / Permit Date</th>
           <th>Added</th>
         </tr>
       </thead>
@@ -125,7 +135,17 @@
             {% endif %}
           </td>
           <td>
-            {% if r.permit_category %}
+            {# Tier for new movers #}
+            {% if r.tier %}
+              {% if r.tier == 'Ultra-Premium' %}
+                <span class="badge" style="background:#fce4ec;color:#880e4f;">⭐ {{ r.tier }}</span>
+              {% elif r.tier == 'Premium' %}
+                <span class="badge" style="background:#e8eaf6;color:#1a237e;">{{ r.tier }}</span>
+              {% else %}
+                <span class="badge badge-gray">{{ r.tier }}</span>
+              {% endif %}
+            {# Permit category #}
+            {% elif r.permit_category %}
               {% set cat = r.permit_category %}
               {% if cat == 'Pool' %}
                 <span class="badge" style="background:#e0f7fa;color:#006064;">{{ cat }}</span>
@@ -157,9 +177,14 @@
             {% endif %}
           </td>
           <td style="font-size:13px;">
-            {% if r.permit_value %}
+            {% if r.sale_price %}
+              ${{ '{:,.0f}'.format(r.sale_price) }}
+            {% elif r.permit_value %}
               ${{ '{:,.0f}'.format(r.permit_value) }}
             {% else %}—{% endif %}
+          </td>
+          <td style="font-size:12px;color:#888;">
+            {{ r.sale_date or r.permit_date or '—' }}
           </td>
           <td style="font-size:12px;color:#888;">{{ r.added_date or '—' }}</td>
         </tr>
@@ -173,12 +198,12 @@
 {% if total_pages > 1 %}
 <div style="display:flex; justify-content:center; align-items:center; gap:12px; margin-top:20px;">
   {% if page > 1 %}
-    <a href="?page={{ page - 1 }}&county={{ filters.county }}&list_type={{ filters.list_type }}&permit_category={{ filters.permit_category }}&upload_batch={{ filters.upload_batch }}"
+    <a href="?page={{ page - 1 }}&county={{ filters.county }}&list_type={{ filters.list_type }}&tier={{ filters.tier }}&permit_category={{ filters.permit_category }}&upload_batch={{ filters.upload_batch }}"
        class="btn btn-secondary">← Prev</a>
   {% endif %}
   <span style="font-size:14px;color:#888;">Page {{ page }} of {{ total_pages }}</span>
   {% if page < total_pages %}
-    <a href="?page={{ page + 1 }}&county={{ filters.county }}&list_type={{ filters.list_type }}&permit_category={{ filters.permit_category }}&upload_batch={{ filters.upload_batch }}"
+    <a href="?page={{ page + 1 }}&county={{ filters.county }}&list_type={{ filters.list_type }}&tier={{ filters.tier }}&permit_category={{ filters.permit_category }}&upload_batch={{ filters.upload_batch }}"
        class="btn btn-secondary">Next →</a>
   {% endif %}
 </div>

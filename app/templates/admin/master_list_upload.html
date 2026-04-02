@@ -7,29 +7,36 @@
 {% endblock %}
 
 {% block content %}
-<div style="max-width: 640px;">
+<div style="max-width: 680px;">
   <div class="card">
-    <div class="card-title">Import Address File</div>
+    <div class="card-title">Import Address File(s)</div>
 
     <form method="post" enctype="multipart/form-data">
 
       <div class="form-group">
-        <label class="form-label">File <span style="color:#e63946;">*</span></label>
-        <input type="file" name="file" accept=".csv,.xlsx,.xls" class="form-control" required>
-        <div class="form-hint">Supported formats: CSV, Excel (.xlsx, .xls)</div>
+        <label class="form-label">File(s) <span style="color:#e63946;">*</span></label>
+        <input type="file" name="file" accept=".csv,.xlsx,.xls" class="form-control" multiple required>
+        <div class="form-hint">Select one or multiple files. Supported: CSV, Excel (.xlsx/.xls). Each file is parsed and deduplicated automatically.</div>
       </div>
 
       <div class="form-group">
         <label class="form-label">County <span style="color:#e63946;">*</span></label>
-        <input type="text" name="county" class="form-control"
-               placeholder="e.g. Coweta County GA"
-               list="county-list" required>
-        <datalist id="county-list">
-          {% for c in existing_counties %}
-          <option value="{{ c }}">
+        <select name="county" class="form-control" required>
+          <option value="">— Select County —</option>
+          {% for c in known_counties %}
+          <option value="{{ c }}">{{ c }}</option>
           {% endfor %}
-        </datalist>
-        <div class="form-hint">Include state abbreviation, e.g. "Coweta County GA"</div>
+          {% for c in existing_counties %}
+            {% if c not in known_counties %}
+          <option value="{{ c }}">{{ c }}</option>
+            {% endif %}
+          {% endfor %}
+          <option value="__other__" id="other-opt">Other (type below)</option>
+        </select>
+        <input type="text" id="county-custom" name="county_custom" class="form-control"
+               placeholder="e.g. Cherokee County GA"
+               style="display:none; margin-top:8px;">
+        <div class="form-hint">All files in this upload will be tagged with this county.</div>
       </div>
 
       <div class="form-group">
@@ -40,14 +47,14 @@
           <option value="permit">Permit</option>
           <option value="generic">Generic</option>
         </select>
-        <div class="form-hint">Leave on Auto-detect to let the system identify the list type from column names.</div>
+        <div class="form-hint">Leave on Auto-detect unless the system gets it wrong. New Mover = qPublic sale records; Permit = building permit lists.</div>
       </div>
 
       <div class="form-group">
         <label class="form-label">Batch Label <span style="color:#aaa;font-weight:400;">(optional)</span></label>
         <input type="text" name="batch_label" class="form-control"
-               placeholder="e.g. Coweta County GA - Apr 2026">
-        <div class="form-hint">A label to group this upload. Used for filtering later.</div>
+               placeholder="e.g. Coweta County GA — Q1 2026">
+        <div class="form-hint">Groups this upload for filtering. If blank, auto-named from county + today's date.</div>
       </div>
 
       <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #f0f0f0; display: flex; gap: 10px;">
@@ -58,20 +65,67 @@
   </div>
 
   <div class="card" style="margin-top: 16px; background: #f8f9fa;">
+    <div class="card-title">How It Works</div>
+    <ul style="font-size: 13px; color: #555; margin: 0; padding-left: 20px; line-height: 1.8;">
+      <li>Select <strong>multiple CSVs at once</strong> — all processed in one shot</li>
+      <li>Duplicates are skipped automatically (cross-file and cross-batch)</li>
+      <li><strong>New Mover</strong> files: sale price tiers auto-calculated (Standard / Premium / Ultra-Premium)</li>
+      <li><strong>Permit</strong> files: permit categories auto-classified</li>
+      <li>Filter by county, type, tier, batch, or category on the master list</li>
+    </ul>
+  </div>
+
+  <div class="card" style="margin-top: 16px; background: #f8f9fa;">
     <div class="card-title">Column Mapping Reference</div>
     <p style="font-size: 13px; color: #666; margin-bottom: 12px;">
-      The importer auto-maps common column names. Supported column variations:
+      The importer auto-maps common column names. Supported variations:
     </p>
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; color: #555;">
       <div><strong>Address:</strong> address, street, location, property_address, job_address</div>
       <div><strong>Name:</strong> first_name, owner, buyer, applicant</div>
       <div><strong>City:</strong> city, town, municipality</div>
       <div><strong>ZIP:</strong> zip, zip_code, postal</div>
-      <div><strong>Permit Type:</strong> permit_description, description, type_of_work, scope</div>
-      <div><strong>Permit Value:</strong> value, job_value, estimated_value, cost</div>
-      <div><strong>Permit Date:</strong> permit_date, issued_date, date_issued</div>
+      <div><strong>Sale Price:</strong> sale_price, price, amount, sales_price</div>
       <div><strong>Sale Date:</strong> sale_date, transfer_date, deed_date, close_date</div>
+      <div><strong>Permit Type:</strong> permit_description, description, type_of_work</div>
+      <div><strong>Permit Value:</strong> value, job_value, estimated_value, cost</div>
     </div>
   </div>
 </div>
+
+<script>
+  const countySelect = document.querySelector('select[name="county"]');
+  const customInput  = document.getElementById('county-custom');
+  const countyHidden = document.createElement('input');
+  countyHidden.type = 'hidden';
+  countyHidden.name = 'county';
+  countyHidden.id   = 'county-hidden';
+
+  countySelect.addEventListener('change', function() {
+    if (this.value === '__other__') {
+      customInput.style.display = 'block';
+      customInput.required = true;
+      this.name = '_county_select'; // disable this field from submitting
+    } else {
+      customInput.style.display = 'none';
+      customInput.required = false;
+      this.name = 'county';
+    }
+  });
+
+  // On submit, if "other" selected, copy custom value into the county field
+  document.querySelector('form').addEventListener('submit', function(e) {
+    if (countySelect.value === '__other__') {
+      const val = customInput.value.trim();
+      if (!val) {
+        e.preventDefault();
+        customInput.focus();
+        return;
+      }
+      countySelect.value = val;
+      countySelect.name = 'county';
+      customInput.name = '_county_custom_hidden'; // avoid double submit
+    }
+  });
+</script>
 {% endblock %}

@@ -915,3 +915,15 @@ else:
                 except Exception:
                     pass  # Column already exists
             conn.commit()
+
+            # Migrate master_addresses — add new_mover fields if not present
+            for col, col_type in [
+                ('sale_price', 'REAL'),
+                ('sale_date',  'TEXT'),
+                ('tier',       'TEXT'),
+            ]:
+                try:
+                    conn.execute(f"ALTER TABLE master_addresses ADD COLUMN {col} {col_type}")
+                except Exception:
+                    pass  # Column already exists
+            conn.commit()
