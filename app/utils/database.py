@@ -497,6 +497,10 @@ if DATABASE_URL:
                         sale_price          NUMERIC(12,2),
                         sale_date           TEXT,
                         tier                TEXT,
+                        year_built          INTEGER,
+                        square_ft           INTEGER,
+                        neighborhood        TEXT,
+                        parcel_class        TEXT,
                         upload_batch        TEXT,
                         source_file         TEXT,
                         added_date          TEXT,
@@ -516,9 +520,13 @@ if DATABASE_URL:
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_ma_upload_batch ON master_addresses(upload_batch)")
                 # Migrate existing master_addresses tables that predate these columns
                 for col, col_type in [
-                    ('sale_price', 'NUMERIC(12,2)'),
-                    ('sale_date',  'TEXT'),
-                    ('tier',       'TEXT'),
+                    ('sale_price',   'NUMERIC(12,2)'),
+                    ('sale_date',    'TEXT'),
+                    ('tier',         'TEXT'),
+                    ('year_built',   'INTEGER'),
+                    ('square_ft',    'INTEGER'),
+                    ('neighborhood', 'TEXT'),
+                    ('parcel_class', 'TEXT'),
                 ]:
                     try:
                         cur.execute(f"ALTER TABLE master_addresses ADD COLUMN IF NOT EXISTS {col} {col_type}")
@@ -931,9 +939,13 @@ else:
 
             # Migrate master_addresses — add new_mover fields if not present
             for col, col_type in [
-                ('sale_price', 'REAL'),
-                ('sale_date',  'TEXT'),
-                ('tier',       'TEXT'),
+                ('sale_price',   'REAL'),
+                ('sale_date',    'TEXT'),
+                ('tier',         'TEXT'),
+                ('year_built',   'INTEGER'),
+                ('square_ft',    'INTEGER'),
+                ('neighborhood', 'TEXT'),
+                ('parcel_class', 'TEXT'),
             ]:
                 try:
                     conn.execute(f"ALTER TABLE master_addresses ADD COLUMN {col} {col_type}")

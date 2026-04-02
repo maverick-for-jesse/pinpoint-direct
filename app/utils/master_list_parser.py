@@ -25,10 +25,13 @@ COLUMN_MAP = {
     'permit_number':       ['permit_number', 'permit_no', 'permit #', 'permit_id', 'number'],
     'sale_price':          ['sale_price', 'price', 'amount', 'sales_price', 'sale_amount'],
     'sale_date':           ['sale_date', 'transfer_date', 'deed_date', 'close_date', 'closing_date'],
+    'year_built':          ['year_built', 'year built', 'yr_built', 'yr built', 'built', 'year_constructed'],
+    'square_ft':           ['square_ft', 'square ft', 'sqft', 'sq_ft', 'sq ft', 'living_area', 'heated_sq_ft', 'floor_area'],
+    'neighborhood':        ['neighborhood', 'subdivision', 'sub', 'community', 'development', 'plat'],
+    'parcel_class':        ['parcel class', 'parcel_class', 'class', 'property_class', 'property class'],
     # qPublic-specific fields used for filtering
     'qualified_sales':     ['qualified sales', 'qualified_sales', 'qualified'],
     'reason':              ['reason'],
-    'parcel_class':        ['parcel class', 'parcel_class', 'class'],
 }
 
 # Investor/entity keywords — buyers with these in their name are skipped
@@ -232,6 +235,24 @@ def parse_master_list_file(file_storage, county, list_type_override=None, batch_
         sale_date = row.get('sale_date', '').strip()
         tier = _get_tier(sale_price) if detected_type == 'new_mover' else None
 
+        # Extra property fields (qPublic + other sources)
+        year_built = None
+        try:
+            yb = str(row.get('year_built', '')).strip().split('.')[0]
+            year_built = int(yb) if yb and yb.isdigit() else None
+        except (ValueError, TypeError):
+            pass
+
+        square_ft = None
+        try:
+            sf = str(row.get('square_ft', '')).strip().replace(',', '').split('.')[0]
+            square_ft = int(sf) if sf and sf.isdigit() else None
+        except (ValueError, TypeError):
+            pass
+
+        neighborhood = row.get('neighborhood', '').strip() or None
+        parcel_class = row.get('parcel_class', '').strip() or None
+
         rec = {
             'first_name':         first_name,
             'last_name':          last_name,
@@ -250,6 +271,10 @@ def parse_master_list_file(file_storage, county, list_type_override=None, batch_
             'sale_price':         sale_price,
             'sale_date':          sale_date,
             'tier':               tier,
+            'year_built':         year_built,
+            'square_ft':          square_ft,
+            'neighborhood':       neighborhood,
+            'parcel_class':       parcel_class,
             'upload_batch':       batch,
             'source_file':        source_file,
             'added_date':         today,

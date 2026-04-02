@@ -76,6 +76,20 @@
         {% endfor %}
       </select>
     </div>
+    <div>
+      <label class="form-label" style="margin-bottom: 4px;">Neighborhood</label>
+      <select name="neighborhood" class="form-control" style="min-width: 180px;">
+        <option value="">All Neighborhoods</option>
+        {% for n in neighborhoods %}
+        <option value="{{ n }}" {% if filters.neighborhood == n %}selected{% endif %}>{{ n }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="form-label" style="margin-bottom: 4px;">Built Before</label>
+      <input type="number" name="year_built_max" class="form-control" style="width:100px;"
+             placeholder="e.g. 2000" value="{{ filters.year_built_max }}">
+    </div>
     <div style="display: flex; gap: 8px;">
       <button type="submit" class="btn btn-primary">Apply</button>
       <a href="{{ url_for('admin.master_list') }}" class="btn btn-secondary">Clear</a>
@@ -106,6 +120,9 @@
           <th>Tier / Category</th>
           <th>Sale Price / Permit Value</th>
           <th>Sale / Permit Date</th>
+          <th>Year Built</th>
+          <th>Sq Ft</th>
+          <th>Neighborhood</th>
           <th>Added</th>
         </tr>
       </thead>
@@ -186,6 +203,11 @@
           <td style="font-size:12px;color:#888;">
             {{ r.sale_date or r.permit_date or '—' }}
           </td>
+          <td style="font-size:13px;">{{ r.year_built or '—' }}</td>
+          <td style="font-size:13px;">
+            {% if r.square_ft %}{{ '{:,}'.format(r.square_ft) }}{% else %}—{% endif %}
+          </td>
+          <td style="font-size:12px;color:#888;">{{ r.neighborhood or '—' }}</td>
           <td style="font-size:12px;color:#888;">{{ r.added_date or '—' }}</td>
         </tr>
         {% endfor %}
@@ -197,14 +219,13 @@
 {# ── Pagination ── #}
 {% if total_pages > 1 %}
 <div style="display:flex; justify-content:center; align-items:center; gap:12px; margin-top:20px;">
+  {% set qs %}county={{ filters.county }}&list_type={{ filters.list_type }}&tier={{ filters.tier }}&permit_category={{ filters.permit_category }}&upload_batch={{ filters.upload_batch }}&neighborhood={{ filters.neighborhood }}&year_built_max={{ filters.year_built_max }}{% endset %}
   {% if page > 1 %}
-    <a href="?page={{ page - 1 }}&county={{ filters.county }}&list_type={{ filters.list_type }}&tier={{ filters.tier }}&permit_category={{ filters.permit_category }}&upload_batch={{ filters.upload_batch }}"
-       class="btn btn-secondary">← Prev</a>
+    <a href="?page={{ page - 1 }}&{{ qs }}" class="btn btn-secondary">← Prev</a>
   {% endif %}
   <span style="font-size:14px;color:#888;">Page {{ page }} of {{ total_pages }}</span>
   {% if page < total_pages %}
-    <a href="?page={{ page + 1 }}&county={{ filters.county }}&list_type={{ filters.list_type }}&tier={{ filters.tier }}&permit_category={{ filters.permit_category }}&upload_batch={{ filters.upload_batch }}"
-       class="btn btn-secondary">Next →</a>
+    <a href="?page={{ page + 1 }}&{{ qs }}" class="btn btn-secondary">Next →</a>
   {% endif %}
 </div>
 {% endif %}

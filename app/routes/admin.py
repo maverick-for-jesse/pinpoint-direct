@@ -3315,6 +3315,8 @@ def master_list():
     permit_category = request.args.get('permit_category', '')
     upload_batch = request.args.get('upload_batch', '')
     tier = request.args.get('tier', '')
+    neighborhood = request.args.get('neighborhood', '')
+    year_built_max = request.args.get('year_built_max', '')
 
     page = int(request.args.get('page', 1))
     per_page = 100
@@ -3338,6 +3340,15 @@ def master_list():
     if tier:
         where.append('tier = ?')
         params.append(tier)
+    if neighborhood:
+        where.append('neighborhood = ?')
+        params.append(neighborhood)
+    if year_built_max:
+        try:
+            where.append('year_built <= ?')
+            params.append(int(year_built_max))
+        except ValueError:
+            pass
 
     where_sql = ' AND '.join(where)
 
@@ -3353,6 +3364,7 @@ def master_list():
     counties = db_fetchall(db, 'SELECT DISTINCT county FROM master_addresses WHERE county IS NOT NULL ORDER BY county')
     batches = db_fetchall(db, 'SELECT DISTINCT upload_batch FROM master_addresses WHERE upload_batch IS NOT NULL ORDER BY upload_batch DESC')
     categories = db_fetchall(db, 'SELECT DISTINCT permit_category FROM master_addresses WHERE permit_category IS NOT NULL ORDER BY permit_category')
+    neighborhoods = db_fetchall(db, 'SELECT DISTINCT neighborhood FROM master_addresses WHERE neighborhood IS NOT NULL AND neighborhood != \'\' ORDER BY neighborhood')
 
     # Stats summary
     stats = db_fetchall(db, '''
@@ -3374,8 +3386,10 @@ def master_list():
         counties=[r['county'] for r in counties],
         batches=[r['upload_batch'] for r in batches],
         categories=[r['permit_category'] for r in categories],
+        neighborhoods=[r['neighborhood'] for r in neighborhoods],
         stats=stats,
-        filters={'county': county, 'list_type': list_type, 'permit_category': permit_category, 'upload_batch': upload_batch, 'tier': tier}
+        filters={'county': county, 'list_type': list_type, 'permit_category': permit_category,
+                 'upload_batch': upload_batch, 'tier': tier, 'neighborhood': neighborhood, 'year_built_max': year_built_max}
     )
 
 
@@ -3456,15 +3470,16 @@ def master_list_upload():
             sql = """INSERT INTO master_addresses
                 (first_name, last_name, address1, address2, city, state, zip, county,
                  list_type, permit_category, permit_description, permit_value, permit_date, permit_number,
-                 sale_price, sale_date, tier,
+                 sale_price, sale_date, tier, year_built, square_ft, neighborhood, parcel_class,
                  upload_batch, source_file, added_date, address_hash)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""
             params = (
                 r['first_name'], r['last_name'], r['address1'], r['address2'],
                 r['city'], r['state'], r['zip'], r['county'],
                 r['list_type'], r.get('permit_category'), r.get('permit_description'),
                 r.get('permit_value'), r.get('permit_date'), r.get('permit_number'),
                 r.get('sale_price'), r.get('sale_date'), r.get('tier'),
+                r.get('year_built'), r.get('square_ft'), r.get('neighborhood'), r.get('parcel_class'),
                 r['upload_batch'], r['source_file'], r['added_date'], r['address_hash']
             )
             db_exec(db, sql, params)
