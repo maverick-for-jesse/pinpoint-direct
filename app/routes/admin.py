@@ -3613,23 +3613,56 @@ def master_list_upload():
         flash('No valid records found in the uploaded file(s).', 'error')
         return redirect(url_for('admin.master_list_upload'))
 
-    # Insert, deduping against existing
+    # Priority ranking — higher number wins
+    TYPE_PRIORITY = {'generic': 1, 'permit': 2, 'new_mover': 3}
+
+    # Insert with smart upsert logic:
+    # - New record with no existing match → INSERT
+    # - New record beats existing by priority → UPDATE (new_mover/permit > generic)
+    # - New_mover vs permit → most recent sale/permit date wins
+    # - Generic never overwrites anything
     db = get_db()
     try:
-        existing = db_fetchall(db, 'SELECT address_hash FROM master_addresses')
-        existing_hashes = {r['address_hash'] for r in existing}
+        existing = db_fetchall(db, 'SELECT id, address_hash, list_type, sale_date, permit_date FROM master_addresses')
+        existing_map = {r['address_hash']: r for r in existing}
 
-        # Also dedup within this batch
         seen = set()
-        new_records = []
+        to_insert = []
+        to_update = []  # list of (record, existing_id)
+        skipped_lower_priority = 0
+
         for r in all_records:
             h = r['address_hash']
-            if h not in existing_hashes and h not in seen:
-                new_records.append(r)
-                seen.add(h)
-        dupes = len(all_records) - len(new_records)
+            if h in seen:
+                continue
+            seen.add(h)
 
-        for r in new_records:
+            if h not in existing_map:
+                to_insert.append(r)
+            else:
+                existing_rec = existing_map[h]
+                incoming_priority = TYPE_PRIORITY.get(r['list_type'], 0)
+                existing_priority = TYPE_PRIORITY.get(existing_rec['list_type'] or 'generic', 0)
+
+                if incoming_priority < existing_priority:
+                    # Incoming is lower priority — skip
+                    skipped_lower_priority += 1
+                    continue
+                elif incoming_priority == existing_priority:
+                    # Same type — compare dates, keep most recent
+                    incoming_date = r.get('sale_date') or r.get('permit_date') or ''
+                    existing_date = existing_rec.get('sale_date') or existing_rec.get('permit_date') or ''
+                    if incoming_date and existing_date and incoming_date <= existing_date:
+                        skipped_lower_priority += 1
+                        continue
+                    to_update.append((r, existing_rec['id']))
+                else:
+                    # Incoming is higher priority — update
+                    to_update.append((r, existing_rec['id']))
+
+        dupes = len(all_records) - len(to_insert) - len(to_update) - skipped_lower_priority
+
+        for r in to_insert:
             sql = """INSERT INTO master_addresses
                 (first_name, last_name, address1, address2, city, state, zip, county,
                  list_type, permit_category, permit_description, permit_value, permit_date, permit_number,
@@ -3647,13 +3680,30 @@ def master_list_upload():
             )
             db_exec(db, sql, params)
 
+        for r, existing_id in to_update:
+            sql = """UPDATE master_addresses SET
+                first_name=?, last_name=?, list_type=?,
+                permit_category=?, permit_description=?, permit_value=?, permit_date=?, permit_number=?,
+                sale_price=?, sale_date=?, tier=?,
+                upload_batch=?, source_file=?, added_date=?
+                WHERE id=?"""
+            params = (
+                r['first_name'], r['last_name'], r['list_type'],
+                r.get('permit_category'), r.get('permit_description'),
+                r.get('permit_value'), r.get('permit_date'), r.get('permit_number'),
+                r.get('sale_price'), r.get('sale_date'), r.get('tier'),
+                r['upload_batch'], r['source_file'], r['added_date'],
+                existing_id
+            )
+            db_exec(db, sql, params)
+
         db.commit()
         if hasattr(db, 'close'):
             db.close()
 
-        msg = f"✅ Imported {len(new_records):,} addresses from {len(files)} file(s)"
-        if dupes:
-            msg += f" ({dupes:,} duplicates skipped)"
+        msg = f"✅ {len(to_insert):,} new addresses added, {len(to_update):,} updated"
+        if skipped_lower_priority:
+            msg += f" ({skipped_lower_priority:,} skipped — existing record has higher/equal priority)"
         if total_skipped:
             msg += f", {total_skipped:,} blank rows skipped"
         for w in all_warnings:
