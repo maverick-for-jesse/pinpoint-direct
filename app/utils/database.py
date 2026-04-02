@@ -494,6 +494,9 @@ if DATABASE_URL:
                         permit_value        NUMERIC(12,2),
                         permit_date         TEXT,
                         permit_number       TEXT,
+                        sale_price          NUMERIC(12,2),
+                        sale_date           TEXT,
+                        tier                TEXT,
                         upload_batch        TEXT,
                         source_file         TEXT,
                         added_date          TEXT,
@@ -511,6 +514,16 @@ if DATABASE_URL:
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_ma_zip ON master_addresses(zip)")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_ma_address_hash ON master_addresses(address_hash)")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_ma_upload_batch ON master_addresses(upload_batch)")
+                # Migrate existing master_addresses tables that predate these columns
+                for col, col_type in [
+                    ('sale_price', 'NUMERIC(12,2)'),
+                    ('sale_date',  'TEXT'),
+                    ('tier',       'TEXT'),
+                ]:
+                    try:
+                        cur.execute(f"ALTER TABLE master_addresses ADD COLUMN IF NOT EXISTS {col} {col_type}")
+                    except Exception:
+                        pass
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS master_address_campaign_uses (
                         id          SERIAL PRIMARY KEY,
