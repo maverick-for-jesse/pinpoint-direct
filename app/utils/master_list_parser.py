@@ -176,19 +176,29 @@ def parse_master_list_file(file_storage, county, list_type_override=None, batch_
     seen_hashes = set()
     is_qpublic = _is_qpublic(df)
 
+    # Debug: surface column names and first row sample as a warning so we can diagnose issues
+    warnings.append(f"ℹ️ Detected columns: {list(df.columns)[:15]}")
+    warnings.append(f"ℹ️ Detected type: {detected_type} | qPublic: {is_qpublic}")
+
     for _, row in df.iterrows():
         # ── qPublic residential filter ──────────────────────────────────────
         # Only import arm's-length residential sales; skip commercial, land, investors
         if is_qpublic and detected_type == 'new_mover':
-            if row.get('qualified_sales', '').strip() != 'Qualified':
+            qual = row.get('qualified_sales', '').strip().lower()
+            reason = row.get('reason', '').strip().upper()
+            parcel = row.get('parcel_class', '').strip().lower()
+
+            # Only apply each filter if the column is actually present and non-empty
+            if qual and qual != 'qualified':
                 skipped_nonresidential += 1
                 continue
-            if row.get('reason', '').strip() != 'FM':
+            if reason and reason != 'FM':
                 skipped_nonresidential += 1
                 continue
-            if row.get('parcel_class', '').strip() != 'Residential':
+            if parcel and parcel not in ('residential', 'res'):
                 skipped_nonresidential += 1
                 continue
+
             buyer = row.get('first_name', '').strip()
             if _is_investor(buyer):
                 skipped_investor += 1
