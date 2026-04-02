@@ -12,7 +12,7 @@ from app.utils.permit_classifier import classify_permit
 
 # Column name mappings — maps variations to standard names
 COLUMN_MAP = {
-    'first_name':          ['first_name', 'firstname', 'first name', 'fname', 'first', 'buyer', 'buyer_name', 'owner', 'owner_name', 'applicant'],
+    'first_name':          ['first_name', 'firstname', 'first name', 'fname', 'first', 'buyer', 'buyer_name', 'owner', 'owner_name', 'applicant', 'grantee'],
     'last_name':           ['last_name', 'lastname', 'last name', 'lname', 'last', 'surname'],
     'address1':            ['address1', 'address_1', 'address', 'street', 'street_address', 'addr', 'mailing_address', 'property_address', 'site_address', 'job_address', 'location'],
     'address2':            ['address2', 'address_2', 'apt', 'suite', 'unit'],
@@ -25,7 +25,34 @@ COLUMN_MAP = {
     'permit_number':       ['permit_number', 'permit_no', 'permit #', 'permit_id', 'number'],
     'sale_price':          ['sale_price', 'price', 'amount', 'sales_price', 'sale_amount'],
     'sale_date':           ['sale_date', 'transfer_date', 'deed_date', 'close_date', 'closing_date'],
+    # qPublic-specific fields used for filtering
+    'qualified_sales':     ['qualified sales', 'qualified_sales', 'qualified'],
+    'reason':              ['reason'],
+    'parcel_class':        ['parcel class', 'parcel_class', 'class'],
 }
+
+# Investor/entity keywords — buyers with these in their name are skipped
+INVESTOR_KEYWORDS = [
+    'LLC', 'L.L.C', 'CORP', 'CORPORATION', 'TRUST', 'HOLDINGS',
+    'PROPERTIES', 'INVESTMENTS', 'REALTY', 'GROUP', 'PARTNERS',
+    'FUND', 'ESTATE',
+]
+
+def _is_investor(name):
+    """Return True if buyer name looks like an LLC/corporation/entity."""
+    import re
+    if not name:
+        return False
+    name_upper = name.upper()
+    for kw in INVESTOR_KEYWORDS:
+        if re.search(r'\b' + re.escape(kw) + r'\b', name_upper):
+            return True
+    return False
+
+def _is_qpublic(df):
+    """Detect if this looks like a qPublic property transfer CSV."""
+    cols = {c.lower().strip() for c in df.columns}
+    return 'qualified sales' in cols or 'qualified_sales' in cols or 'parcel class' in cols or 'parcel_class' in cols
 
 # County defaults — used when city/state not present in the CSV
 COUNTY_DEFAULTS = {
@@ -144,9 +171,29 @@ def parse_master_list_file(file_storage, county, list_type_override=None, batch_
 
     records = []
     skipped = 0
+    skipped_nonresidential = 0
+    skipped_investor = 0
     seen_hashes = set()
+    is_qpublic = _is_qpublic(df)
 
     for _, row in df.iterrows():
+        # ── qPublic residential filter ──────────────────────────────────────
+        # Only import arm's-length residential sales; skip commercial, land, investors
+        if is_qpublic and detected_type == 'new_mover':
+            if row.get('qualified_sales', '').strip() != 'Qualified':
+                skipped_nonresidential += 1
+                continue
+            if row.get('reason', '').strip() != 'FM':
+                skipped_nonresidential += 1
+                continue
+            if row.get('parcel_class', '').strip() != 'Residential':
+                skipped_nonresidential += 1
+                continue
+            buyer = row.get('first_name', '').strip()
+            if _is_investor(buyer):
+                skipped_investor += 1
+                continue
+
         address1 = row.get('address1', '').strip()
         zip_code = str(row.get('zip', '')).strip().split('.')[0]
         county_defaults = COUNTY_DEFAULTS.get(county, {'state': 'GA', 'city': ''})
@@ -208,5 +255,12 @@ def parse_master_list_file(file_storage, county, list_type_override=None, batch_
         for r in records:
             cat = r['permit_category'] or 'Other'
             category_summary[cat] = category_summary.get(cat, 0) + 1
+
+    # Report qPublic filter stats as warnings (informational)
+    if is_qpublic and (skipped_nonresidential or skipped_investor):
+        if skipped_nonresidential:
+            warnings.append(f"ℹ️ {skipped_nonresidential:,} non-residential rows filtered out (commercial, land, unqualified sales)")
+        if skipped_investor:
+            warnings.append(f"ℹ️ {skipped_investor:,} investor/entity buyers filtered out (LLC, Corp, Trust, etc.)")
 
     return records, detected_type, category_summary, warnings, skipped
