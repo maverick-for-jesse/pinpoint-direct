@@ -3302,6 +3302,24 @@ def setup_test_client():
 # ─────────────────────────────────────────────
 
 
+@admin_bp.route('/master-list/delete/<int:record_id>', methods=['POST'])
+@login_required
+def master_list_delete(record_id):
+    """Delete a single master_addresses record."""
+    from app.utils.database import get_db, db_exec
+    db = get_db()
+    try:
+        db_exec(db, 'DELETE FROM master_addresses WHERE id = ?', (record_id,))
+        db.commit()
+        if hasattr(db, 'close'):
+            db.close()
+        flash('Record deleted.', 'success')
+    except Exception as e:
+        flash(f'Error: {e}', 'error')
+    # Redirect back preserving filters
+    return redirect(request.referrer or url_for('admin.master_list'))
+
+
 @admin_bp.route('/master-list/wipe', methods=['POST'])
 @login_required
 def master_list_wipe():

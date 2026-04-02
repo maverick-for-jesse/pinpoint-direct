@@ -128,6 +128,7 @@
           <th>Sq Ft</th>
           <th>Neighborhood</th>
           <th>Added</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -213,6 +214,12 @@
           </td>
           <td style="font-size:12px;color:#888;">{{ r.neighborhood or '—' }}</td>
           <td style="font-size:12px;color:#888;">{{ r.added_date or '—' }}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin.master_list_delete', record_id=r.id) }}"
+                  onsubmit="return confirm('Delete this record? This cannot be undone.');" style="margin:0;">
+              <button type="submit" title="Delete" style="background:none;border:none;cursor:pointer;color:#ccc;font-size:14px;padding:2px 6px;" onmouseover="this.style.color='#c00'" onmouseout="this.style.color='#ccc'">🗑</button>
+            </form>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
