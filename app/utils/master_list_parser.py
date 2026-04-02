@@ -23,12 +23,17 @@ COLUMN_MAP = {
     'permit_value':        ['permit_value', 'value', 'job_value', 'estimated_value', 'cost', 'valuation', 'estimated cost'],
     'permit_date':         ['permit_date', 'issued_date', 'issue_date', 'date_issued', 'date', 'application_date'],
     'permit_number':       ['permit_number', 'permit_no', 'permit #', 'permit_id', 'number'],
-    'sale_price':          ['sale_price', 'price', 'amount', 'sales_price', 'sale_amount'],
-    'sale_date':           ['sale_date', 'transfer_date', 'deed_date', 'close_date', 'closing_date'],
-    'year_built':          ['year_built', 'year built', 'yr_built', 'yr built', 'built', 'year_constructed'],
+    'sale_price':          ['sale_price', 'price', 'amount', 'sales_price', 'sale_amount', 'lastsaleprice', 'last_sale_price'],
+    'sale_date':           ['sale_date', 'transfer_date', 'deed_date', 'close_date', 'closing_date', 'lastsaledate', 'last_sale_date'],
+    'year_built':          ['year_built', 'year built', 'yr_built', 'yr built', 'built', 'year_constructed', 'yearbuilt'],
     'square_ft':           ['square_ft', 'square ft', 'sqft', 'sq_ft', 'sq ft', 'living_area', 'heated_sq_ft', 'floor_area'],
     'neighborhood':        ['neighborhood', 'subdivision', 'sub', 'community', 'development', 'plat'],
     'parcel_class':        ['parcel class', 'parcel_class', 'class', 'property_class', 'property class'],
+    'occupancy':           ['occupancy', 'use', 'property_use', 'use_type'],
+    'street_number':       ['streetnumber', 'street_number', 'street number', 'house_number', 'housenumber'],
+    'street_name':         ['streetname', 'street_name', 'street name'],
+    'owner':               ['owner', 'owner_name', 'ownername'],
+    'totalvalue':          ['totalvalue', 'total_value', 'total value', 'assessed_value', 'market_value', 'appraised_value'],
     # qPublic-specific fields used for filtering
     'qualified_sales':     ['qualified sales', 'qualified_sales', 'qualified'],
     'reason':              ['reason'],
@@ -167,6 +172,14 @@ def parse_master_list_file(file_storage, county, list_type_override=None, batch_
     df = _map_columns(df)
     df = df.fillna('')
 
+    # If address1 is missing but we have street_number + street_name, combine them
+    if 'address1' not in df.columns and 'street_number' in df.columns and 'street_name' in df.columns:
+        df['address1'] = (df['street_number'].str.strip() + ' ' + df['street_name'].str.strip()).str.strip()
+
+    # If first_name is missing but we have owner, use it (assessor format: "SMITH JOHN D")
+    if 'first_name' not in df.columns and 'owner' in df.columns:
+        df['first_name'] = df['owner'].str.strip()
+
     detected_type = list_type_override or _detect_list_type(df)
 
     if 'address1' not in df.columns:
@@ -182,8 +195,9 @@ def parse_master_list_file(file_storage, county, list_type_override=None, batch_
 
 
     for _, row in df.iterrows():
-        # ── qPublic residential filter ──────────────────────────────────────
-        # Only import arm's-length residential sales; skip commercial, land, investors
+        # ── Residential filter ──────────────────────────────────────────────
+        # For qPublic sales CSVs: filter on Qualified/FM/Residential
+        # For assessor full-roll CSVs: filter on Occupancy (1 Family Detached etc.)
         if is_qpublic and detected_type == 'new_mover':
             qual = row.get('qualified_sales', '').strip().lower()
             reason = row.get('reason', '').strip().upper()
@@ -202,6 +216,17 @@ def parse_master_list_file(file_storage, county, list_type_override=None, batch_
 
             buyer = row.get('first_name', '').strip()
             if _is_investor(buyer):
+                skipped_investor += 1
+                continue
+
+        elif detected_type == 'generic':
+            # Assessor full-roll: skip non-residential occupancy types and investors
+            occupancy = row.get('occupancy', '').strip().lower()
+            if occupancy and 'family' not in occupancy and 'residential' not in occupancy and 'condo' not in occupancy:
+                skipped_nonresidential += 1
+                continue
+            owner = row.get('first_name', '').strip()
+            if _is_investor(owner):
                 skipped_investor += 1
                 continue
 
@@ -230,10 +255,12 @@ def parse_master_list_file(file_storage, county, list_type_override=None, batch_
         permit_date = row.get('permit_date', '').strip()
         permit_number = row.get('permit_number', '').strip()
 
-        # New mover fields
+        # New mover / assessor value fields
         sale_price = _parse_value(row.get('sale_price', ''))
         sale_date = row.get('sale_date', '').strip()
-        tier = _get_tier(sale_price) if detected_type == 'new_mover' else None
+        # For assessor files, use TotalValue as a proxy for tier if no sale price
+        value_for_tier = sale_price or _parse_value(row.get('totalvalue', '') or row.get('total_value', ''))
+        tier = _get_tier(value_for_tier) if value_for_tier else None
 
         # Extra property fields (qPublic + other sources)
         year_built = None
