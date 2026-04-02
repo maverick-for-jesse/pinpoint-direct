@@ -3337,6 +3337,128 @@ def master_list_wipe():
     return redirect(url_for('admin.master_list'))
 
 
+@admin_bp.route('/master-list/enrich-zips', methods=['POST'])
+@login_required
+def master_list_enrich_zips():
+    """Enrich master_addresses records missing zip codes. Processes 25 at a time."""
+    import requests as req_lib
+    from app.utils.database import get_db, db_fetchall, db_exec
+
+    db = get_db()
+    ph = '%s' if str(type(db)).find('psycopg') != -1 else '?'
+
+    # Fetch records missing zip
+    missing = db_fetchall(db,
+        f"SELECT id, address1, city, county, state, neighborhood FROM master_addresses WHERE (zip IS NULL OR zip = '') LIMIT 100"
+    )
+
+    if not missing:
+        if hasattr(db, 'close'): db.close()
+        return jsonify({'done': True, 'message': 'All records have ZIP codes!', 'updated': 0, 'remaining': 0})
+
+    batch = missing[:25]
+    session = req_lib.Session()
+    session.headers.update({'User-Agent': 'PinpointDirect/1.0'})
+
+    updated = 0
+    failed = 0
+
+    for r in batch:
+        address   = (r['address1'] or '').strip()
+        county    = r['county'] or 'Coweta County GA'
+        state     = r['state'] or 'GA'
+        neighborhood = (r['neighborhood'] or '').strip()
+        city      = r['city'] or COUNTY_CITIES.get(county, [''])[0]
+
+        if not address:
+            failed += 1
+            continue
+
+        zip_code = None
+
+        # 1) Neighborhood → zip map (instant)
+        zip_code = _zip_from_neighborhood(neighborhood)
+
+        # 2) Census geocoder
+        if not zip_code:
+            for try_city in COUNTY_CITIES.get(county, [city])[:2]:
+                try:
+                    resp = session.get(
+                        'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress',
+                        params={'address': f"{address}, {try_city}, {state}",
+                                'benchmark': 'Public_AR_Current', 'format': 'json'},
+                        timeout=5
+                    )
+                    matches = resp.json().get('result', {}).get('addressMatches', [])
+                    if matches:
+                        comps = matches[0].get('addressComponents', {})
+                        zip_code = comps.get('zip', '')
+                        found_city = comps.get('city', try_city).title()
+                        if zip_code:
+                            city = found_city
+                            break
+                except Exception:
+                    pass
+
+        # 3) SerpAPI fallback
+        if not zip_code:
+            try:
+                import re as _re, json as _j, os as _os
+                serp_key = None
+                try:
+                    cfg = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.dirname(__file__))), 'config', 'agency_scraper.json')
+                    serp_key = _j.load(open(cfg)).get('serpapi_key') if _os.path.exists(cfg) else None
+                except Exception:
+                    pass
+                serp_key = serp_key or _os.getenv('SERPAPI_KEY')
+
+                COUNTY_LL = {
+                    'Coweta County GA':  '@33.3812,-84.7600,12z',
+                    'Fayette County GA': '@33.4300,-84.5000,12z',
+                    'Fulton County GA':  '@33.7490,-84.3880,12z',
+                }
+                ll = COUNTY_LL.get(county, '@33.3812,-84.7600,12z')
+                try_city = COUNTY_CITIES.get(county, [city])[0]
+
+                if serp_key:
+                    sresp = session.get(
+                        'https://serpapi.com/search.json',
+                        params={'engine': 'google_maps', 'q': f'{address}, {try_city}, {state}',
+                                'll': ll, 'type': 'search', 'api_key': serp_key},
+                        timeout=8
+                    )
+                    sdata = sresp.json()
+                    addr_str = sdata.get('place_results', {}).get('address', '')
+                    if not addr_str:
+                        results = sdata.get('local_results', [])
+                        addr_str = results[0].get('address', '') if results else ''
+                    if addr_str:
+                        zm = _re.search(r'\b(\d{5})\b', addr_str)
+                        if zm:
+                            zip_code = zm.group(1)
+            except Exception:
+                pass
+
+        if zip_code:
+            db_exec(db, f'UPDATE master_addresses SET zip = {ph}, city = {ph} WHERE id = {ph}',
+                    (zip_code, city, r['id']))
+            updated += 1
+        else:
+            failed += 1
+
+    db.commit()
+    if hasattr(db, 'close'): db.close()
+
+    remaining = max(0, len(missing) - len(batch))
+    return jsonify({
+        'done':      remaining == 0,
+        'updated':   updated,
+        'failed':    failed,
+        'remaining': remaining,
+        'message':   'All done! ZIP codes enriched.' if remaining == 0 else f'{remaining} records still need ZIPs...'
+    })
+
+
 @admin_bp.route('/master-list')
 @login_required
 def master_list():

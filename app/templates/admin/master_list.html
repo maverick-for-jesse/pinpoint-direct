@@ -4,6 +4,7 @@
 
 {% block topbar_actions %}
   <a href="{{ url_for('admin.master_list_upload') }}" class="btn btn-primary">+ Upload Addresses</a>
+  <button id="enrich-zips-btn" class="btn btn-secondary" onclick="startEnrichZips()">📮 Enrich ZIPs</button>
   <form method="post" action="{{ url_for('admin.master_list_wipe') }}" style="display:inline;"
         onsubmit="return confirm('Delete ALL records from the master list? This cannot be undone.');">
     <button type="submit" class="btn btn-secondary" style="background:#fff0f0;color:#c00;border-color:#f5c6c6;">🗑 Clear List</button>
@@ -248,5 +249,58 @@
   <a href="{{ url_for('admin.master_list_upload') }}" class="btn btn-primary" style="display:inline-block;margin-top:16px;">Upload Addresses</a>
 </div>
 {% endif %}
+
+{# ── ZIP Enrichment Progress Bar ── #}
+<div id="enrich-progress" style="display:none; position:fixed; bottom:24px; right:24px; background:#fff; border:1px solid #e0e0e0; border-radius:10px; padding:16px 20px; box-shadow:0 4px 16px rgba(0,0,0,.12); min-width:280px; z-index:999;">
+  <div style="font-weight:600; font-size:14px; margin-bottom:8px;">📮 Enriching ZIP codes…</div>
+  <div style="background:#f0f0f0; border-radius:99px; height:8px; margin-bottom:8px;">
+    <div id="enrich-bar" style="height:100%; background:#1B3A6B; border-radius:99px; width:0%; transition:width 0.4s ease;"></div>
+  </div>
+  <div id="enrich-status" style="font-size:13px; color:#555;">Starting…</div>
+</div>
+
+<script>
+function startEnrichZips() {
+  const btn = document.getElementById('enrich-zips-btn');
+  const panel = document.getElementById('enrich-progress');
+  const bar = document.getElementById('enrich-bar');
+  const status = document.getElementById('enrich-status');
+
+  btn.disabled = true;
+  btn.textContent = '📮 Enriching…';
+  panel.style.display = 'block';
+
+  let totalUpdated = 0;
+  let initialRemaining = null;
+
+  function runBatch() {
+    fetch('{{ url_for("admin.master_list_enrich_zips") }}', { method: 'POST',
+      headers: { 'X-CSRFToken': document.cookie.match(/csrf_token=([^;]+)/)?.[1] || '' }
+    })
+    .then(r => r.json())
+    .then(data => {
+      totalUpdated += data.updated || 0;
+      if (initialRemaining === null) initialRemaining = (data.remaining || 0) + (data.updated || 0);
+      const pct = initialRemaining > 0 ? Math.min(100, Math.round((totalUpdated / initialRemaining) * 100)) : 100;
+      bar.style.width = pct + '%';
+      status.textContent = data.message + (totalUpdated ? ` (${totalUpdated} updated)` : '');
+
+      if (data.done) {
+        btn.disabled = false;
+        btn.textContent = '📮 Enrich ZIPs';
+        setTimeout(() => { panel.style.display = 'none'; location.reload(); }, 2000);
+      } else {
+        setTimeout(runBatch, 500);
+      }
+    })
+    .catch(err => {
+      status.textContent = 'Error: ' + err;
+      btn.disabled = false;
+      btn.textContent = '📮 Enrich ZIPs';
+    });
+  }
+  runBatch();
+}
+</script>
 
 {% endblock %}
