@@ -3301,22 +3301,6 @@ def setup_test_client():
 # MASTER ADDRESS LIST MANAGEMENT
 # ─────────────────────────────────────────────
 
-@admin_bp.route('/master-list/wipe', methods=['POST'])
-@login_required
-def master_list_wipe():
-    """One-time wipe of all master_addresses records. TEMPORARY — remove after use."""
-    from app.utils.database import get_db, db_exec
-    db = get_db()
-    try:
-        db_exec(db, 'DELETE FROM master_addresses', ())
-        db.commit()
-        if hasattr(db, 'close'):
-            db.close()
-        flash('✅ Master list cleared — all records deleted. Ready for fresh upload.', 'success')
-    except Exception as e:
-        flash(f'Error: {e}', 'error')
-    return redirect(url_for('admin.master_list'))
-
 
 @admin_bp.route('/master-list')
 @login_required

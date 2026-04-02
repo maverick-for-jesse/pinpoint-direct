@@ -176,9 +176,7 @@ def parse_master_list_file(file_storage, county, list_type_override=None, batch_
     seen_hashes = set()
     is_qpublic = _is_qpublic(df)
 
-    # Debug: surface column names and first row sample as a warning so we can diagnose issues
-    warnings.append(f"ℹ️ Detected columns: {list(df.columns)[:15]}")
-    warnings.append(f"ℹ️ Detected type: {detected_type} | qPublic: {is_qpublic}")
+
 
     for _, row in df.iterrows():
         # ── qPublic residential filter ──────────────────────────────────────
