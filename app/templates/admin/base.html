@@ -265,6 +265,9 @@
       <a href="{{ url_for('admin.lists') }}" class="nav-item {% if 'lists' in request.endpoint %}active{% endif %}">
         <span class="icon">📋</span> Mailing Lists
       </a>
+      <a href="{{ url_for('admin.master_list') }}" class="nav-item {% if 'master_list' in request.endpoint %}active{% endif %}">
+        <span class="icon">🗂️</span> Master List
+      </a>
       <a href="{{ url_for('admin.print_queue') }}" class="nav-item {% if 'print' in request.endpoint %}active{% endif %}">
         <span class="icon">🖨️</span> Print Queue
       </a>

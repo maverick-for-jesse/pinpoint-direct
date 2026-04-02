@@ -476,6 +476,52 @@ if DATABASE_URL:
                         imb_barcode     TEXT
                     )
                 """)
+                # ── Master Address List ───────────────────────────────────────────
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS master_addresses (
+                        id                  SERIAL PRIMARY KEY,
+                        first_name          TEXT,
+                        last_name           TEXT,
+                        address1            TEXT NOT NULL,
+                        address2            TEXT,
+                        city                TEXT,
+                        state               TEXT,
+                        zip                 TEXT,
+                        county              TEXT,
+                        list_type           TEXT,
+                        permit_category     TEXT,
+                        permit_description  TEXT,
+                        permit_value        NUMERIC(12,2),
+                        permit_date         TEXT,
+                        permit_number       TEXT,
+                        upload_batch        TEXT,
+                        source_file         TEXT,
+                        added_date          TEXT,
+                        address_hash        TEXT,
+                        last_mailed_at      TIMESTAMP,
+                        times_mailed        INTEGER DEFAULT 0,
+                        cass_validated      BOOLEAN DEFAULT FALSE,
+                        cass_date           TEXT,
+                        created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_ma_county ON master_addresses(county)")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_ma_list_type ON master_addresses(list_type)")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_ma_permit_category ON master_addresses(permit_category)")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_ma_zip ON master_addresses(zip)")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_ma_address_hash ON master_addresses(address_hash)")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_ma_upload_batch ON master_addresses(upload_batch)")
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS master_address_campaign_uses (
+                        id          SERIAL PRIMARY KEY,
+                        address_id  INTEGER NOT NULL REFERENCES master_addresses(id) ON DELETE CASCADE,
+                        campaign_id INTEGER,
+                        client_id   INTEGER,
+                        mailed_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        month_label TEXT
+                    )
+                """)
+
                 # ── Design Requests ───────────────────────────────────────────────
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS design_requests (
@@ -757,6 +803,46 @@ else:
                     sequence_number INTEGER,
                     cass_valid      INTEGER DEFAULT 0,
                     imb_barcode     TEXT
+                );
+                CREATE TABLE IF NOT EXISTS master_addresses (
+                    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                    first_name          TEXT,
+                    last_name           TEXT,
+                    address1            TEXT NOT NULL,
+                    address2            TEXT,
+                    city                TEXT,
+                    state               TEXT,
+                    zip                 TEXT,
+                    county              TEXT,
+                    list_type           TEXT,
+                    permit_category     TEXT,
+                    permit_description  TEXT,
+                    permit_value        REAL,
+                    permit_date         TEXT,
+                    permit_number       TEXT,
+                    upload_batch        TEXT,
+                    source_file         TEXT,
+                    added_date          TEXT,
+                    address_hash        TEXT,
+                    last_mailed_at      DATETIME,
+                    times_mailed        INTEGER DEFAULT 0,
+                    cass_validated      INTEGER DEFAULT 0,
+                    cass_date           TEXT,
+                    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_ma_county ON master_addresses(county);
+                CREATE INDEX IF NOT EXISTS idx_ma_list_type ON master_addresses(list_type);
+                CREATE INDEX IF NOT EXISTS idx_ma_permit_category ON master_addresses(permit_category);
+                CREATE INDEX IF NOT EXISTS idx_ma_zip ON master_addresses(zip);
+                CREATE INDEX IF NOT EXISTS idx_ma_address_hash ON master_addresses(address_hash);
+                CREATE INDEX IF NOT EXISTS idx_ma_upload_batch ON master_addresses(upload_batch);
+                CREATE TABLE IF NOT EXISTS master_address_campaign_uses (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    address_id  INTEGER NOT NULL REFERENCES master_addresses(id) ON DELETE CASCADE,
+                    campaign_id INTEGER,
+                    client_id   INTEGER,
+                    mailed_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    month_label TEXT
                 );
                 CREATE TABLE IF NOT EXISTS design_requests (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,

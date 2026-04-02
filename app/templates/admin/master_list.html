@@ -1,0 +1,195 @@
+{% extends "admin/base.html" %}
+{% block title %}Master Address List{% endblock %}
+{% block page_title %}Master Address List{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.master_list_upload') }}" class="btn btn-primary">+ Upload Addresses</a>
+{% endblock %}
+
+{% block content %}
+
+{# ── Stats Row ── #}
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 24px;">
+  <div class="stat-card blue">
+    <div class="stat-label">Total Records</div>
+    <div class="stat-value">{{ '{:,}'.format(total) }}</div>
+    <div class="stat-sub">in master list</div>
+  </div>
+  {% for s in stats %}
+  <div class="stat-card">
+    <div class="stat-label">{{ s.list_type or 'Unknown' }}</div>
+    <div class="stat-value" style="font-size: 24px;">{{ '{:,}'.format(s.cnt) }}</div>
+    <div class="stat-sub">
+      {% if s.list_type == 'permit' %}<span class="badge badge-orange" style="background:#fff3e0;color:#e65100;">permit</span>
+      {% elif s.list_type == 'new_mover' %}<span class="badge badge-blue">new mover</span>
+      {% else %}<span class="badge badge-gray">generic</span>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{# ── Filter Bar ── #}
+<div class="card" style="margin-bottom: 20px; padding: 16px 24px;">
+  <form method="get" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
+    <div>
+      <label class="form-label" style="margin-bottom: 4px;">County</label>
+      <select name="county" class="form-control" style="min-width: 180px;">
+        <option value="">All Counties</option>
+        {% for c in counties %}
+        <option value="{{ c }}" {% if filters.county == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="form-label" style="margin-bottom: 4px;">List Type</label>
+      <select name="list_type" class="form-control" style="min-width: 140px;">
+        <option value="">All Types</option>
+        <option value="permit" {% if filters.list_type == 'permit' %}selected{% endif %}>Permit</option>
+        <option value="new_mover" {% if filters.list_type == 'new_mover' %}selected{% endif %}>New Mover</option>
+        <option value="generic" {% if filters.list_type == 'generic' %}selected{% endif %}>Generic</option>
+      </select>
+    </div>
+    <div>
+      <label class="form-label" style="margin-bottom: 4px;">Permit Category</label>
+      <select name="permit_category" class="form-control" style="min-width: 160px;">
+        <option value="">All Categories</option>
+        {% for cat in categories %}
+        <option value="{{ cat }}" {% if filters.permit_category == cat %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="form-label" style="margin-bottom: 4px;">Upload Batch</label>
+      <select name="upload_batch" class="form-control" style="min-width: 200px;">
+        <option value="">All Batches</option>
+        {% for b in batches %}
+        <option value="{{ b }}" {% if filters.upload_batch == b %}selected{% endif %}>{{ b }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button type="submit" class="btn btn-primary">Apply</button>
+      <a href="{{ url_for('admin.master_list') }}" class="btn btn-secondary">Clear</a>
+    </div>
+  </form>
+</div>
+
+{# ── Results Count ── #}
+<div style="font-size: 13px; color: #888; margin-bottom: 12px;">
+  Showing {{ records|length }} of {{ '{:,}'.format(total) }} records
+  {% if filters.county or filters.list_type or filters.permit_category or filters.upload_batch %}
+    (filtered)
+  {% endif %}
+</div>
+
+{# ── Table ── #}
+{% if records %}
+<div class="card" style="padding: 0;">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Address</th>
+          <th>City / Zip</th>
+          <th>County</th>
+          <th>List Type</th>
+          <th>Permit Category</th>
+          <th>Permit Value</th>
+          <th>Added</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+        <tr>
+          <td>
+            {% if r.first_name or r.last_name %}
+              {{ r.first_name }} {{ r.last_name }}
+            {% else %}
+              <span style="color:#bbb;">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {{ r.address1 }}
+            {% if r.address2 %}<br><span style="font-size:12px;color:#888;">{{ r.address2 }}</span>{% endif %}
+          </td>
+          <td>{{ r.city or '—' }}<br><span style="font-size:12px;color:#888;">{{ r.zip or '' }}</span></td>
+          <td style="font-size:13px;">{{ r.county or '—' }}</td>
+          <td>
+            {% if r.list_type == 'permit' %}
+              <span class="badge" style="background:#fff3e0;color:#e65100;">permit</span>
+            {% elif r.list_type == 'new_mover' %}
+              <span class="badge badge-blue">new mover</span>
+            {% else %}
+              <span class="badge badge-gray">{{ r.list_type or 'generic' }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if r.permit_category %}
+              {% set cat = r.permit_category %}
+              {% if cat == 'Pool' %}
+                <span class="badge" style="background:#e0f7fa;color:#006064;">{{ cat }}</span>
+              {% elif cat == 'Detached Garage' %}
+                <span class="badge" style="background:#efebe9;color:#4e342e;">{{ cat }}</span>
+              {% elif cat == 'Deck/Patio' %}
+                <span class="badge" style="background:#e8f5e9;color:#1b5e20;">{{ cat }}</span>
+              {% elif cat == 'Roof' %}
+                <span class="badge" style="background:#eceff1;color:#37474f;">{{ cat }}</span>
+              {% elif cat == 'HVAC' %}
+                <span class="badge" style="background:#f3e5f5;color:#4a148c;">{{ cat }}</span>
+              {% elif cat == 'New Construction' %}
+                <span class="badge" style="background:#e8eaf6;color:#1a237e;">{{ cat }}</span>
+              {% elif cat == 'Home Addition' %}
+                <span class="badge" style="background:#fce4ec;color:#880e4f;">{{ cat }}</span>
+              {% elif cat == 'Fence' %}
+                <span class="badge" style="background:#fff8e1;color:#f57f17;">{{ cat }}</span>
+              {% elif cat == 'Driveway/Concrete' %}
+                <span class="badge" style="background:#f1f8e9;color:#33691e;">{{ cat }}</span>
+              {% elif cat == 'Electrical' %}
+                <span class="badge" style="background:#fffde7;color:#f57f17;">{{ cat }}</span>
+              {% elif cat == 'Plumbing' %}
+                <span class="badge" style="background:#e3f2fd;color:#0d47a1;">{{ cat }}</span>
+              {% else %}
+                <span class="badge badge-gray">{{ cat }}</span>
+              {% endif %}
+            {% else %}
+              <span style="color:#ccc;">—</span>
+            {% endif %}
+          </td>
+          <td style="font-size:13px;">
+            {% if r.permit_value %}
+              ${{ '{:,.0f}'.format(r.permit_value) }}
+            {% else %}—{% endif %}
+          </td>
+          <td style="font-size:12px;color:#888;">{{ r.added_date or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Pagination ── #}
+{% if total_pages > 1 %}
+<div style="display:flex; justify-content:center; align-items:center; gap:12px; margin-top:20px;">
+  {% if page > 1 %}
+    <a href="?page={{ page - 1 }}&county={{ filters.county }}&list_type={{ filters.list_type }}&permit_category={{ filters.permit_category }}&upload_batch={{ filters.upload_batch }}"
+       class="btn btn-secondary">← Prev</a>
+  {% endif %}
+  <span style="font-size:14px;color:#888;">Page {{ page }} of {{ total_pages }}</span>
+  {% if page < total_pages %}
+    <a href="?page={{ page + 1 }}&county={{ filters.county }}&list_type={{ filters.list_type }}&permit_category={{ filters.permit_category }}&upload_batch={{ filters.upload_batch }}"
+       class="btn btn-secondary">Next →</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">📋</div>
+  <p>No addresses found{% if filters.county or filters.list_type or filters.permit_category or filters.upload_batch %} matching these filters{% endif %}.</p>
+  <a href="{{ url_for('admin.master_list_upload') }}" class="btn btn-primary" style="display:inline-block;margin-top:16px;">Upload Addresses</a>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -3295,3 +3295,169 @@ def setup_test_client():
             <p><strong>Password:</strong> TestClient2026!</p>
             <p><a href='/admin/'>Back to admin</a></p>"""
         return "Only works on PostgreSQL (Railway)."
+
+
+# ─────────────────────────────────────────────
+# MASTER ADDRESS LIST MANAGEMENT
+# ─────────────────────────────────────────────
+
+@admin_bp.route('/master-list')
+@login_required
+def master_list():
+    """Master address list overview — filterable by county, list type, permit category."""
+    from app.utils.database import get_db, db_fetchall, db_fetchone
+    db = get_db()
+
+    # Filters from query params
+    county = request.args.get('county', '')
+    list_type = request.args.get('list_type', '')
+    permit_category = request.args.get('permit_category', '')
+    upload_batch = request.args.get('upload_batch', '')
+
+    page = int(request.args.get('page', 1))
+    per_page = 100
+    offset = (page - 1) * per_page
+
+    # Build filter clauses
+    where = ['1=1']
+    params = []
+    if county:
+        where.append('county = ?')
+        params.append(county)
+    if list_type:
+        where.append('list_type = ?')
+        params.append(list_type)
+    if permit_category:
+        where.append('permit_category = ?')
+        params.append(permit_category)
+    if upload_batch:
+        where.append('upload_batch = ?')
+        params.append(upload_batch)
+
+    where_sql = ' AND '.join(where)
+
+    total_row = db_fetchone(db, f'SELECT COUNT(*) as cnt FROM master_addresses WHERE {where_sql}', tuple(params))
+    total = total_row['cnt'] if total_row else 0
+
+    records = db_fetchall(db,
+        f'SELECT * FROM master_addresses WHERE {where_sql} ORDER BY created_at DESC LIMIT ? OFFSET ?',
+        tuple(params + [per_page, offset])
+    )
+
+    # For filter dropdowns
+    counties = db_fetchall(db, 'SELECT DISTINCT county FROM master_addresses WHERE county IS NOT NULL ORDER BY county')
+    batches = db_fetchall(db, 'SELECT DISTINCT upload_batch FROM master_addresses WHERE upload_batch IS NOT NULL ORDER BY upload_batch DESC')
+    categories = db_fetchall(db, 'SELECT DISTINCT permit_category FROM master_addresses WHERE permit_category IS NOT NULL ORDER BY permit_category')
+
+    # Stats summary
+    stats = db_fetchall(db, '''
+        SELECT list_type, COUNT(*) as cnt
+        FROM master_addresses
+        GROUP BY list_type ORDER BY cnt DESC
+    ''')
+
+    total_pages = (total + per_page - 1) // per_page if total > 0 else 1
+
+    if hasattr(db, 'close'):
+        db.close()
+
+    return render_template('admin/master_list.html',
+        records=records,
+        total=total,
+        page=page,
+        total_pages=total_pages,
+        counties=[r['county'] for r in counties],
+        batches=[r['upload_batch'] for r in batches],
+        categories=[r['permit_category'] for r in categories],
+        stats=stats,
+        filters={'county': county, 'list_type': list_type, 'permit_category': permit_category, 'upload_batch': upload_batch}
+    )
+
+
+@admin_bp.route('/master-list/upload', methods=['GET', 'POST'])
+@login_required
+def master_list_upload():
+    """Upload new addresses to the master list."""
+    from app.utils.database import get_db, db_fetchall, db_exec, DATABASE_URL
+    from app.utils.master_list_parser import parse_master_list_file
+
+    if request.method == 'GET':
+        db = get_db()
+        counties = db_fetchall(db, 'SELECT DISTINCT county FROM master_addresses WHERE county IS NOT NULL ORDER BY county')
+        existing_counties = [r['county'] for r in counties]
+        if hasattr(db, 'close'):
+            db.close()
+        return render_template('admin/master_list_upload.html', existing_counties=existing_counties)
+
+    # POST — process the upload
+    file = request.files.get('file')
+    county = request.form.get('county', '').strip()
+    list_type_override = request.form.get('list_type', '') or None
+    batch_label = request.form.get('batch_label', '').strip() or None
+
+    if not file or not file.filename:
+        flash('No file selected.', 'error')
+        return redirect(url_for('admin.master_list_upload'))
+    if not county:
+        flash('Please specify a county.', 'error')
+        return redirect(url_for('admin.master_list_upload'))
+
+    try:
+        records, detected_type, category_summary, warnings, skipped = parse_master_list_file(
+            file, county, list_type_override, batch_label
+        )
+    except ValueError as e:
+        flash(str(e), 'error')
+        return redirect(url_for('admin.master_list_upload'))
+
+    if not records:
+        flash('No valid records found in file.', 'error')
+        return redirect(url_for('admin.master_list_upload'))
+
+    # Insert records, deduping against existing by address_hash
+    db = get_db()
+    try:
+        existing = db_fetchall(db, 'SELECT address_hash FROM master_addresses')
+        existing_hashes = {r['address_hash'] for r in existing}
+
+        new_records = [r for r in records if r['address_hash'] not in existing_hashes]
+        dupes = len(records) - len(new_records)
+
+        for r in new_records:
+            sql = """INSERT INTO master_addresses
+                (first_name, last_name, address1, address2, city, state, zip, county,
+                 list_type, permit_category, permit_description, permit_value, permit_date, permit_number,
+                 upload_batch, source_file, added_date, address_hash)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""
+            params = (
+                r['first_name'], r['last_name'], r['address1'], r['address2'],
+                r['city'], r['state'], r['zip'], r['county'],
+                r['list_type'], r.get('permit_category'), r.get('permit_description'),
+                r.get('permit_value'), r.get('permit_date'), r.get('permit_number'),
+                r['upload_batch'], r['source_file'], r['added_date'], r['address_hash']
+            )
+            db_exec(db, sql, params)
+
+        db.commit()
+        if hasattr(db, 'close'):
+            db.close()
+
+        # Build flash message
+        msg = f"✅ Imported {len(new_records):,} new addresses"
+        if dupes:
+            msg += f" ({dupes:,} duplicates skipped)"
+        if skipped:
+            msg += f", {skipped:,} blank rows skipped"
+        if category_summary:
+            breakdown = ', '.join(f"{cat}: {cnt}" for cat, cnt in sorted(category_summary.items(), key=lambda x: -x[1]))
+            msg += f" | Categories: {breakdown}"
+        for w in warnings:
+            flash(w, 'info')
+        flash(msg, 'success')
+        return redirect(url_for('admin.master_list'))
+
+    except Exception as e:
+        flash(f'Database error: {e}', 'error')
+        if hasattr(db, 'close'):
+            db.close()
+        return redirect(url_for('admin.master_list_upload'))

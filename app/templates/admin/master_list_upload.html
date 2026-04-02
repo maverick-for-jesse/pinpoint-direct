@@ -1,0 +1,77 @@
+{% extends "admin/base.html" %}
+{% block title %}Upload Addresses{% endblock %}
+{% block page_title %}Upload Addresses{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('admin.master_list') }}" class="btn btn-secondary">← Back to Master List</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 640px;">
+  <div class="card">
+    <div class="card-title">Import Address File</div>
+
+    <form method="post" enctype="multipart/form-data">
+
+      <div class="form-group">
+        <label class="form-label">File <span style="color:#e63946;">*</span></label>
+        <input type="file" name="file" accept=".csv,.xlsx,.xls" class="form-control" required>
+        <div class="form-hint">Supported formats: CSV, Excel (.xlsx, .xls)</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">County <span style="color:#e63946;">*</span></label>
+        <input type="text" name="county" class="form-control"
+               placeholder="e.g. Coweta County GA"
+               list="county-list" required>
+        <datalist id="county-list">
+          {% for c in existing_counties %}
+          <option value="{{ c }}">
+          {% endfor %}
+        </datalist>
+        <div class="form-hint">Include state abbreviation, e.g. "Coweta County GA"</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">List Type</label>
+        <select name="list_type" class="form-control">
+          <option value="">Auto-detect</option>
+          <option value="new_mover">New Movers</option>
+          <option value="permit">Permit</option>
+          <option value="generic">Generic</option>
+        </select>
+        <div class="form-hint">Leave on Auto-detect to let the system identify the list type from column names.</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Batch Label <span style="color:#aaa;font-weight:400;">(optional)</span></label>
+        <input type="text" name="batch_label" class="form-control"
+               placeholder="e.g. Coweta County GA - Apr 2026">
+        <div class="form-hint">A label to group this upload. Used for filtering later.</div>
+      </div>
+
+      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #f0f0f0; display: flex; gap: 10px;">
+        <button type="submit" class="btn btn-primary">Import Addresses</button>
+        <a href="{{ url_for('admin.master_list') }}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="card" style="margin-top: 16px; background: #f8f9fa;">
+    <div class="card-title">Column Mapping Reference</div>
+    <p style="font-size: 13px; color: #666; margin-bottom: 12px;">
+      The importer auto-maps common column names. Supported column variations:
+    </p>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; color: #555;">
+      <div><strong>Address:</strong> address, street, location, property_address, job_address</div>
+      <div><strong>Name:</strong> first_name, owner, buyer, applicant</div>
+      <div><strong>City:</strong> city, town, municipality</div>
+      <div><strong>ZIP:</strong> zip, zip_code, postal</div>
+      <div><strong>Permit Type:</strong> permit_description, description, type_of_work, scope</div>
+      <div><strong>Permit Value:</strong> value, job_value, estimated_value, cost</div>
+      <div><strong>Permit Date:</strong> permit_date, issued_date, date_issued</div>
+      <div><strong>Sale Date:</strong> sale_date, transfer_date, deed_date, close_date</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
