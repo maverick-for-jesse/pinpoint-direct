@@ -358,8 +358,14 @@
 </div>
 {% endif %}
 
-<div style="margin-bottom:32px;">
+<div style="margin-bottom:32px; display:flex; gap:12px; flex-wrap:wrap;">
   <a href="{{ url_for('client.design_requests') }}" class="btn btn-secondary">← Back to Design Requests</a>
+  {% if status in ('Draft', 'Submitted', 'Revision Requested') %}
+  <a href="{{ url_for('client.design_request_edit', dr_id=dr.id) }}" class="btn btn-secondary"
+     style="background:#fff8e1;color:#b45309;border-color:#f6c83a;">
+    ✏️ Edit This Request
+  </a>
+  {% endif %}
 </div>
 
 <script>

@@ -583,3 +583,113 @@ def ai_copy():
         return jsonify({'ok': True, 'copy': result})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+# ── Edit Design Request ────────────────────────────────────────────────────────
+
+@client_bp.route('/design-request/<int:dr_id>/edit', methods=['GET', 'POST'])
+@login_required
+@client_required
+def design_request_edit(dr_id):
+    """Allow client to edit a design request that hasn't been picked up yet."""
+    from app.utils.database import get_db, db_fetchone, db_exec, get_db_type
+
+    db = get_db()
+    dr = db_fetchone(db, 'SELECT * FROM design_requests WHERE id = ?', (dr_id,))
+    if hasattr(db, 'close'): db.close()
+
+    if not dr:
+        flash('Design request not found.', 'error')
+        return redirect(url_for('client.design_requests'))
+
+    # Security check
+    if dr.get('client_id') != getattr(current_user, 'client_id', None):
+        flash('Not authorised.', 'error')
+        return redirect(url_for('client.design_requests'))
+
+    # Only allow editing if still in editable status
+    editable_statuses = ('Draft', 'Submitted', 'Revision Requested')
+    if dr.get('status') not in editable_statuses:
+        flash('This request is already in progress and can no longer be edited. Use the revision request instead.', 'warning')
+        return redirect(url_for('client.design_request_detail', dr_id=dr_id))
+
+    # Load business profile for pre-fill
+    db2 = get_db()
+    profile = db_fetchone(db2, 'SELECT * FROM business_profiles WHERE user_id = ?', (current_user.id,))
+    if hasattr(db2, 'close'): db2.close()
+
+    if request.method == 'POST':
+        import time
+        from app.utils.database import get_db, get_db_type
+        ph = '%s' if get_db_type() == 'postgres' else '?'
+
+        fields_data = {
+            'business_name':        request.form.get('business_name', '').strip(),
+            'industry':             request.form.get('industry', '').strip(),
+            'campaign_goal':        request.form.get('campaign_goal', '').strip(),
+            'products_services':    request.form.get('products_services', '').strip(),
+            'headline_ideas':       request.form.get('headline_ideas', '').strip(),
+            'key_selling_points':   request.form.get('key_selling_points', '').strip(),
+            'call_to_action':       request.form.get('call_to_action', '').strip(),
+            'cta_url':              request.form.get('cta_url', '').strip(),
+            'promo_code':           request.form.get('promo_code', '').strip(),
+            'brand_colors':         request.form.get('brand_colors', '').strip(),
+            'brand_tone':           request.form.get('brand_tone', '').strip(),
+            'target_audience':      request.form.get('target_audience', '').strip(),
+            'mailing_list_status':  request.form.get('mailing_list_status', '').strip(),
+            'return_address':       request.form.get('return_address', '').strip(),
+            'additional_notes':     request.form.get('additional_notes', '').strip(),
+            'mailing_list_targeting': request.form.get('mailing_list_targeting', '').strip(),
+            'target_zips':          request.form.get('target_zips', '').strip(),
+            'status':               'Submitted',
+        }
+        qty = request.form.get('quantity', '').strip()
+        if qty:
+            try: fields_data['quantity'] = int(qty)
+            except ValueError: pass
+        tmd = request.form.get('target_mail_date', '').strip()
+        if tmd:
+            fields_data['target_mail_date'] = tmd
+
+        set_clause = ', '.join(f'{k} = {ph}' for k in fields_data)
+        vals = list(fields_data.values()) + [dr_id]
+
+        db3 = get_db()
+        db_exec(db3, f'UPDATE design_requests SET {set_clause} WHERE id = {ph}', vals)
+
+        # Handle new file uploads (append to existing)
+        ts = int(time.time())
+        logo_files = request.files.getlist('logo_files')
+        product_files = request.files.getlist('product_files')
+        inspiration_files = request.files.getlist('inspiration_files')
+
+        new_logos = _save_design_files(logo_files, f"design_requests/{dr_id}/logos")
+        new_products = _save_design_files(product_files, f"design_requests/{dr_id}/products")
+        new_inspi = _save_design_files(inspiration_files, f"design_requests/{dr_id}/inspiration")
+
+        file_updates = {}
+        if new_logos:
+            existing = dr.get('logo_files') or ''
+            file_updates['logo_files'] = ','.join(filter(None, [existing] + new_logos))
+        if new_products:
+            existing = dr.get('product_files') or ''
+            file_updates['product_files'] = ','.join(filter(None, [existing] + new_products))
+        if new_inspi:
+            existing = dr.get('inspiration_files') or ''
+            file_updates['inspiration_files'] = ','.join(filter(None, [existing] + new_inspi))
+
+        if file_updates:
+            set2 = ', '.join(f'{k} = {ph}' for k in file_updates)
+            db_exec(db3, f'UPDATE design_requests SET {set2} WHERE id = {ph}', list(file_updates.values()) + [dr_id])
+
+        db3.commit()
+        if hasattr(db3, 'close'): db3.close()
+
+        flash('✅ Design request updated.', 'success')
+        return redirect(url_for('client.design_request_detail', dr_id=dr_id))
+
+    return render_template('client/design_request_new.html',
+                           prefill_name=dr.get('business_name', ''),
+                           profile=profile,
+                           editing=dr,
+                           edit_id=dr_id)

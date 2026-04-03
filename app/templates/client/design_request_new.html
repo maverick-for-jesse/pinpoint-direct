@@ -1,9 +1,10 @@
 {% extends "client/base.html" %}
-{% block title %}New Design Request{% endblock %}
-{% block page_title %}New Design Request{% endblock %}
-{% block page_sub %}<p>Fill out your design brief and we'll get to work</p>{% endblock %}
+{% block title %}{{ 'Edit Design Request' if editing else 'New Design Request' }}{% endblock %}
+{% block page_title %}{{ 'Edit Design Request' if editing else 'New Design Request' }}{% endblock %}
+{% block page_sub %}<p>{{ 'Update your design brief below.' if editing else "Fill out your design brief and we'll get to work" }}</p>{% endblock %}
 
 {% block content %}
+{% set ed = editing or {} %}
 
 <style>
   .brief-form { max-width: 780px; }
@@ -148,7 +149,7 @@
     </div>
   </div>
 
-  <form method="POST" enctype="multipart/form-data" action="{{ url_for('client.design_request_new') }}">
+  <form method="POST" enctype="multipart/form-data" action="{{ url_for('client.design_request_edit', dr_id=edit_id) if editing else url_for('client.design_request_new') }}">
 
     <!-- Section 1: Your Business -->
     <div class="section-card">
@@ -159,12 +160,12 @@
         <div class="form-group">
           <label class="form-label">Business Name</label>
           <input type="text" name="business_name" class="form-control"
-                 value="{{ profile.business_name if profile and profile.business_name else prefill_name }}" placeholder="Your business name" required>
+                 value="{{ ed.business_name if ed else (profile.business_name if profile and profile.business_name else prefill_name) }}" placeholder="Your business name" required>
         </div>
         <div class="form-group">
           <label class="form-label">Industry</label>
           <input type="text" name="industry" class="form-control"
-                 placeholder="e.g. Home Services, Retail, Medical">
+                 placeholder="e.g. Home Services, Retail, Medical" value="{{ ed.industry if ed else (profile.business_type if profile and profile.business_type else '') }}">
         </div>
       </div>
 
@@ -183,18 +184,18 @@
       <div class="form-group">
         <label class="form-label">Campaign Goal</label>
         <textarea name="campaign_goal" class="form-control" rows="3"
-                  placeholder="What do you want this campaign to achieve? e.g. Drive foot traffic, promote a seasonal sale, announce a new location..."></textarea>
+                  placeholder="What do you want this campaign to achieve? e.g. Drive foot traffic, promote a seasonal sale, announce a new location...">{{ ed.campaign_goal if ed else '' }}</textarea>
       </div>
 
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Target Mail Date <span class="optional">(optional)</span></label>
-          <input type="date" name="target_mail_date" class="form-control">
+          <input type="date" name="target_mail_date" class="form-control" value="{{ ed.target_mail_date if ed else '' }}">
         </div>
         <div class="form-group">
           <label class="form-label">Estimated Quantity</label>
           <input type="number" name="quantity" class="form-control"
-                 min="200" placeholder="Min 200" required>
+                 min="200" placeholder="Min 200" value="{{ ed.quantity if ed else '' }}" required>
           <p class="form-hint">Minimum 200 pieces</p>
         </div>
       </div>
@@ -208,30 +209,32 @@
       <div class="form-group">
         <label class="form-label">Products / Services to Feature</label>
         <textarea name="products_services" class="form-control" rows="3"
-                  placeholder="Describe what you want showcased — specific products, services, or a promotion"></textarea>
+                  placeholder="Describe what you want showcased — specific products, services, or a promotion">{{ ed.products_services if ed else '' }}</textarea>
       </div>
 
       <div class="form-group">
         <label class="form-label">Headline Ideas <span class="optional">(optional)</span></label>
         <textarea name="headline_ideas" class="form-control" rows="2"
-                  placeholder="Any headline or tagline ideas? Leave blank and let our designer decide."></textarea>
+                  placeholder="Any headline or tagline ideas? Leave blank and let our designer decide.">{{ ed.headline_ideas if ed else '' }}</textarea>
       </div>
 
       <div class="form-group">
         <label class="form-label">Key Selling Points</label>
         <textarea name="key_selling_points" class="form-control" rows="3"
-                  placeholder="What makes you stand out? e.g. 20 years in business, free estimates, licensed & insured, 5-star reviews">{{ profile.competitive_advantage if profile and profile.competitive_advantage else '' }}</textarea>
+                  placeholder="What makes you stand out? e.g. 20 years in business, free estimates, licensed & insured, 5-star reviews">{{ ed.key_selling_points if ed else (profile.competitive_advantage if profile and profile.competitive_advantage else '') }}</textarea>
       </div>
 
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Call to Action</label>
           <input type="text" name="call_to_action" class="form-control"
+                 value="{{ ed.call_to_action if ed else '' }}"
                  placeholder="e.g. Call Now, Visit Us, Shop Online">
         </div>
         <div class="form-group">
           <label class="form-label">CTA URL <span class="optional">(optional)</span></label>
           <input type="url" name="cta_url" class="form-control"
+                 value="{{ ed.cta_url if ed else '' }}"
                  placeholder="https://yourwebsite.com">
         </div>
       </div>
@@ -239,6 +242,7 @@
       <div class="form-group">
         <label class="form-label">Promo Code <span class="optional">(optional)</span></label>
         <input type="text" name="promo_code" class="form-control"
+               value="{{ ed.promo_code if ed else '' }}"
                placeholder="e.g. SAVE15, NEWMOVER, SPRING2025" style="max-width:280px;">
       </div>
     </div>
@@ -252,19 +256,16 @@
         <div class="form-group">
           <label class="form-label">Brand Colors</label>
           <input type="text" name="brand_colors" class="form-control"
-                 value="{{ profile.brand_colors if profile and profile.brand_colors else '' }}"
+                 value="{{ ed.brand_colors if ed else (profile.brand_colors if profile and profile.brand_colors else '') }}"
                  placeholder="e.g. Navy blue and orange, red and white">
         </div>
         <div class="form-group">
           <label class="form-label">Brand Tone</label>
           <select name="brand_tone" class="form-control">
             <option value="">— Select —</option>
-            <option value="Professional">Professional</option>
-            <option value="Bold">Bold</option>
-            <option value="Friendly">Friendly</option>
-            <option value="Tactical">Tactical</option>
-            <option value="Elegant">Elegant</option>
-            <option value="Fun">Fun</option>
+            {% for tone in ['Professional','Bold','Friendly','Tactical','Elegant','Fun'] %}
+            <option value="{{ tone }}" {% if (ed.brand_tone if ed else '') == tone %}selected{% endif %}>{{ tone }}</option>
+            {% endfor %}
           </select>
         </div>
       </div>
@@ -272,7 +273,7 @@
       <div class="form-group">
         <label class="form-label">Return Address</label>
         <textarea name="return_address" class="form-control" rows="2"
-                  placeholder="Business name and mailing address to appear on the postcard">{{ profile.return_address if profile and profile.return_address else '' }}</textarea>
+                  placeholder="Business name and mailing address to appear on the postcard">{{ ed.return_address if ed else (profile.return_address if profile and profile.return_address else '') }}</textarea>
       </div>
     </div>
 
@@ -431,14 +432,14 @@
 
       <div class="form-group" style="margin-bottom:0;">
         <textarea name="additional_notes" class="form-control" rows="4"
-                  placeholder="Any other notes, special requirements, or context..."></textarea>
+                  placeholder="Any other notes, special requirements, or context...">{{ ed.additional_notes if ed else '' }}</textarea>
       </div>
     </div>
 
     <!-- Submit -->
     <div class="submit-bar">
       <p>Submitting will notify our design team. We'll be in touch within 1–2 business days.</p>
-      <button type="submit" class="btn-submit">Submit Design Request →</button>
+      <button type="submit" class="btn-submit">{{ 'Update Design Request →' if editing else 'Submit Design Request →' }}</button>
     </div>
 
   </form>
