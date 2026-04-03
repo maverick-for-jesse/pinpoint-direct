@@ -556,7 +556,10 @@ def ai_copy():
     from app.utils.database import get_db, db_fetchone
 
     db = get_db()
-    profile = db_fetchone(db, 'SELECT * FROM business_profiles WHERE user_id = ?', (current_user.id,))
+    try:
+        profile = db_fetchone(db, 'SELECT * FROM business_profiles WHERE user_id = ?', (current_user.id,))
+    except Exception:
+        profile = None
     if hasattr(db, 'close'): db.close()
 
     data = request.get_json() or {}
