@@ -98,6 +98,48 @@ def dashboard():
                            has_profile=has_business_profile())
 
 
+# ── Business Profile / Onboarding ─────────────────────────────────────────────
+
+@client_bp.route('/profile', methods=['GET', 'POST'])
+@login_required
+@client_required
+def onboarding():
+    from app.utils.database import get_db, db_fetchone, db_exec, db_insert
+    db = get_db()
+    user_id = current_user.id
+
+    profile = db_fetchone(db, 'SELECT * FROM business_profiles WHERE user_id = ?', (user_id,))
+
+    if request.method == 'POST':
+        fields = [
+            'business_name', 'business_type', 'years_in_business',
+            'average_transaction_value', 'top_services', 'best_customer_description',
+            'customer_compliment', 'main_competitor', 'competitive_advantage'
+        ]
+        values = {f: request.form.get(f, '').strip() for f in fields}
+
+        if profile:
+            set_clause = ', '.join(f'{f}=?' for f in fields) + ', updated_at=CURRENT_TIMESTAMP'
+            params = list(values.values()) + [user_id]
+            db_exec(db, f'UPDATE business_profiles SET {set_clause} WHERE user_id=?', params)
+        else:
+            cols = ', '.join(['user_id', 'client_id'] + fields)
+            placeholders = ', '.join(['?'] * (2 + len(fields)))
+            client_id = current_user.client_id if hasattr(current_user, 'client_id') else None
+            params = [user_id, client_id] + list(values.values())
+            db_insert(db, f'INSERT INTO business_profiles ({cols}) VALUES ({placeholders})', params)
+
+        db.commit()
+        if hasattr(db, 'close'):
+            db.close()
+        flash('✅ Business profile saved!', 'success')
+        return redirect(url_for('client.campaigns'))
+
+    if hasattr(db, 'close'):
+        db.close()
+    return render_template('client/onboarding.html', profile=profile)
+
+
 # ── Campaigns ─────────────────────────────────────────────────────────────────
 
 @client_bp.route('/campaigns')

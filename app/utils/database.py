@@ -278,6 +278,24 @@ if DATABASE_URL:
                     )
                 """)
                 cur.execute("""
+                    CREATE TABLE IF NOT EXISTS business_profiles (
+                        id                          SERIAL PRIMARY KEY,
+                        user_id                     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                        client_id                   INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+                        business_name               TEXT,
+                        business_type               TEXT,
+                        years_in_business           TEXT,
+                        average_transaction_value   TEXT,
+                        top_services                TEXT,
+                        best_customer_description   TEXT,
+                        customer_compliment         TEXT,
+                        main_competitor             TEXT,
+                        competitive_advantage       TEXT,
+                        created_at                  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at                  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cur.execute("""
                     CREATE TABLE IF NOT EXISTS drip_campaigns (
                         id              SERIAL PRIMARY KEY,
                         client_id       INTEGER REFERENCES clients(id) ON DELETE CASCADE,
@@ -731,6 +749,22 @@ else:
                     status        TEXT DEFAULT 'New',
                     approved_at   DATETIME,
                     created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS business_profiles (
+                    id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id                     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    client_id                   INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+                    business_name               TEXT,
+                    business_type               TEXT,
+                    years_in_business           TEXT,
+                    average_transaction_value   TEXT,
+                    top_services                TEXT,
+                    best_customer_description   TEXT,
+                    customer_compliment         TEXT,
+                    main_competitor             TEXT,
+                    competitive_advantage       TEXT,
+                    created_at                  DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at                  DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
                 CREATE TABLE IF NOT EXISTS drip_campaigns (
                     id              INTEGER PRIMARY KEY AUTOINCREMENT,

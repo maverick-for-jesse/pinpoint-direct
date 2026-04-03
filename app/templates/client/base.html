@@ -142,6 +142,8 @@
        class="nav-link {% if request.endpoint == 'client.dashboard' %}active{% endif %}">Dashboard</a>
     <a href="{{ url_for('client.campaigns') }}"
        class="nav-link {% if 'campaign' in request.endpoint %}active{% endif %}">Campaigns</a>
+    <a href="{{ url_for('client.onboarding') }}"
+       class="nav-link {% if 'onboarding' in request.endpoint %}active{% endif %}">Business Profile</a>
     <a href="{{ url_for('client.approvals') }}"
        class="nav-link {% if 'approval' in request.endpoint %}active{% endif %}">Approvals</a>
     <a href="{{ url_for('client.invoices') }}"
