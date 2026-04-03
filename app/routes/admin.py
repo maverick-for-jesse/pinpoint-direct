@@ -709,7 +709,7 @@ def new_movers():
     except Exception:
         records = []
 
-    # Pull verified/failed counts per batch directly from Postgres (verify_status is stored in DB, not Airtable)
+    # Pull verified/failed counts per batch directly from Postgres
     verify_counts = {}  # batch_label -> {'verified': N, 'failed': N}
     try:
         db_type = get_db_type()

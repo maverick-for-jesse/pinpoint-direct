@@ -63,7 +63,7 @@ def parse_county_csv(file_obj, county='Coweta County GA', batch_label=None):
     Parse a qPublic property transfer CSV.
 
     Returns:
-        records  — list of dicts ready for Airtable
+        records  — list of dicts ready for DB insertion
         stats    — summary dict (total_rows, imported, skipped, by_tier)
         warnings — list of warning strings
     """

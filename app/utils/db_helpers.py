@@ -1,10 +1,8 @@
 """
-db_helpers.py — Postgres-native CRUD layer with Airtable-compatible return format.
+db_helpers.py — Postgres-native CRUD layer.
 
-Every function returns records as:
-    {'id': int, 'fields': {'Airtable Field Name': value, ...}, 'createdTime': str}
-
-This lets existing routes work with minimal changes — just swap the import.
+Records are returned as:
+    {'id': int, 'fields': {field_name: value, ...}, 'createdTime': str}
 """
 
 import os
@@ -115,10 +113,10 @@ _SELECT = {
 }
 
 
-# ─── Row → Airtable-compatible dict ──────────────────────────────────────────
+# ─── Row → record dict ───────────────────────────────────────────────────────
 
 def _row_to_record(table, row):
-    """Convert a DB row to Airtable-compatible {'id': int, 'fields': {...}} dict."""
+    """Convert a DB row to {'id': int, 'fields': {...}, 'createdTime': str} dict."""
     if row is None:
         return None
     r = dict(row)
@@ -335,10 +333,10 @@ def _lookup_campaign_id(db, campaign_name):
         return row['id'] if row else None
 
 
-# ─── Airtable fields → Postgres column dict ──────────────────────────────────
+# ─── Fields dict → Postgres column dict ─────────────────────────────────────
 
 def _fields_to_pg(table, fields, db):
-    """Convert Airtable-style fields dict to {pg_column: value} for INSERT/UPDATE."""
+    """Convert a fields dict to {pg_column: value} for INSERT/UPDATE."""
     pg = {}
 
     if table == 'clients':
@@ -555,7 +553,7 @@ def _fields_to_pg(table, fields, db):
 
 def _make_filter(formula):
     """
-    Convert a simple Airtable-style formula string to a Python predicate
+    Convert a simple filter formula string to a Python predicate
     that operates on the 'fields' dict of a record.
 
     Supported patterns:
@@ -668,8 +666,8 @@ def _execute(db, sql, params=()):
 def get_records(table, filter_formula=None, fields=None, max_records=None, filter=None):
     """
     Returns list of {'id': int, 'fields': {...}, 'createdTime': str} dicts.
-    filter_formula: Airtable-style formula string (basic support)
-    fields: ignored (we always return all fields)
+    filter_formula: filter formula string (basic support; see _make_filter)
+    fields: ignored (always returns all fields)
     max_records: limit
     filter: alias for filter_formula
     """
@@ -807,7 +805,7 @@ def find_user_by_email(email):
 
 
 def at_str(value):
-    """Escape a string for safe use inside filter formula single quotes."""
+    """Escape a string for safe use inside single-quoted filter formulas."""
     return str(value).replace("'", "\\'")
 
 

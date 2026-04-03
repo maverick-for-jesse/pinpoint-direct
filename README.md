@@ -4,8 +4,8 @@ Direct mail marketing agency platform built with Flask.
 
 ## Stack
 - **Flask** — backend
-- **Airtable** — clients, campaigns, invoices, job status
-- **SQLite** — mailing lists and address data
+- **PostgreSQL (Railway)** — clients, campaigns, invoices, job status, mailing lists
+- **SQLite** — local dev fallback
 - **Stripe** — invoicing + payments
 - **WeasyPrint** — HTML → print-ready PDF
 - **USPS Web Tools API** — address verification
