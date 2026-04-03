@@ -3662,7 +3662,7 @@ def master_list_upload():
             'first_name', 'last_name', 'neighborhood', 'tier',
             'year_built', 'square_ft', 'parcel_class',
             'permit_category', 'permit_description', 'permit_value',
-            'permit_date', 'permit_number',
+            'permit_date', 'permit_number', 'permit_status',
             'sale_price', 'sale_date',
             'city', 'state', 'zip', 'county',
         ]
@@ -3740,15 +3740,15 @@ def master_list_upload():
         for r in to_insert:
             sql = """INSERT INTO master_addresses
                 (first_name, last_name, address1, address2, city, state, zip, county,
-                 list_type, permit_category, permit_description, permit_value, permit_date, permit_number,
+                 list_type, permit_category, permit_description, permit_value, permit_date, permit_number, permit_status,
                  sale_price, sale_date, tier, year_built, square_ft, neighborhood, parcel_class,
                  upload_batch, source_file, added_date, address_hash)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""
             params = (
                 r['first_name'], r['last_name'], r['address1'], r['address2'],
                 r['city'], r['state'], r['zip'], r['county'],
                 r['list_type'], r.get('permit_category'), r.get('permit_description'),
-                r.get('permit_value'), r.get('permit_date'), r.get('permit_number'),
+                r.get('permit_value'), r.get('permit_date'), r.get('permit_number'), r.get('permit_status'),
                 r.get('sale_price'), r.get('sale_date'), r.get('tier'),
                 r.get('year_built'), r.get('square_ft'), r.get('neighborhood'), r.get('parcel_class'),
                 r['upload_batch'], r['source_file'], r['added_date'], r['address_hash']
@@ -3758,14 +3758,14 @@ def master_list_upload():
         for r, existing_id in to_update:
             sql = """UPDATE master_addresses SET
                 first_name=?, last_name=?, list_type=?,
-                permit_category=?, permit_description=?, permit_value=?, permit_date=?, permit_number=?,
+                permit_category=?, permit_description=?, permit_value=?, permit_date=?, permit_number=?, permit_status=?,
                 sale_price=?, sale_date=?, tier=?, neighborhood=?, year_built=?, square_ft=?, parcel_class=?,
                 upload_batch=?, source_file=?, added_date=?
                 WHERE id=?"""
             params = (
                 r['first_name'], r['last_name'], r['list_type'],
                 r.get('permit_category'), r.get('permit_description'),
-                r.get('permit_value'), r.get('permit_date'), r.get('permit_number'),
+                r.get('permit_value'), r.get('permit_date'), r.get('permit_number'), r.get('permit_status'),
                 r.get('sale_price'), r.get('sale_date'), r.get('tier'),
                 r.get('neighborhood'), r.get('year_built'), r.get('square_ft'), r.get('parcel_class'),
                 r['upload_batch'], r['source_file'], r['added_date'],

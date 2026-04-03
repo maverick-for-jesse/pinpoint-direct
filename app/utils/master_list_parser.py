@@ -23,6 +23,7 @@ COLUMN_MAP = {
     'permit_value':        ['permit_value', 'value', 'job_value', 'estimated_value', 'cost', 'valuation', 'estimated cost'],
     'permit_date':         ['permit_date', 'issued_date', 'issue_date', 'date_issued', 'date', 'application_date'],
     'permit_number':       ['permit_number', 'permit_no', 'permit #', 'permit_id', 'number'],
+    'permit_status':       ['permit_status', 'status', 'permit_status_description', 'record_status'],
     'sale_price':          ['sale_price', 'price', 'amount', 'sales_price', 'sale_amount', 'lastsaleprice', 'last_sale_price'],
     'sale_date':           ['sale_date', 'transfer_date', 'deed_date', 'close_date', 'closing_date', 'lastsaledate', 'last_sale_date'],
     'year_built':          ['year_built', 'year built', 'yr_built', 'yr built', 'built', 'year_constructed', 'yearbuilt'],
@@ -254,6 +255,7 @@ def parse_master_list_file(file_storage, county, list_type_override=None, batch_
         permit_value = _parse_value(row.get('permit_value', ''))
         permit_date = row.get('permit_date', '').strip()
         permit_number = row.get('permit_number', '').strip()
+        permit_status = row.get('permit_status', '').strip() or None
 
         # New mover / assessor value fields
         sale_price = _parse_value(row.get('sale_price', ''))
@@ -295,6 +297,7 @@ def parse_master_list_file(file_storage, county, list_type_override=None, batch_
             'permit_value':       permit_value,
             'permit_date':        permit_date,
             'permit_number':      permit_number,
+            'permit_status':      permit_status,
             'sale_price':         sale_price,
             'sale_date':          sale_date,
             'tier':               tier,

@@ -494,6 +494,7 @@ if DATABASE_URL:
                         permit_value        NUMERIC(12,2),
                         permit_date         TEXT,
                         permit_number       TEXT,
+                        permit_status       TEXT,
                         sale_price          NUMERIC(12,2),
                         sale_date           TEXT,
                         tier                TEXT,
@@ -527,6 +528,7 @@ if DATABASE_URL:
                     ('square_ft',    'INTEGER'),
                     ('neighborhood', 'TEXT'),
                     ('parcel_class', 'TEXT'),
+                    ('permit_status', 'TEXT'),
                 ]:
                     try:
                         cur.execute(f"ALTER TABLE master_addresses ADD COLUMN IF NOT EXISTS {col} {col_type}")
@@ -841,6 +843,7 @@ else:
                     permit_value        REAL,
                     permit_date         TEXT,
                     permit_number       TEXT,
+                    permit_status       TEXT,
                     upload_batch        TEXT,
                     source_file         TEXT,
                     added_date          TEXT,
@@ -946,6 +949,7 @@ else:
                 ('square_ft',    'INTEGER'),
                 ('neighborhood', 'TEXT'),
                 ('parcel_class', 'TEXT'),
+                ('permit_status', 'TEXT'),
             ]:
                 try:
                     conn.execute(f"ALTER TABLE master_addresses ADD COLUMN {col} {col_type}")
