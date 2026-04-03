@@ -3646,12 +3646,50 @@ def master_list_upload():
     # - Generic never overwrites anything
     db = get_db()
     try:
-        existing = db_fetchall(db, 'SELECT id, address_hash, list_type, sale_date, permit_date FROM master_addresses')
+        existing = db_fetchall(db, """
+            SELECT id, address_hash, list_type, sale_date, permit_date,
+                   first_name, last_name, neighborhood, tier, year_built, square_ft,
+                   permit_category, permit_description, permit_value, permit_number,
+                   sale_price, parcel_class, city, state, zip, county
+            FROM master_addresses
+        """)
         existing_map = {r['address_hash']: r for r in existing}
+
+        # Fields that can be filled in from any source (field-level merge).
+        # If existing record has a null/blank value and incoming has it filled,
+        # always patch it in — regardless of priority direction.
+        FILLABLE_FIELDS = [
+            'first_name', 'last_name', 'neighborhood', 'tier',
+            'year_built', 'square_ft', 'parcel_class',
+            'permit_category', 'permit_description', 'permit_value',
+            'permit_date', 'permit_number',
+            'sale_price', 'sale_date',
+            'city', 'state', 'zip', 'county',
+        ]
+
+        def _val(v):
+            """Return None if value is empty/None, else the value."""
+            if v is None:
+                return None
+            if isinstance(v, str) and not v.strip():
+                return None
+            return v
+
+        def _build_fill_patch(incoming, existing_rec):
+            """
+            Return a dict of {field: new_value} for any field that is blank
+            in the existing record but has a value in the incoming record.
+            """
+            patch = {}
+            for field in FILLABLE_FIELDS:
+                if _val(existing_rec.get(field)) is None and _val(incoming.get(field)) is not None:
+                    patch[field] = incoming[field]
+            return patch
 
         seen = set()
         to_insert = []
-        to_update = []  # list of (record, existing_id)
+        to_update = []        # list of (record, existing_id) — full upsert wins
+        to_fill = []          # list of (patch_dict, existing_id) — gap-fill only
         skipped_lower_priority = 0
 
         for r in all_records:
@@ -3668,22 +3706,36 @@ def master_list_upload():
                 existing_priority = TYPE_PRIORITY.get(existing_rec['list_type'] or 'generic', 0)
 
                 if incoming_priority < existing_priority:
-                    # Incoming is lower priority — skip
-                    skipped_lower_priority += 1
+                    # Incoming is lower priority — don't overwrite core fields,
+                    # but still fill in any gaps the existing record is missing.
+                    patch = _build_fill_patch(r, existing_rec)
+                    if patch:
+                        to_fill.append((patch, existing_rec['id']))
+                    else:
+                        skipped_lower_priority += 1
                     continue
                 elif incoming_priority == existing_priority:
                     # Same type — compare dates, keep most recent
                     incoming_date = r.get('sale_date') or r.get('permit_date') or ''
                     existing_date = existing_rec.get('sale_date') or existing_rec.get('permit_date') or ''
                     if incoming_date and existing_date and incoming_date <= existing_date:
-                        skipped_lower_priority += 1
+                        # Older — still gap-fill
+                        patch = _build_fill_patch(r, existing_rec)
+                        if patch:
+                            to_fill.append((patch, existing_rec['id']))
+                        else:
+                            skipped_lower_priority += 1
                         continue
                     to_update.append((r, existing_rec['id']))
                 else:
-                    # Incoming is higher priority — update
-                    to_update.append((r, existing_rec['id']))
+                    # Incoming is higher priority — full update, but preserve
+                    # existing values in fields the incoming record leaves blank.
+                    # Merge: incoming wins for its fields, existing fills gaps.
+                    merged = dict(existing_rec)
+                    merged.update({k: v for k, v in r.items() if _val(v) is not None})
+                    to_update.append((merged, existing_rec['id']))
 
-        dupes = len(all_records) - len(to_insert) - len(to_update) - skipped_lower_priority
+        dupes = len(all_records) - len(to_insert) - len(to_update) - len(to_fill) - skipped_lower_priority
 
         for r in to_insert:
             sql = """INSERT INTO master_addresses
@@ -3707,7 +3759,7 @@ def master_list_upload():
             sql = """UPDATE master_addresses SET
                 first_name=?, last_name=?, list_type=?,
                 permit_category=?, permit_description=?, permit_value=?, permit_date=?, permit_number=?,
-                sale_price=?, sale_date=?, tier=?,
+                sale_price=?, sale_date=?, tier=?, neighborhood=?, year_built=?, square_ft=?, parcel_class=?,
                 upload_batch=?, source_file=?, added_date=?
                 WHERE id=?"""
             params = (
@@ -3715,18 +3767,27 @@ def master_list_upload():
                 r.get('permit_category'), r.get('permit_description'),
                 r.get('permit_value'), r.get('permit_date'), r.get('permit_number'),
                 r.get('sale_price'), r.get('sale_date'), r.get('tier'),
+                r.get('neighborhood'), r.get('year_built'), r.get('square_ft'), r.get('parcel_class'),
                 r['upload_batch'], r['source_file'], r['added_date'],
                 existing_id
             )
             db_exec(db, sql, params)
+
+        # Gap-fill patches — only update blank fields, never overwrite existing data
+        for patch, existing_id in to_fill:
+            set_clauses = ', '.join(f'{col}=?' for col in patch)
+            vals = list(patch.values()) + [existing_id]
+            db_exec(db, f'UPDATE master_addresses SET {set_clauses} WHERE id=?', vals)
 
         db.commit()
         if hasattr(db, 'close'):
             db.close()
 
         msg = f"✅ {len(to_insert):,} new addresses added, {len(to_update):,} updated"
+        if to_fill:
+            msg += f", {len(to_fill):,} existing records gap-filled"
         if skipped_lower_priority:
-            msg += f" ({skipped_lower_priority:,} skipped — existing record has higher/equal priority)"
+            msg += f" ({skipped_lower_priority:,} already complete — no new info)"
         if total_skipped:
             msg += f", {total_skipped:,} blank rows skipped"
         for w in all_warnings:
