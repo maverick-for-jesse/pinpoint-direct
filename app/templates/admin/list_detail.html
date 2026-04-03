@@ -122,7 +122,7 @@
             <span class="badge badge-blue">{{ mailing_list.campaign }}</span>
           {% else %}—{% endif %}
         </div>
-        <div><strong>Uploaded:</strong> {{ mailing_list.created_at[:10] }}</div>
+        <div><strong>Uploaded:</strong> {{ mailing_list.created_at|string|truncate(10, True, '') }}</div>
       </div>
       {% if mailing_list.notes %}
       <div style="margin-top:12px; padding-top:12px; border-top:1px solid #f0f0f0;">
