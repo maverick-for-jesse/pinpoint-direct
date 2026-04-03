@@ -1515,9 +1515,18 @@ def lead_approve(lead_id):
 
     # 6. Send welcome email via AgentMail
     try:
-        with open('/Users/maverick/.openclaw/workspace/config/agentmail.json') as f:
-            cfg = json.load(f)
-        api_key = cfg['api_key']
+        import os
+        api_key = os.getenv('AGENTMAIL_API_KEY')
+        if not api_key:
+            # fallback for local dev
+            try:
+                with open('/Users/maverick/.openclaw/workspace/config/agentmail.json') as f:
+                    cfg = json.load(f)
+                api_key = cfg['api_key']
+            except Exception:
+                pass
+        if not api_key:
+            raise ValueError("No AgentMail API key found")
         inbox_id = 'maverickforjesse@agentmail.to'
         req_lib.post(
             f'https://api.agentmail.to/v0/inboxes/{inbox_id}/messages',
