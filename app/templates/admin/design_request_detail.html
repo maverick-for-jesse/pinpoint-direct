@@ -90,6 +90,10 @@
         <form method="POST" action="{{ url_for('admin.design_request_advance', dr_id=dr.id) }}" style="display:inline;">
           <button type="submit" class="advance-btn">Advance Status →</button>
         </form>
+        <button type="button" onclick="toggleSendBack()"
+          style="margin-left:8px;padding:8px 16px;background:#fff8e1;color:#b45309;border:1px solid #f6c83a;border-radius:7px;font-weight:700;font-size:13px;cursor:pointer;">
+          ↩ Send Back to Client
+        </button>
       </div>
 
       {% if f.get('Client Feedback') %}
@@ -99,6 +103,24 @@
         <p style="font-size:12px;color:#aaa;margin-top:4px;">Round {{ f.get('Revision Round', 0) }} of {{ f.get('Revision Limit', 2) }}</p>
       </div>
       {% endif %}
+
+      {# Send Back panel — hidden by default #}
+      <div id="send-back-panel" style="display:none;margin-top:16px;padding:16px;background:#fffbf0;border:1.5px solid #f6c83a;border-radius:10px;">
+        <div style="font-size:14px;font-weight:700;color:#b45309;margin-bottom:10px;">↩ Send Back to Client</div>
+        <form method="POST" action="{{ url_for('admin.design_request_send_back', dr_id=dr.id) }}">
+          <textarea name="note" rows="4" required
+            style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:14px;font-family:inherit;resize:vertical;margin-bottom:10px;"
+            placeholder="Tell the client what you need — e.g. 'We need a higher-resolution version of your logo' or 'Can you clarify which services to highlight on the front?'"></textarea>
+          <div style="display:flex;gap:10px;">
+            <button type="submit" style="background:#b45309;color:white;border:none;padding:9px 20px;border-radius:7px;font-weight:700;font-size:13px;cursor:pointer;">
+              Send Note & Notify Client
+            </button>
+            <button type="button" onclick="toggleSendBack()" style="background:#f0f0f0;color:#555;border:none;padding:9px 16px;border-radius:7px;font-size:13px;cursor:pointer;">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <!-- Business Info -->
@@ -354,5 +376,13 @@
 
   </div>
 </div>
+
+<script>
+function toggleSendBack() {
+  const panel = document.getElementById('send-back-panel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  if (panel.style.display === 'block') panel.querySelector('textarea').focus();
+}
+</script>
 
 {% endblock %}

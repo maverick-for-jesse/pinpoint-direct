@@ -614,7 +614,7 @@ def design_request_edit(dr_id):
         return redirect(url_for('client.design_requests'))
 
     # Only allow editing if still in editable status
-    editable_statuses = ('Draft', 'Submitted', 'Revision Requested')
+    editable_statuses = ('Draft', 'Submitted', 'Revision Requested', 'Needs Client Input')
     if dr.get('status') not in editable_statuses:
         flash('This request is already in progress and can no longer be edited. Use the revision request instead.', 'warning')
         return redirect(url_for('client.design_request_detail', dr_id=dr_id))

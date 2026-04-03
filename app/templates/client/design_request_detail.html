@@ -217,6 +217,20 @@
 </div>
 {% endif %}
 
+<!-- Admin Note (shown when request sent back) -->
+{% if status == 'Needs Client Input' %}
+<div style="background:#fff8e1;border:2px solid #f6c83a;border-radius:10px;padding:20px 24px;margin-bottom:20px;">
+  <div style="font-size:15px;font-weight:700;color:#b45309;margin-bottom:8px;">📋 Action Required from Your Design Team</div>
+  <p style="font-size:14px;color:#333;line-height:1.6;">{{ f.get('staff_notes') or f.get('Staff Notes') or 'Your design team has a question — please review and update your request.' }}</p>
+  <div style="margin-top:14px;">
+    <a href="{{ url_for('client.design_request_edit', dr_id=dr.id) }}"
+       style="background:#b45309;color:white;padding:10px 20px;border-radius:7px;font-weight:700;font-size:14px;text-decoration:none;">
+      ✏️ Update My Request
+    </a>
+  </div>
+</div>
+{% endif %}
+
 <!-- Brief Details -->
 <div class="info-grid">
 
@@ -360,7 +374,7 @@
 
 <div style="margin-bottom:32px; display:flex; gap:12px; flex-wrap:wrap;">
   <a href="{{ url_for('client.design_requests') }}" class="btn btn-secondary">← Back to Design Requests</a>
-  {% if status in ('Draft', 'Submitted', 'Revision Requested') %}
+  {% if status in ('Draft', 'Submitted', 'Revision Requested', 'Needs Client Input') %}
   <a href="{{ url_for('client.design_request_edit', dr_id=dr.id) }}" class="btn btn-secondary"
      style="background:#fff8e1;color:#b45309;border-color:#f6c83a;">
     ✏️ Edit This Request

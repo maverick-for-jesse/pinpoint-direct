@@ -3289,6 +3289,83 @@ def design_request_download(dr_id):
         return redirect(url_for('admin.design_request_detail', dr_id=dr_id))
 
 
+@admin_bp.route('/design-requests/<int:dr_id>/send-back', methods=['POST'])
+@login_required
+@admin_required
+def design_request_send_back(dr_id):
+    """Send a design request back to the client with a note asking for more info or changes."""
+    from app.utils.database import get_db, db_exec, db_fetchone, get_db_type
+    import os, requests as req_lib
+
+    note = request.form.get('note', '').strip()
+    if not note:
+        flash('Please include a note explaining what you need from the client.', 'error')
+        return redirect(url_for('admin.design_request_detail', dr_id=dr_id))
+
+    db = get_db()
+    ph = '%s' if get_db_type() == 'postgres' else '?'
+
+    # Get current request + client info
+    dr = db_fetchone(db, f'SELECT * FROM design_requests WHERE id = {ph}', (dr_id,))
+    client_email = None
+    client_name = None
+    if dr and dr.get('client_id'):
+        user = db_fetchone(db, f'SELECT name, email FROM users WHERE client_id = {ph} LIMIT 1', (dr['client_id'],))
+        if user:
+            client_email = user.get('email')
+            client_name = user.get('name') or 'there'
+
+    # Update status and store admin note as staff_notes
+    db_exec(db, f"""
+        UPDATE design_requests
+        SET status = {ph}, staff_notes = {ph}
+        WHERE id = {ph}
+    """, ('Needs Client Input', note, dr_id))
+    db.commit()
+    if hasattr(db, 'close'): db.close()
+
+    # Email the client if we have their address
+    if client_email:
+        try:
+            api_key = os.getenv('AGENTMAIL_API_KEY', '')
+            if not api_key:
+                cfg_path = '/Users/maverick/.openclaw/workspace/config/agentmail.json'
+                if os.path.exists(cfg_path):
+                    import json
+                    api_key = json.load(open(cfg_path)).get('api_key', '')
+            if api_key:
+                portal_url = 'https://pinpoint-direct-production.up.railway.app/portal/design-request/' + str(dr_id)
+                req_lib.post(
+                    'https://api.agentmail.to/v0/inboxes/info@pinpointdirect.io/messages/send',
+                    headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+                    json={
+                        'to': [client_email],
+                        'subject': 'Action Needed — Your Pinpoint Direct Design Request',
+                        'text': f"""Hi {client_name},
+
+Your design team has a question or needs a bit more information before we can move forward with your postcard design.
+
+Here's their note:
+
+"{note}"
+
+Please log in to your portal and update your design request:
+{portal_url}
+
+If you have any questions, just reply to this email.
+
+— The Pinpoint Direct Team
+pinpointdirect.io"""
+                    },
+                    timeout=10
+                )
+        except Exception as e:
+            print(f"Send-back email error: {e}")
+
+    flash(f'✅ Request sent back to client with your note.{" Email notification sent." if client_email else ""}', 'success')
+    return redirect(url_for('admin.design_request_detail', dr_id=dr_id))
+
+
 @admin_bp.route('/design-requests/<int:dr_id>/advance', methods=['POST'])
 @login_required
 @admin_required
