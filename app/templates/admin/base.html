@@ -282,9 +282,7 @@
       <a href="{{ url_for('admin.production_list') }}" class="nav-item {% if 'production' in request.endpoint %}active{% endif %}">
         <span class="icon">🖨️</span> Production
       </a>
-      <a href="{{ url_for('admin.mailing_jobs') }}" class="nav-item {% if 'mailing' in request.endpoint %}active{% endif %}">
-        <span class="icon">📮</span> Mailing Ops
-      </a>
+
       <a href="{{ url_for('mail_merge_bp.mail_merge') }}" class="nav-item {% if request.endpoint and 'mail_merge' in request.endpoint %}active{% endif %}">
         <span class="icon">🖨️</span> Mail Merge & Print
       </a>
