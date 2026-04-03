@@ -321,28 +321,41 @@ def _save_design_files(file_list, folder):
 @login_required
 @client_required
 def design_requests():
-    from app.utils.database import get_db, db_fetchall
+    from app.utils.database import get_db, db_fetchall, db_fetchone, db_exec
+    user_id = current_user.id
     client_id = getattr(current_user, 'client_id', None)
-    drs = []
+    db = get_db()
+
+    # Resolve client_id from users table if not on session object
+    if not client_id:
+        row = db_fetchone(db, 'SELECT client_id FROM users WHERE id = ?', (user_id,))
+        if row and row.get('client_id'):
+            client_id = row['client_id']
+
     if client_id:
-        db = get_db()
+        # Patch any NULLs that belong to this user
+        db_exec(db, 'UPDATE design_requests SET client_id = ? WHERE client_id IS NULL', (client_id,))
+        db.commit()
         rows = db_fetchall(db,
             'SELECT * FROM design_requests WHERE client_id = ? ORDER BY created_at DESC',
             (client_id,)
         )
-        if hasattr(db, 'close'): db.close()
-        # Wrap rows in the fields-dict format the template expects (Title Case keys)
-        def row_to_fields(r):
-            return {
-                'Status':         r.get('status', 'Draft'),
-                'Business Name':  r.get('business_name', ''),
-                'Campaign Goal':  r.get('campaign_goal', ''),
-                'Submitted At':   str(r.get('submitted_at') or r.get('created_at') or ''),
-                'Revision Round': r.get('revision_round', 0),
-                'Revision Limit': r.get('revision_limit', 2),
-                'client_id':      r.get('client_id'),
-            }
-        drs = [{'id': r['id'], 'fields': row_to_fields(r)} for r in rows]
+    else:
+        rows = []
+
+    if hasattr(db, 'close'): db.close()
+
+    def row_to_fields(r):
+        return {
+            'Status':         r.get('status', 'Draft'),
+            'Business Name':  r.get('business_name', ''),
+            'Campaign Goal':  r.get('campaign_goal', ''),
+            'Submitted At':   str(r.get('submitted_at') or r.get('created_at') or ''),
+            'Revision Round': r.get('revision_round', 0),
+            'Revision Limit': r.get('revision_limit', 2),
+            'client_id':      r.get('client_id'),
+        }
+    drs = [{'id': r['id'], 'fields': row_to_fields(r)} for r in rows]
     return render_template('client/design_requests.html', design_requests=drs)
 
 
