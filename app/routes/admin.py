@@ -3422,51 +3422,36 @@ def master_list_delete_batch():
     return redirect(url_for('admin.master_list'))
 
 
+@admin_bp.route('/master-list/builder-count')
+@login_required
+def master_list_builder_count():
+    """Return count of records matching multi-select builder filters."""
+    from app.utils.database import get_db, db_fetchone
+    where_sql, params, _ = _build_master_where(request.args)
+    db = get_db()
+    row = db_fetchone(db, f'SELECT COUNT(*) as cnt FROM master_addresses WHERE {where_sql}', tuple(params))
+    if hasattr(db, 'close'): db.close()
+    return jsonify({'count': row['cnt'] if row else 0})
+
+
 @admin_bp.route('/master-list/save-as-list', methods=['POST'])
 @login_required
 def master_list_save_as_list():
     """
     Save the current filtered master list selection as a mailing list.
-    Accepts the same filter params as master_list() view, plus a list_name.
+    Supports multi-value neighborhoods[] and tiers[] from the List Builder.
     """
     from app.utils.database import get_db, db_fetchall, db_exec, db_insert
+    from werkzeug.datastructures import ImmutableMultiDict
 
-    list_name   = request.form.get('list_name', '').strip()
-    county      = request.form.get('county', '')
-    list_type   = request.form.get('list_type', '')
-    permit_cat  = request.form.get('permit_category', '')
-    upload_batch= request.form.get('upload_batch', '')
-    tier        = request.form.get('tier', '')
-    neighborhood= request.form.get('neighborhood', '')
-    year_built_max = request.form.get('year_built_max', '')
-    notes       = request.form.get('notes', '').strip()
+    list_name = request.form.get('list_name', '').strip()
+    notes     = request.form.get('notes', '').strip()
 
     if not list_name:
         flash('Please enter a name for the mailing list.', 'error')
         return redirect(url_for('admin.master_list'))
 
-    # Build the same WHERE clause as master_list()
-    where = ['1=1']
-    params = []
-    if county:
-        where.append('county = ?'); params.append(county)
-    if list_type:
-        where.append('list_type = ?'); params.append(list_type)
-    if permit_cat:
-        where.append('permit_category = ?'); params.append(permit_cat)
-    if upload_batch:
-        where.append('upload_batch = ?'); params.append(upload_batch)
-    if tier:
-        where.append('tier = ?'); params.append(tier)
-    if neighborhood:
-        where.append('neighborhood = ?'); params.append(neighborhood)
-    if year_built_max:
-        try:
-            where.append('year_built <= ?'); params.append(int(year_built_max))
-        except ValueError:
-            pass
-
-    where_sql = ' AND '.join(where)
+    where_sql, params, filters = _build_master_where(request.form)
 
     db = get_db()
     try:
@@ -3482,13 +3467,13 @@ def master_list_save_as_list():
 
         # Build a description of what filters were applied
         filter_parts = []
-        if county: filter_parts.append(f'County: {county}')
-        if list_type: filter_parts.append(f'Type: {list_type}')
-        if permit_cat: filter_parts.append(f'Category: {permit_cat}')
-        if upload_batch: filter_parts.append(f'Batch: {upload_batch}')
-        if tier: filter_parts.append(f'Tier: {tier}')
-        if neighborhood: filter_parts.append(f'Neighborhood: {neighborhood}')
-        if year_built_max: filter_parts.append(f'Built ≤ {year_built_max}')
+        if filters.get('county'): filter_parts.append(f'County: {filters["county"]}')
+        if filters.get('list_type'): filter_parts.append(f'Type: {filters["list_type"]}')
+        if filters.get('permit_category'): filter_parts.append(f'Category: {filters["permit_category"]}')
+        if filters.get('upload_batch'): filter_parts.append(f'Batch: {filters["upload_batch"]}')
+        if filters.get('tiers'): filter_parts.append(f'Tiers: {", ".join(filters["tiers"])}')
+        if filters.get('neighborhoods'): filter_parts.append(f'Neighborhoods: {", ".join(filters["neighborhoods"])}')
+        if filters.get('year_built_max'): filter_parts.append(f'Built ≤ {filters["year_built_max"]}')
         auto_notes = ('Filters: ' + ', '.join(filter_parts)) if filter_parts else 'All master list records'
         final_notes = notes or auto_notes
 
@@ -3721,6 +3706,65 @@ def master_list_enrich_zips():
     })
 
 
+def _build_master_where(args):
+    """
+    Build WHERE clause from request args. Supports both single and multi-value params.
+    Multi-value: neighborhoods[] and tiers[] (comma-separated or repeated params)
+    Single-value: county, list_type, permit_category, upload_batch, year_built_max
+    """
+    where = ['1=1']
+    params = []
+
+    county = args.get('county', '')
+    list_type = args.get('list_type', '')
+    permit_category = args.get('permit_category', '')
+    upload_batch = args.get('upload_batch', '')
+    year_built_max = args.get('year_built_max', '')
+
+    # Multi-value neighborhood — getlist handles repeated params, also split comma-joined
+    neighborhoods = args.getlist('neighborhoods[]') or args.getlist('neighborhood[]')
+    if not neighborhoods:
+        raw = args.get('neighborhoods', '') or args.get('neighborhood', '')
+        neighborhoods = [n.strip() for n in raw.split(',') if n.strip()] if raw else []
+
+    # Multi-value tier
+    tiers = args.getlist('tiers[]') or args.getlist('tier[]')
+    if not tiers:
+        raw = args.get('tiers', '') or args.get('tier', '')
+        tiers = [t.strip() for t in raw.split(',') if t.strip()] if raw else []
+
+    if county:
+        where.append('county = ?'); params.append(county)
+    if list_type:
+        where.append('list_type = ?'); params.append(list_type)
+    if permit_category:
+        where.append('permit_category = ?'); params.append(permit_category)
+    if upload_batch:
+        where.append('upload_batch = ?'); params.append(upload_batch)
+    if neighborhoods:
+        placeholders = ','.join(['?'] * len(neighborhoods))
+        where.append(f'neighborhood IN ({placeholders})')
+        params.extend(neighborhoods)
+    if tiers:
+        placeholders = ','.join(['?'] * len(tiers))
+        where.append(f'tier IN ({placeholders})')
+        params.extend(tiers)
+    if year_built_max:
+        try:
+            where.append('year_built <= ?'); params.append(int(year_built_max))
+        except ValueError:
+            pass
+
+    return ' AND '.join(where), params, {
+        'county': county, 'list_type': list_type, 'permit_category': permit_category,
+        'upload_batch': upload_batch, 'year_built_max': year_built_max,
+        'neighborhoods': neighborhoods, 'tiers': tiers,
+        # Legacy single-value compat
+        'neighborhood': neighborhoods[0] if len(neighborhoods) == 1 else '',
+        'tier': tiers[0] if len(tiers) == 1 else '',
+    }
+
+
 @admin_bp.route('/master-list')
 @login_required
 def master_list():
@@ -3728,46 +3772,11 @@ def master_list():
     from app.utils.database import get_db, db_fetchall, db_fetchone
     db = get_db()
 
-    # Filters from query params
-    county = request.args.get('county', '')
-    list_type = request.args.get('list_type', '')
-    permit_category = request.args.get('permit_category', '')
-    upload_batch = request.args.get('upload_batch', '')
-    tier = request.args.get('tier', '')
-    neighborhood = request.args.get('neighborhood', '')
-    year_built_max = request.args.get('year_built_max', '')
+    where_sql, params, filters = _build_master_where(request.args)
 
     page = int(request.args.get('page', 1))
     per_page = 100
     offset = (page - 1) * per_page
-
-    # Build filter clauses
-    where = ['1=1']
-    params = []
-    if county:
-        where.append('county = ?')
-        params.append(county)
-    if list_type:
-        where.append('list_type = ?')
-        params.append(list_type)
-    if permit_category:
-        where.append('permit_category = ?')
-        params.append(permit_category)
-    if upload_batch:
-        where.append('upload_batch = ?')
-        params.append(upload_batch)
-    if tier:
-        where.append('tier = ?')
-        params.append(tier)
-    if neighborhood:
-        where.append('neighborhood = ?')
-        params.append(neighborhood)
-    if year_built_max:
-        try:
-            where.append('year_built <= ?')
-            params.append(int(year_built_max))
-        except ValueError:
-            pass
 
     where_sql = ' AND '.join(where)
 
@@ -3807,8 +3816,8 @@ def master_list():
         categories=[r['permit_category'] for r in categories],
         neighborhoods=[r['neighborhood'] for r in neighborhoods],
         stats=stats,
-        filters={'county': county, 'list_type': list_type, 'permit_category': permit_category,
-                 'upload_batch': upload_batch, 'tier': tier, 'neighborhood': neighborhood, 'year_built_max': year_built_max}
+        filters=filters,
+        all_tiers=['Standard', 'Premium', 'Ultra-Premium', 'Luxury', 'Elite'],
     )
 
 
