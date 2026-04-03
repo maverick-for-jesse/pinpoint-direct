@@ -3360,6 +3360,91 @@ def master_list_delete_batch():
     return redirect(url_for('admin.master_list'))
 
 
+@admin_bp.route('/master-list/search')
+@login_required
+def master_list_search():
+    """Real-time address search — returns JSON rows matching query."""
+    from app.utils.database import get_db, db_fetchall
+    import json as _json
+
+    q = request.args.get('q', '').strip()
+    if not q or len(q) < 2:
+        return current_app.response_class(
+            response=_json.dumps({'results': [], 'total': 0}),
+            mimetype='application/json'
+        )
+
+    db = get_db()
+    like = f'%{q}%'
+    ph = '%s' if 'postgres' in str(type(db)).lower() else '?'
+
+    sql = f"""
+        SELECT id, first_name, last_name, address1, address2, city, state, zip,
+               county, list_type, tier, permit_category, sale_price, permit_value,
+               sale_date, permit_date, year_built, square_ft, neighborhood,
+               permit_status, added_date
+        FROM master_addresses
+        WHERE address1 ILIKE {ph}
+           OR first_name ILIKE {ph}
+           OR last_name ILIKE {ph}
+           OR city ILIKE {ph}
+           OR zip ILIKE {ph}
+           OR neighborhood ILIKE {ph}
+           OR permit_number ILIKE {ph}
+        ORDER BY added_date DESC
+        LIMIT 50
+    """ if ph == '%s' else f"""
+        SELECT id, first_name, last_name, address1, address2, city, state, zip,
+               county, list_type, tier, permit_category, sale_price, permit_value,
+               sale_date, permit_date, year_built, square_ft, neighborhood,
+               permit_status, added_date
+        FROM master_addresses
+        WHERE address1 LIKE {ph}
+           OR first_name LIKE {ph}
+           OR last_name LIKE {ph}
+           OR city LIKE {ph}
+           OR zip LIKE {ph}
+           OR neighborhood LIKE {ph}
+           OR permit_number LIKE {ph}
+        ORDER BY added_date DESC
+        LIMIT 50
+    """
+
+    rows = db_fetchall(db, sql, (like,) * 7)
+    if hasattr(db, 'close'):
+        db.close()
+
+    results = []
+    for r in rows:
+        results.append({
+            'id': r['id'],
+            'name': f"{r.get('first_name') or ''} {r.get('last_name') or ''}".strip() or None,
+            'address1': r.get('address1'),
+            'address2': r.get('address2'),
+            'city': r.get('city'),
+            'state': r.get('state'),
+            'zip': r.get('zip'),
+            'county': r.get('county'),
+            'list_type': r.get('list_type'),
+            'tier': r.get('tier'),
+            'permit_category': r.get('permit_category'),
+            'sale_price': float(r['sale_price']) if r.get('sale_price') else None,
+            'permit_value': float(r['permit_value']) if r.get('permit_value') else None,
+            'sale_date': r.get('sale_date'),
+            'permit_date': r.get('permit_date'),
+            'year_built': r.get('year_built'),
+            'square_ft': r.get('square_ft'),
+            'neighborhood': r.get('neighborhood'),
+            'permit_status': r.get('permit_status'),
+            'added_date': r.get('added_date'),
+        })
+
+    return current_app.response_class(
+        response=_json.dumps({'results': results, 'total': len(results)}),
+        mimetype='application/json'
+    )
+
+
 @admin_bp.route('/master-list/enrich-zips', methods=['POST'])
 @login_required
 def master_list_enrich_zips():

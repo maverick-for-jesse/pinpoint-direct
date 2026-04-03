@@ -33,6 +33,35 @@
   {% endfor %}
 </div>
 
+{# ── Live Search ── #}
+<div style="margin-bottom: 16px; position: relative;">
+  <input type="text" id="master-search" placeholder="🔍 Search address, name, city, ZIP, neighborhood…"
+         style="width: 100%; padding: 12px 16px; font-size: 15px; border: 2px solid #d0d7e3; border-radius: 8px; outline: none; box-sizing: border-box; transition: border-color 0.2s;"
+         onfocus="this.style.borderColor='#1B3A6B'" onblur="this.style.borderColor='#d0d7e3'">
+  <div id="search-spinner" style="display:none; position:absolute; right:14px; top:50%; transform:translateY(-50%); color:#888; font-size:13px;">searching…</div>
+</div>
+
+{# ── Search Results overlay (hidden until typing) ── #}
+<div id="search-results-wrap" style="display:none; margin-bottom: 20px;">
+  <div style="font-size:13px; color:#888; margin-bottom:10px;">
+    <span id="search-result-count"></span>
+    <button onclick="clearSearch()" style="margin-left:12px; background:none; border:none; color:#1B3A6B; cursor:pointer; font-size:13px; text-decoration:underline;">✕ Clear search</button>
+  </div>
+  <div class="card" style="padding:0;">
+    <div class="table-wrap">
+      <table id="search-results-table">
+        <thead>
+          <tr>
+            <th>Name</th><th>Address</th><th>City / ZIP</th><th>Type</th>
+            <th>Category / Tier</th><th>Date</th><th>Neighborhood</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="search-results-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 {# ── Filter Bar ── #}
 <div class="card" style="margin-bottom: 20px; padding: 16px 24px;">
   <form method="get" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
@@ -260,6 +289,116 @@
 </div>
 
 <script>
+// ── Real-time master list search ──────────────────────────────────────────
+(function() {
+  const input    = document.getElementById('master-search');
+  const wrap     = document.getElementById('search-results-wrap');
+  const body     = document.getElementById('search-results-body');
+  const countEl  = document.getElementById('search-result-count');
+  const spinner  = document.getElementById('search-spinner');
+  let debounce   = null;
+  let lastQuery  = '';
+
+  const BADGE = {
+    permit:    'background:#fff3e0;color:#e65100',
+    new_mover: 'background:#e3f2fd;color:#0d47a1',
+    generic:   'background:#f5f5f5;color:#555',
+  };
+  const CAT_BADGE = {
+    'Pool':             'background:#e0f7fa;color:#006064',
+    'Detached Garage':  'background:#efebe9;color:#4e342e',
+    'Deck/Patio':       'background:#e8f5e9;color:#1b5e20',
+    'Roof':             'background:#eceff1;color:#37474f',
+    'HVAC':             'background:#f3e5f5;color:#4a148c',
+    'New Construction': 'background:#e8eaf6;color:#1a237e',
+    'Home Addition':    'background:#fce4ec;color:#880e4f',
+    'Fence':            'background:#fff8e1;color:#f57f17',
+    'Electrical':       'background:#fffde7;color:#b45309',
+    'Plumbing':         'background:#e3f2fd;color:#0d47a1',
+  };
+
+  function badge(text, style) {
+    return `<span style="display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;${style}">${text}</span>`;
+  }
+
+  function fmt(n) { return n ? '$' + Number(n).toLocaleString('en-US', {maximumFractionDigits:0}) : ''; }
+
+  function renderRows(results) {
+    body.innerHTML = '';
+    if (!results.length) {
+      body.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px;">No results found</td></tr>`;
+      return;
+    }
+    results.forEach(r => {
+      const typeStyle = BADGE[r.list_type] || BADGE.generic;
+      const typeLabel = r.list_type === 'new_mover' ? 'new mover' : (r.list_type || 'generic');
+      const catStyle  = CAT_BADGE[r.permit_category] || 'background:#f5f5f5;color:#555';
+      const catOrTier = r.permit_category
+        ? badge(r.permit_category, catStyle)
+        : (r.tier ? badge(r.tier, 'background:#e8eaf6;color:#1a237e') : '<span style="color:#ccc">—</span>');
+      const price = fmt(r.sale_price || r.permit_value);
+      const date  = r.sale_date || r.permit_date || '';
+
+      body.innerHTML += `<tr>
+        <td style="font-size:13px;">${r.name || '<span style="color:#bbb">—</span>'}</td>
+        <td>${r.address1 || ''}${r.address2 ? `<br><span style="font-size:11px;color:#aaa">${r.address2}</span>` : ''}</td>
+        <td style="font-size:13px;">${r.city || '—'}<br><span style="font-size:11px;color:#aaa">${r.zip || ''}</span></td>
+        <td>${badge(typeLabel, typeStyle)}</td>
+        <td>${catOrTier}${price ? `<br><span style="font-size:11px;color:#888">${price}</span>` : ''}</td>
+        <td style="font-size:12px;color:#888;">${date}</td>
+        <td style="font-size:12px;color:#888;">${r.neighborhood || '—'}</td>
+        <td style="font-size:12px;color:#888;">${r.permit_status || '—'}</td>
+      </tr>`;
+    });
+  }
+
+  function doSearch(q) {
+    spinner.style.display = 'block';
+    fetch(`/admin/master-list/search?q=${encodeURIComponent(q)}`)
+      .then(r => r.json())
+      .then(data => {
+        spinner.style.display = 'none';
+        countEl.textContent = `${data.total} result${data.total !== 1 ? 's' : ''} for "${q}"${data.total === 50 ? ' (showing top 50)' : ''}`;
+        renderRows(data.results);
+        wrap.style.display = 'block';
+      })
+      .catch(() => { spinner.style.display = 'none'; });
+  }
+
+  input.addEventListener('input', function() {
+    const q = this.value.trim();
+    clearTimeout(debounce);
+
+    if (q === lastQuery) return;
+    lastQuery = q;
+
+    // Trigger after first space (i.e. at least one full word typed)
+    const hasSpace = q.includes(' ');
+    const minLen   = hasSpace ? 2 : 4;   // after space: 2 chars; no space yet: wait for 4
+
+    if (q.length < minLen) {
+      wrap.style.display = 'none';
+      spinner.style.display = 'none';
+      return;
+    }
+
+    debounce = setTimeout(() => doSearch(q), 250);
+  });
+
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') clearSearch();
+  });
+
+  window.clearSearch = function() {
+    input.value = '';
+    lastQuery = '';
+    wrap.style.display = 'none';
+    spinner.style.display = 'none';
+    input.focus();
+  };
+})();
+
+// ── ZIP enrichment ────────────────────────────────────────────────────────
 function startEnrichZips() {
   const btn = document.getElementById('enrich-zips-btn');
   const panel = document.getElementById('enrich-progress');
