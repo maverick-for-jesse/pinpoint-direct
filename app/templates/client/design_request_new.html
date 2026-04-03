@@ -618,7 +618,7 @@ async function generateCopy() {
     });
     const data = await resp.json();
 
-    if (!data.ok) throw new Error(data.error || 'Generation failed');
+    if (!data.ok) throw new Error((data.error || 'Generation failed') + (data.detail ? '\n' + data.detail : ''));
 
     const copy = data.copy;
 

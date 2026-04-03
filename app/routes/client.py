@@ -582,7 +582,10 @@ def ai_copy():
         result = generate_campaign_copy(profile_dict, campaign_dict)
         return jsonify({'ok': True, 'copy': result})
     except Exception as e:
-        return jsonify({'ok': False, 'error': str(e)}), 500
+        import traceback
+        tb = traceback.format_exc()
+        print(f"AI copy error: {e}\n{tb}")
+        return jsonify({'ok': False, 'error': str(e), 'detail': tb[-500:]}), 500
 
 
 # ── Edit Design Request ────────────────────────────────────────────────────────
