@@ -543,3 +543,43 @@ def design_request_revise(dr_id):
     else:
         flash(f'Revision {rev_round} of {rev_limit} requested. Our designer will update the proof shortly.', 'info')
     return redirect(url_for('client.design_request_detail', dr_id=dr_id))
+
+
+# ── AI Copy Generator ──────────────────────────────────────────────────────────
+
+@client_bp.route('/ai-copy', methods=['POST'])
+@login_required
+@client_required
+def ai_copy():
+    """Generate headline/body/CTA suggestions from the design brief form data."""
+    from app.utils.copy_generator import generate_campaign_copy
+    from app.utils.database import get_db, db_fetchone
+
+    db = get_db()
+    profile = db_fetchone(db, 'SELECT * FROM business_profiles WHERE user_id = ?', (current_user.id,))
+    if hasattr(db, 'close'): db.close()
+
+    data = request.get_json() or {}
+
+    # Build profile dict — merge saved profile with any live form overrides
+    profile_dict = dict(profile) if profile else {}
+    for field in ['business_name', 'business_type', 'top_services', 'best_customer_description',
+                  'customer_compliment', 'competitive_advantage', 'years_in_business',
+                  'average_transaction_value']:
+        if data.get(field):
+            profile_dict[field] = data[field]
+
+    campaign_dict = {
+        'what_promoting':  data.get('products_services', ''),
+        'offer_type':      data.get('offer_type', 'special offer'),
+        'offer_detail':    data.get('offer_detail', data.get('additional_notes', '')),
+        'desired_action':  data.get('call_to_action', 'call us'),
+        'has_deadline':    bool(data.get('target_mail_date')),
+        'deadline_date':   data.get('target_mail_date', ''),
+    }
+
+    try:
+        result = generate_campaign_copy(profile_dict, campaign_dict)
+        return jsonify({'ok': True, 'copy': result})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500

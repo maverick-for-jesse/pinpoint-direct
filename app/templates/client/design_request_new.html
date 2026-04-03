@@ -361,9 +361,50 @@
       </div>
     </div>
 
-    <!-- Section 7: Additional Notes -->
+    <!-- Section 7: AI Copy Assistant -->
+    <div class="section-card" style="border:2px solid #e63946; background:linear-gradient(135deg,#fff5f5,#fff);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+        <span style="font-size:20px;">✨</span>
+        <div class="section-header" style="margin-bottom:0;">AI Copy Suggestions</div>
+        <span style="font-size:11px;background:#e63946;color:white;padding:2px 8px;border-radius:99px;font-weight:700;">BETA</span>
+      </div>
+      <div class="section-sub">Fill out sections 1–4 above, then click Generate to get AI-powered headline, body copy, and CTA suggestions for your postcard.</div>
+
+      <button type="button" id="ai-generate-btn" onclick="generateCopy()"
+              style="background:#e63946;color:white;border:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;transition:background 0.15s;"
+              onmouseover="this.style.background='#c0392b'" onmouseout="this.style.background='#e63946'">
+        ✨ Generate Copy Ideas
+      </button>
+
+      <div id="ai-loading" style="display:none;margin-top:16px;color:#888;font-size:14px;">
+        <span style="animation:spin 1s linear infinite;display:inline-block;">⚙️</span> Generating ideas...
+      </div>
+
+      <div id="ai-error" style="display:none;margin-top:12px;color:#c00;font-size:13px;"></div>
+
+      <div id="ai-results" style="display:none;margin-top:20px;">
+        <div style="font-size:13px;font-weight:600;color:#444;margin-bottom:12px;">Click any suggestion to add it to your brief:</div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-size:11px;font-weight:700;color:#e63946;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Headlines</div>
+          <div id="ai-headlines" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-size:11px;font-weight:700;color:#e63946;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Body Copy</div>
+          <div id="ai-bodies" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#e63946;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Calls to Action</div>
+          <div id="ai-ctas" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 8: Additional Notes -->
     <div class="section-card">
-      <div class="section-header">7. Additional Notes <span style="font-weight:400;font-size:14px;color:#888;">(optional)</span></div>
+      <div class="section-header">8. Additional Notes <span style="font-weight:400;font-size:14px;color:#888;">(optional)</span></div>
       <div class="section-sub">Anything else our designer should know?</div>
 
       <div class="form-group" style="margin-bottom:0;">
@@ -381,6 +422,17 @@
   </form>
 </div>
 
+<style>
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.ai-chip {
+  display:inline-block; padding:10px 14px; border:1.5px solid #e0e0e0; border-radius:8px;
+  font-size:13px; color:#333; cursor:pointer; background:white; transition:all 0.15s;
+  text-align:left; width:100%;
+}
+.ai-chip:hover { border-color:#e63946; background:#fff5f5; color:#e63946; }
+.ai-chip.selected { border-color:#e63946; background:#fff0f0; }
+</style>
+
 <script>
 function showFiles(input, targetId) {
   const el = document.getElementById(targetId);
@@ -388,6 +440,104 @@ function showFiles(input, targetId) {
   const files = Array.from(input.files);
   if (files.length === 0) { el.textContent = ''; return; }
   el.innerHTML = files.map(f => `📎 ${f.name}`).join('<br>');
+}
+
+function getFormValue(name) {
+  const el = document.querySelector(`[name="${name}"]`);
+  return el ? el.value.trim() : '';
+}
+
+function makeChip(text, targetName) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'ai-chip';
+  btn.textContent = text;
+  btn.onclick = function() {
+    const target = document.querySelector(`[name="${targetName}"]`);
+    if (!target) return;
+    // If textarea already has content, append; otherwise set
+    if (target.tagName === 'TEXTAREA') {
+      target.value = target.value ? target.value + '\n\n' + text : text;
+    } else {
+      target.value = text;
+    }
+    // Visual feedback
+    document.querySelectorAll('.ai-chip').forEach(c => {
+      if (c === btn) c.classList.toggle('selected');
+    });
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.focus();
+  };
+  return btn;
+}
+
+async function generateCopy() {
+  const btn = document.getElementById('ai-generate-btn');
+  const loading = document.getElementById('ai-loading');
+  const error = document.getElementById('ai-error');
+  const results = document.getElementById('ai-results');
+
+  // Validate minimum fields
+  const businessName = getFormValue('business_name');
+  const services = getFormValue('products_services');
+  if (!businessName && !services) {
+    error.textContent = '⚠️ Please fill in your business name and services first (sections 1–3).';
+    error.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  loading.style.display = 'block';
+  error.style.display = 'none';
+  results.style.display = 'none';
+
+  const payload = {
+    business_name:              getFormValue('business_name'),
+    business_type:              getFormValue('industry'),
+    top_services:               getFormValue('products_services'),
+    best_customer_description:  getFormValue('target_audience'),
+    competitive_advantage:      getFormValue('key_selling_points'),
+    call_to_action:             getFormValue('call_to_action'),
+    target_mail_date:           getFormValue('target_mail_date'),
+    products_services:          getFormValue('products_services'),
+    additional_notes:           getFormValue('additional_notes'),
+  };
+
+  try {
+    const resp = await fetch('{{ url_for("client.ai_copy") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+
+    if (!data.ok) throw new Error(data.error || 'Generation failed');
+
+    const copy = data.copy;
+
+    // Headlines → headline_ideas field
+    const headlinesEl = document.getElementById('ai-headlines');
+    headlinesEl.innerHTML = '';
+    (copy.headlines || []).forEach(h => headlinesEl.appendChild(makeChip(h, 'headline_ideas')));
+
+    // Bodies → key_selling_points field (client can paste into notes or selling points)
+    const bodiesEl = document.getElementById('ai-bodies');
+    bodiesEl.innerHTML = '';
+    (copy.body_copies || []).forEach(b => bodiesEl.appendChild(makeChip(b, 'key_selling_points')));
+
+    // CTAs → call_to_action field
+    const ctasEl = document.getElementById('ai-ctas');
+    ctasEl.innerHTML = '';
+    (copy.ctas || []).forEach(c => ctasEl.appendChild(makeChip(c, 'call_to_action')));
+
+    results.style.display = 'block';
+  } catch(e) {
+    error.textContent = '❌ ' + (e.message || 'Something went wrong. Please try again.');
+    error.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    loading.style.display = 'none';
+  }
 }
 </script>
 
