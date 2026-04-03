@@ -3778,8 +3778,6 @@ def master_list():
     per_page = 100
     offset = (page - 1) * per_page
 
-    where_sql = ' AND '.join(where)
-
     total_row = db_fetchone(db, f'SELECT COUNT(*) as cnt FROM master_addresses WHERE {where_sql}', tuple(params))
     total = total_row['cnt'] if total_row else 0
 
