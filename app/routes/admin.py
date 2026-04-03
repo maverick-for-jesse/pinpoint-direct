@@ -1527,9 +1527,9 @@ def lead_approve(lead_id):
                 pass
         if not api_key:
             raise ValueError("No AgentMail API key found")
-        inbox_id = 'maverickforjesse@agentmail.to'
+        inbox_id = os.getenv('AGENTMAIL_INBOX', 'info@pinpointdirect.io')
         req_lib.post(
-            f'https://api.agentmail.to/v0/inboxes/{inbox_id}/messages',
+            f'https://api.agentmail.to/v0/inboxes/{inbox_id}/messages/send',
             headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
             json={
                 'to': [lead_email],
