@@ -51,7 +51,7 @@
   {% endif %}
 
   <div class="card">
-    <form method="POST" action="{{ url_for('wizard.onboarding') }}">
+    <form method="POST" action="{{ url_for('client.campaigns') }}">
 
       <div class="section-label">About Your Business</div>
 
@@ -136,7 +136,7 @@
           {{ 'Update Profile' if profile else 'Save Profile & Start Campaign →' }}
         </button>
         {% if profile %}
-        <a href="{{ url_for('wizard.new_campaign') }}" class="btn btn-secondary">Start New Campaign</a>
+        <a href="{{ url_for('client.campaigns') }}" class="btn btn-secondary">Start New Campaign</a>
         {% endif %}
         <a href="{{ url_for('client.dashboard') }}" style="color:#999; font-size:13px; text-decoration:none;">← Back to Dashboard</a>
       </div>
