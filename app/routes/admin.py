@@ -4160,3 +4160,18 @@ def master_list_upload():
         if hasattr(db, 'close'):
             db.close()
         return redirect(url_for('admin.master_list_upload'))
+
+
+@admin_bp.route('/fix-client-user/<int:user_id>/<int:client_id>', methods=['POST'])
+@login_required
+@admin_required
+def fix_client_user(user_id, client_id):
+    """One-time fix: set client_id on a user record and their design requests."""
+    from app.utils.database import get_db, db_exec
+    db = get_db()
+    db_exec(db, 'UPDATE users SET client_id = ? WHERE id = ?', (client_id, user_id))
+    db_exec(db, 'UPDATE design_requests SET client_id = ? WHERE client_id IS NULL AND (SELECT client_id FROM users WHERE id = ?) = ?', (client_id, user_id, client_id))
+    db.commit()
+    if hasattr(db, 'close'): db.close()
+    flash(f'Fixed: user {user_id} → client_id {client_id}, design requests updated.', 'success')
+    return redirect(url_for('admin.clients'))
