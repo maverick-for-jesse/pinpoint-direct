@@ -321,15 +321,28 @@ def _save_design_files(file_list, folder):
 @login_required
 @client_required
 def design_requests():
+    from app.utils.database import get_db, db_fetchall
     client_id = getattr(current_user, 'client_id', None)
     drs = []
     if client_id:
-        try:
-            all_drs = get_records('design_requests')
-            drs = [r for r in all_drs if r['fields'].get('client_id') == client_id]
-            drs = sorted(drs, key=lambda x: x.get('createdTime', ''), reverse=True)
-        except Exception:
-            drs = []
+        db = get_db()
+        rows = db_fetchall(db,
+            'SELECT * FROM design_requests WHERE client_id = ? ORDER BY created_at DESC',
+            (client_id,)
+        )
+        if hasattr(db, 'close'): db.close()
+        # Wrap rows in the fields-dict format the template expects (Title Case keys)
+        def row_to_fields(r):
+            return {
+                'Status':         r.get('status', 'Draft'),
+                'Business Name':  r.get('business_name', ''),
+                'Campaign Goal':  r.get('campaign_goal', ''),
+                'Submitted At':   str(r.get('submitted_at') or r.get('created_at') or ''),
+                'Revision Round': r.get('revision_round', 0),
+                'Revision Limit': r.get('revision_limit', 2),
+                'client_id':      r.get('client_id'),
+            }
+        drs = [{'id': r['id'], 'fields': row_to_fields(r)} for r in rows]
     return render_template('client/design_requests.html', design_requests=drs)
 
 
