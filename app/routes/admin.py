@@ -3360,6 +3360,109 @@ def master_list_delete_batch():
     return redirect(url_for('admin.master_list'))
 
 
+@admin_bp.route('/master-list/save-as-list', methods=['POST'])
+@login_required
+def master_list_save_as_list():
+    """
+    Save the current filtered master list selection as a mailing list.
+    Accepts the same filter params as master_list() view, plus a list_name.
+    """
+    from app.utils.database import get_db, db_fetchall, db_exec, db_insert
+
+    list_name   = request.form.get('list_name', '').strip()
+    county      = request.form.get('county', '')
+    list_type   = request.form.get('list_type', '')
+    permit_cat  = request.form.get('permit_category', '')
+    upload_batch= request.form.get('upload_batch', '')
+    tier        = request.form.get('tier', '')
+    neighborhood= request.form.get('neighborhood', '')
+    year_built_max = request.form.get('year_built_max', '')
+    notes       = request.form.get('notes', '').strip()
+
+    if not list_name:
+        flash('Please enter a name for the mailing list.', 'error')
+        return redirect(url_for('admin.master_list'))
+
+    # Build the same WHERE clause as master_list()
+    where = ['1=1']
+    params = []
+    if county:
+        where.append('county = ?'); params.append(county)
+    if list_type:
+        where.append('list_type = ?'); params.append(list_type)
+    if permit_cat:
+        where.append('permit_category = ?'); params.append(permit_cat)
+    if upload_batch:
+        where.append('upload_batch = ?'); params.append(upload_batch)
+    if tier:
+        where.append('tier = ?'); params.append(tier)
+    if neighborhood:
+        where.append('neighborhood = ?'); params.append(neighborhood)
+    if year_built_max:
+        try:
+            where.append('year_built <= ?'); params.append(int(year_built_max))
+        except ValueError:
+            pass
+
+    where_sql = ' AND '.join(where)
+
+    db = get_db()
+    try:
+        rows = db_fetchall(db,
+            f'SELECT * FROM master_addresses WHERE {where_sql} ORDER BY created_at DESC',
+            tuple(params)
+        )
+
+        if not rows:
+            flash('No records match the current filters — nothing to save.', 'error')
+            if hasattr(db, 'close'): db.close()
+            return redirect(url_for('admin.master_list'))
+
+        # Build a description of what filters were applied
+        filter_parts = []
+        if county: filter_parts.append(f'County: {county}')
+        if list_type: filter_parts.append(f'Type: {list_type}')
+        if permit_cat: filter_parts.append(f'Category: {permit_cat}')
+        if upload_batch: filter_parts.append(f'Batch: {upload_batch}')
+        if tier: filter_parts.append(f'Tier: {tier}')
+        if neighborhood: filter_parts.append(f'Neighborhood: {neighborhood}')
+        if year_built_max: filter_parts.append(f'Built ≤ {year_built_max}')
+        auto_notes = ('Filters: ' + ', '.join(filter_parts)) if filter_parts else 'All master list records'
+        final_notes = notes or auto_notes
+
+        # Create the mailing list record
+        list_id = db_insert(db,
+            'INSERT INTO mailing_lists (name, total, notes) VALUES (?,?,?)',
+            (list_name, len(rows), final_notes)
+        )
+
+        # Insert all matching addresses as list_records
+        ph = '%s' if hasattr(db, 'cursor') else '?'
+        insert_sql = f"""
+            INSERT INTO list_records
+            (list_id, first_name, last_name, address1, address2, city, state, zip)
+            VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph})
+        """
+        from app.utils.database import db_executemany
+        db_executemany(db, insert_sql, [
+            (list_id,
+             r.get('first_name') or '', r.get('last_name') or '',
+             r.get('address1') or '', r.get('address2') or '',
+             r.get('city') or '', r.get('state') or 'GA', r.get('zip') or '')
+            for r in rows
+        ])
+        db.commit()
+        if hasattr(db, 'close'): db.close()
+
+        flash(f'✅ Saved "{list_name}" — {len(rows):,} addresses added to mailing lists.', 'success')
+        return redirect(url_for('admin.list_detail', list_id=list_id))
+
+    except Exception as e:
+        if hasattr(db, 'close'): db.close()
+        flash(f'Error saving list: {e}', 'error')
+        return redirect(url_for('admin.master_list'))
+
+
 @admin_bp.route('/master-list/search')
 @login_required
 def master_list_search():

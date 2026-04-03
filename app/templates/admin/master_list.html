@@ -124,11 +124,49 @@
       <input type="number" name="year_built_max" class="form-control" style="width:100px;"
              placeholder="e.g. 2000" value="{{ filters.year_built_max }}">
     </div>
-    <div style="display: flex; gap: 8px;">
+    <div style="display: flex; gap: 8px; align-items: flex-end;">
       <button type="submit" class="btn btn-primary">Apply</button>
       <a href="{{ url_for('admin.master_list') }}" class="btn btn-secondary">Clear</a>
+      <button type="button" class="btn btn-secondary"
+              style="background:#eaf4ea;color:#1a6e2e;border-color:#b6ddb6;font-weight:600;"
+              onclick="openSaveModal()">💾 Save as Mailing List</button>
     </div>
   </form>
+</div>
+
+{# ── Save as Mailing List Modal ── #}
+<div id="save-list-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:12px; padding:32px 36px; max-width:480px; width:90%; box-shadow:0 8px 40px rgba(0,0,0,.18); position:relative;">
+    <h3 style="margin:0 0 6px; font-size:18px;">💾 Save as Mailing List</h3>
+    <p id="save-modal-desc" style="color:#666; font-size:13px; margin:0 0 20px;"></p>
+    <form method="post" action="{{ url_for('admin.master_list_save_as_list') }}" id="save-list-form">
+      {# Hidden inputs — populated by JS from current filter state #}
+      <input type="hidden" name="county" id="sm-county">
+      <input type="hidden" name="list_type" id="sm-list-type">
+      <input type="hidden" name="permit_category" id="sm-permit-category">
+      <input type="hidden" name="upload_batch" id="sm-upload-batch">
+      <input type="hidden" name="tier" id="sm-tier">
+      <input type="hidden" name="neighborhood" id="sm-neighborhood">
+      <input type="hidden" name="year_built_max" id="sm-year-built-max">
+
+      <label class="form-label" style="font-weight:600;">List Name <span style="color:#c00">*</span></label>
+      <input type="text" name="list_name" id="sm-list-name" class="form-control"
+             placeholder="e.g. Pool Permits Apr 2026 — Newnan"
+             style="margin-bottom:14px; font-size:15px;" required>
+
+      <label class="form-label" style="font-weight:600;">Notes <span style="color:#aaa;font-weight:400;">(optional)</span></label>
+      <input type="text" name="notes" class="form-control"
+             placeholder="e.g. Target for pool fence campaign"
+             style="margin-bottom:22px;">
+
+      <div style="display:flex; gap:12px; justify-content:flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="closeSaveModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background:#1a6e2e;border-color:#1a6e2e;">
+          ✅ Save List
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
 
 {# ── Results Count ── #}
@@ -289,6 +327,59 @@
 </div>
 
 <script>
+// ── Save as Mailing List modal ────────────────────────────────────────────
+function openSaveModal() {
+  const modal = document.getElementById('save-list-modal');
+  // Copy current filter values into hidden inputs
+  const qs = new URLSearchParams(window.location.search);
+  document.getElementById('sm-county').value           = qs.get('county') || '';
+  document.getElementById('sm-list-type').value        = qs.get('list_type') || '';
+  document.getElementById('sm-permit-category').value  = qs.get('permit_category') || '';
+  document.getElementById('sm-upload-batch').value     = qs.get('upload_batch') || '';
+  document.getElementById('sm-tier').value             = qs.get('tier') || '';
+  document.getElementById('sm-neighborhood').value     = qs.get('neighborhood') || '';
+  document.getElementById('sm-year-built-max').value   = qs.get('year_built_max') || '';
+
+  // Build description
+  const total = '{{ total }}'.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const parts = [];
+  if (qs.get('county'))           parts.push('County: ' + qs.get('county'));
+  if (qs.get('list_type'))        parts.push('Type: ' + qs.get('list_type'));
+  if (qs.get('permit_category'))  parts.push('Category: ' + qs.get('permit_category'));
+  if (qs.get('upload_batch'))     parts.push('Batch: ' + qs.get('upload_batch'));
+  if (qs.get('tier'))             parts.push('Tier: ' + qs.get('tier'));
+  if (qs.get('neighborhood'))     parts.push('Neighborhood: ' + qs.get('neighborhood'));
+  if (qs.get('year_built_max'))   parts.push('Built ≤ ' + qs.get('year_built_max'));
+
+  const desc = parts.length
+    ? `This will save <strong>${total} records</strong> matching: ${parts.join(', ')}.`
+    : `This will save <strong>all ${total} records</strong> from the master list.`;
+  document.getElementById('save-modal-desc').innerHTML = desc;
+
+  // Suggest a name
+  const nameParts = [];
+  if (qs.get('permit_category')) nameParts.push(qs.get('permit_category'));
+  if (qs.get('list_type') === 'new_mover') nameParts.push('New Movers');
+  if (qs.get('tier')) nameParts.push(qs.get('tier'));
+  if (qs.get('neighborhood')) nameParts.push(qs.get('neighborhood'));
+  if (qs.get('upload_batch')) nameParts.push(qs.get('upload_batch'));
+  if (!nameParts.length) nameParts.push('Master List');
+  nameParts.push(new Date().toLocaleDateString('en-US', {month:'short', year:'numeric'}));
+  document.getElementById('sm-list-name').value = nameParts.join(' — ');
+
+  modal.style.display = 'flex';
+  setTimeout(() => document.getElementById('sm-list-name').select(), 50);
+}
+
+function closeSaveModal() {
+  document.getElementById('save-list-modal').style.display = 'none';
+}
+
+// Close modal on backdrop click
+document.getElementById('save-list-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeSaveModal();
+});
+
 // ── Real-time master list search ──────────────────────────────────────────
 (function() {
   const input    = document.getElementById('master-search');
