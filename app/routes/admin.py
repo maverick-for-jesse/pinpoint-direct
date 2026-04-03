@@ -3337,6 +3337,29 @@ def master_list_wipe():
     return redirect(url_for('admin.master_list'))
 
 
+@admin_bp.route('/master-list/delete-batch', methods=['POST'])
+@login_required
+def master_list_delete_batch():
+    """Delete all master_addresses records belonging to a specific upload batch."""
+    from app.utils.database import get_db, db_exec, db_fetchone
+    batch = request.form.get('batch', '').strip()
+    if not batch:
+        flash('No batch specified.', 'error')
+        return redirect(url_for('admin.master_list'))
+    db = get_db()
+    try:
+        count_row = db_fetchone(db, 'SELECT COUNT(*) as cnt FROM master_addresses WHERE upload_batch = ?', (batch,))
+        cnt = count_row['cnt'] if count_row else 0
+        db_exec(db, 'DELETE FROM master_addresses WHERE upload_batch = ?', (batch,))
+        db.commit()
+        if hasattr(db, 'close'):
+            db.close()
+        flash(f'✅ Deleted {cnt:,} records from batch "{batch}".', 'success')
+    except Exception as e:
+        flash(f'Error: {e}', 'error')
+    return redirect(url_for('admin.master_list'))
+
+
 @admin_bp.route('/master-list/enrich-zips', methods=['POST'])
 @login_required
 def master_list_enrich_zips():
