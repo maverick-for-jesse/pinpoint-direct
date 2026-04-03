@@ -323,44 +323,63 @@
 
       <div class="form-group">
         <label class="form-label">Logo File(s)</label>
-        <div class="file-upload-area" id="logo-drop">
-          <input type="file" name="logo_files" multiple
+        <div class="file-upload-area" id="logo-drop" onclick="document.getElementById('logo-input').click()">
+          <input type="file" id="logo-input" multiple style="display:none"
                  accept=".jpg,.jpeg,.png,.pdf,.ai,.eps,.svg,.tif,.tiff,.psd"
-                 onchange="showFiles(this, 'logo-names')">
+                 onchange="addFiles(this, 'logo')">
           <div class="upload-icon">🖼️</div>
-          <p><strong>Click to select files</strong> or drag and drop</p>
-          <p style="color:#aaa;font-size:12px;">Hold Ctrl / Cmd to select multiple files at once</p>
-          <p>Logo in any format — vector preferred (AI, EPS, SVG)</p>
-          <div id="logo-names" style="margin-top:8px;font-size:12px;color:#e63946;text-align:left;"></div>
+          <p><strong>Click to add files</strong> or drag and drop</p>
+          <p style="color:#aaa;font-size:12px;">Logo in any format — vector preferred (AI, EPS, SVG)</p>
+          <div id="logo-list" style="margin-top:10px;"></div>
+          <div id="logo-add" style="display:none;margin-top:8px;">
+            <button type="button" onclick="event.stopPropagation();document.getElementById('logo-input').click()"
+              style="font-size:12px;color:#e63946;background:none;border:1px dashed #e63946;border-radius:6px;padding:4px 12px;cursor:pointer;">
+              + Add more files
+            </button>
+          </div>
         </div>
+        <div id="logo-hidden-inputs"></div>
       </div>
 
       <div class="form-group">
         <label class="form-label">Product / Marketing Images <span class="optional">(optional)</span></label>
-        <div class="file-upload-area">
-          <input type="file" name="product_files" multiple
+        <div class="file-upload-area" id="product-drop" onclick="document.getElementById('product-input').click()">
+          <input type="file" id="product-input" multiple style="display:none"
                  accept=".jpg,.jpeg,.png,.pdf,.ai,.eps,.svg,.tif,.tiff,.psd"
-                 onchange="showFiles(this, 'product-names')">
+                 onchange="addFiles(this, 'product')">
           <div class="upload-icon">📸</div>
-          <p><strong>Click to select files</strong> or drag and drop</p>
-          <p style="color:#aaa;font-size:12px;">Hold Ctrl / Cmd to select multiple files at once</p>
-          <p>Product photos, lifestyle images, anything you want featured</p>
-          <div id="product-names" style="margin-top:8px;font-size:12px;color:#e63946;text-align:left;"></div>
+          <p><strong>Click to add files</strong> or drag and drop</p>
+          <p style="color:#aaa;font-size:12px;">Product photos, lifestyle images, anything you want featured</p>
+          <div id="product-list" style="margin-top:10px;"></div>
+          <div id="product-add" style="display:none;margin-top:8px;">
+            <button type="button" onclick="event.stopPropagation();document.getElementById('product-input').click()"
+              style="font-size:12px;color:#e63946;background:none;border:1px dashed #e63946;border-radius:6px;padding:4px 12px;cursor:pointer;">
+              + Add more files
+            </button>
+          </div>
         </div>
+        <div id="product-hidden-inputs"></div>
       </div>
 
       <div class="form-group">
         <label class="form-label">Inspiration / Examples <span class="optional">(optional)</span></label>
-        <div class="file-upload-area">
-          <input type="file" name="inspiration_files" multiple
+        <div class="file-upload-area" id="inspi-drop" onclick="document.getElementById('inspi-input').click()">
+          <input type="file" id="inspi-input" multiple style="display:none"
                  accept=".jpg,.jpeg,.png,.pdf,.ai,.eps,.svg,.tif,.tiff,.psd"
-                 onchange="showFiles(this, 'inspi-names')">
+                 onchange="addFiles(this, 'inspi')">
           <div class="upload-icon">💡</div>
-          <p><strong>Click to select files</strong> or drag and drop</p>
-          <p style="color:#aaa;font-size:12px;">Hold Ctrl / Cmd to select multiple files at once</p>
-          <p>Postcards, ads, or designs you like — give the designer direction</p>
-          <div id="inspi-names" style="margin-top:8px;font-size:12px;color:#e63946;text-align:left;"></div>
+          <p><strong>Click to add files</strong> or drag and drop</p>
+          <p style="color:#aaa;font-size:12px;">Postcards, ads, or designs you like — give the designer direction</p>
+          <div id="inspi-list" style="margin-top:10px;"></div>
+          <div id="inspi-add" style="display:none;margin-top:8px;">
+            <button type="button" onclick="event.stopPropagation();document.getElementById('inspi-input').click()"
+              style="font-size:12px;color:#e63946;background:none;border:1px dashed #e63946;border-radius:6px;padding:4px 12px;cursor:pointer;">
+              + Add more files
+            </button>
+          </div>
         </div>
+        <div id="inspi-hidden-inputs"></div>
+        
       </div>
     </div>
 
@@ -437,15 +456,96 @@
 </style>
 
 <script>
-function showFiles(input, targetId) {
-  const el = document.getElementById(targetId);
-  if (!el) return;
-  const files = Array.from(input.files);
-  if (files.length === 0) { el.innerHTML = ''; return; }
-  const fmt = b => b < 1048576 ? (b/1024).toFixed(0)+'KB' : (b/1048576).toFixed(1)+'MB';
-  el.innerHTML = `<strong style="color:#333;">${files.length} file${files.length>1?'s':''} selected:</strong><br>` +
-    files.map(f => `📎 ${f.name} <span style="color:#aaa;">(${fmt(f.size)})</span>`).join('<br>');
+// ── Multi-source file accumulator ─────────────────────────────────────────
+// Stores accumulated File objects per slot
+const fileStore = { logo: [], product: [], inspi: [] };
+
+// fieldName mapping
+const fieldNames = { logo: 'logo_files', product: 'product_files', inspi: 'inspiration_files' };
+
+function addFiles(input, slot) {
+  const newFiles = Array.from(input.files);
+  if (!newFiles.length) return;
+
+  // Deduplicate by name+size
+  const existing = new Set(fileStore[slot].map(f => f.name + f.size));
+  newFiles.forEach(f => {
+    if (!existing.has(f.name + f.size)) fileStore[slot].push(f);
+  });
+
+  // Reset input so same file can be re-added if removed
+  input.value = '';
+
+  renderFileList(slot);
 }
+
+function removeFile(slot, idx) {
+  fileStore[slot].splice(idx, 1);
+  renderFileList(slot);
+}
+
+function renderFileList(slot) {
+  const listEl  = document.getElementById(slot + '-list');
+  const addEl   = document.getElementById(slot + '-add');
+  const hiddenEl = document.getElementById(slot + '-hidden-inputs');
+  const files   = fileStore[slot];
+
+  if (!files.length) {
+    listEl.innerHTML = '';
+    addEl.style.display = 'none';
+    hiddenEl.innerHTML = '';
+    return;
+  }
+
+  const fmt = b => b < 1048576 ? (b/1024).toFixed(0)+'KB' : (b/1048576).toFixed(1)+'MB';
+
+  listEl.innerHTML = `
+    <div style="font-size:12px;font-weight:700;color:#333;margin-bottom:6px;">
+      ${files.length} file${files.length>1?'s':''} selected
+    </div>` +
+    files.map((f, i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:4px 6px;background:#f9f9f9;border-radius:5px;margin-bottom:4px;font-size:12px;">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📎 ${f.name}</span>
+        <span style="color:#aaa;white-space:nowrap;">${fmt(f.size)}</span>
+        <button type="button" onclick="removeFile('${slot}',${i})"
+          style="background:none;border:none;color:#ccc;cursor:pointer;font-size:14px;padding:0 2px;line-height:1;"
+          onmouseover="this.style.color='#c00'" onmouseout="this.style.color='#ccc'">✕</button>
+      </div>`).join('');
+
+  addEl.style.display = 'block';
+
+  // Rebuild hidden file inputs using a DataTransfer to transfer files to a real input
+  // We use a single hidden input with the accumulated FileList via DataTransfer
+  hiddenEl.innerHTML = '';
+  const dt = new DataTransfer();
+  files.forEach(f => dt.items.add(f));
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.name = fieldNames[slot];
+  inp.multiple = true;
+  inp.style.display = 'none';
+  inp.files = dt.files;  // assign accumulated FileList
+  hiddenEl.appendChild(inp);
+}
+
+// Drag and drop support
+['logo','product','inspi'].forEach(slot => {
+  const drop = document.getElementById(slot + '-drop');
+  if (!drop) return;
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.style.borderColor='#e63946'; });
+  drop.addEventListener('dragleave', () => { drop.style.borderColor=''; });
+  drop.addEventListener('drop', e => {
+    e.preventDefault();
+    drop.style.borderColor = '';
+    const files = Array.from(e.dataTransfer.files);
+    const existing = new Set(fileStore[slot].map(f => f.name + f.size));
+    files.forEach(f => { if (!existing.has(f.name + f.size)) fileStore[slot].push(f); });
+    renderFileList(slot);
+  });
+});
+
+// Legacy — kept for any remaining calls
+function showFiles() {}
 
 function getFormValue(name) {
   const el = document.querySelector(`[name="${name}"]`);
