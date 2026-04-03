@@ -1,12 +1,12 @@
 """
-mail_merge_pdf.py — Generate a duplex 11×17 print-ready PDF for 6×9 postcard mail merge.
+mail_merge_pdf.py — Generate a duplex 11×17 print-ready PDF for 5.25×8.5 postcard mail merge.
 
-Layout:
+Layout: 4-up gang print on 11×17 sheet (2 cols × 2 rows)
   Page size: 11" × 17" = 792pt × 1224pt
-  Card bleed size: 6.41" × 9.48" = 461.52pt × 682.56pt
-  Card 1 top edge at 1" from page top  → reportlab y_bottom = 469.44pt
-  Card 2 top edge at 9" from page top  → reportlab y_bottom = -106.56pt (bleed clips at bottom, intentional)
-  Horizontal center: x = (792 - 461.52) / 2 = 165.24pt
+  Card size: 5.25" × 8.5" = 378pt × 612pt
+  Card bleed: +0.125" each side → 5.5" × 8.75" = 396pt × 630pt
+  Col 1 X: 0pt  Col 2 X: 396pt  (two cards span 792pt = 11")
+  Row 1 Y (top): 594pt  Row 2 Y (bottom): 0pt  (two rows span 1224pt = 17")
 """
 
 from reportlab.pdfgen import canvas
@@ -18,18 +18,22 @@ import os
 PAGE_W = 792.0   # 11"
 PAGE_H = 1224.0  # 17"
 
-# Card dimensions (points) — LANDSCAPE orientation: 9.48" wide × 6.41" tall
-CARD_W = 682.56  # 9.48"
-CARD_H = 461.52  # 6.41"
+# Card dimensions with bleed (points) — 5.5" × 8.75" with bleed
+CARD_W = 396.0   # 5.5" with bleed
+CARD_H = 630.0   # 8.75" with bleed
 
-# Card horizontal position (centered on 11" page)
-CARD_X = (PAGE_W - CARD_W) / 2  # (792 - 682.56) / 2 = 54.72pt
+# 4-up positions: 2 cols × 2 rows
+CARD_POSITIONS = [
+    (0.0,    594.0),   # top-left
+    (396.0,  594.0),   # top-right
+    (0.0,    0.0),     # bottom-left
+    (396.0,  0.0),     # bottom-right
+]
 
-# Card vertical positions (reportlab bottom-left origin)
-# Card 1: top edge at 1" from page top
-CARD1_Y = PAGE_H - 72.0 - CARD_H    # 1224 - 72 - 461.52 = 690.48pt
-# Card 2: top edge at 9" from page top
-CARD2_Y = PAGE_H - 648.0 - CARD_H   # 1224 - 648 - 461.52 = 114.48pt (fits on page)
+# Legacy 2-up compat aliases
+CARD_X  = 0.0
+CARD1_Y = 594.0
+CARD2_Y = 0.0
 
 
 def _get_address_lines(record, column_map):

@@ -175,7 +175,7 @@ def campaign_new():
         fields = {
             'Campaign Name': request.form.get('campaign_name', '').strip(),
             'Client': request.form.get('client', '').strip(),
-            'Postcard Size': request.form.get('postcard_size', '6x9'),
+            'Postcard Size': request.form.get('postcard_size', '5.25x8.5'),
             'Status': request.form.get('status', 'Draft'),
             'Notes': request.form.get('notes', '').strip(),
         }
@@ -222,7 +222,7 @@ def campaign_edit(record_id):
         fields = {
             'Campaign Name': request.form.get('campaign_name', '').strip(),
             'Client': request.form.get('client', '').strip(),
-            'Postcard Size': request.form.get('postcard_size', '6x9'),
+            'Postcard Size': request.form.get('postcard_size', '5.25x8.5'),
             'Status': request.form.get('status', 'Draft'),
             'Notes': request.form.get('notes', '').strip(),
         }

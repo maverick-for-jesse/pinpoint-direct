@@ -140,7 +140,7 @@ def _row_to_record(table, row):
         fields = {
             'Campaign Name':      r.get('name') or '',
             'Client':             r.get('client_name') or '',
-            'Postcard Size':      r.get('postcard_size') or '6x9',
+            'Postcard Size':      r.get('postcard_size') or '5.25x8.5',
             'Status':             r.get('status') or 'Draft',
             'Piece Count':        r.get('piece_count') or 0,
             'Mail Date':          _date_str(r.get('mail_date')),

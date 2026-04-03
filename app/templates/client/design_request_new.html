@@ -141,10 +141,10 @@
 
   <!-- Postcard size banner -->
   <div class="size-banner">
-    <div class="size-badge">6 × 9</div>
+    <div class="size-badge">5.25 × 8.5</div>
     <div>
-      <strong>Standard Flat Mailer — 6×9 inches</strong>
-      <p>All design requests are for our standard 6×9 postcard format — the most effective direct mail size.</p>
+      <strong>Standard Flat Mailer — 5.25×8.5 inches</strong>
+      <p>All design requests are for our standard 5.25×8.5 postcard format — the most effective direct mail size.</p>
     </div>
   </div>
 
@@ -275,19 +275,43 @@
       </div>
     </div>
 
-    <!-- Section 5: Mailing List -->
+    <!-- Section 5: Mailing List Targeting -->
     <div class="section-card">
-      <div class="section-header">5. Mailing List</div>
-      <div class="section-sub">Pinpoint will source and build your targeted mailing list. Tell us who you want to reach.</div>
+      <div class="section-header">5. Mailing List &amp; Targeting</div>
+      <div class="section-sub">Tell us who you want to reach — we'll build a precision-targeted list for you, or we can mail to a list you provide.</div>
 
-      <input type="hidden" name="mailing_list_status" value="Need one">
+      <div class="form-group">
+        <label class="form-label">Mailing List Source</label>
+        <div class="radio-group">
+          <label class="radio-option">
+            <input type="radio" name="mailing_list_status" value="Need one" checked>
+            <div>
+              <strong>Pinpoint will build my list</strong>
+              <div style="font-size:12px;color:#888;margin-top:2px;">We'll source a targeted list based on your criteria — homeowners, new movers, by ZIP code, permit activity, and more.</div>
+            </div>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="mailing_list_status" value="Have one">
+            <div>
+              <strong>I have my own list</strong>
+              <div style="font-size:12px;color:#888;margin-top:2px;">You'll provide a CSV or spreadsheet of recipient addresses after submitting.</div>
+            </div>
+          </label>
+        </div>
+      </div>
 
-      <div class="form-group" style="margin-top:16px;">
+      <div class="form-group">
+        <label class="form-label">Target ZIP Codes or Neighborhoods <span class="optional">(optional)</span></label>
+        <input type="text" name="target_zips" class="form-control"
+               placeholder="e.g. 30265, 30263, Oak Hill, Riverside, within 5 miles of downtown">
+        <p class="form-hint">Comma-separated ZIP codes, neighborhood names, or a general area description.</p>
+      </div>
+
+      <div class="form-group">
         <label class="form-label">Targeting Details</label>
-        <textarea name="mailing_list_targeting" rows="4"
-          placeholder="Examples: neighborhoods (Oak Hill, Riverside), new movers in ZIP 30265, homeowners who pulled permits in the last 6 months, households within 5 miles of our location..."
-          style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:14px;resize:vertical;font-family:inherit;"></textarea>
-        <span style="font-size:12px;color:#888;margin-top:4px;display:block;">Be as specific as you'd like — neighborhood names, ZIP codes, mover data, permit activity, home value ranges, etc.</span>
+        <textarea name="mailing_list_targeting" class="form-control" rows="4"
+          placeholder="Describe who you want to reach. Examples:&#10;• Homeowners in ZIP 30265 who pulled permits in the last 6 months&#10;• New movers (moved in within 90 days) in Coweta County&#10;• Households with home value $250k–$500k within 5 miles of our shop&#10;• Families in specific neighborhoods: Oak Hill, Riverside, Summergrove"></textarea>
+        <p class="form-hint">Be as specific as you'd like — we can filter by mover status, home value, permit activity, neighborhood, and more.</p>
       </div>
     </div>
 

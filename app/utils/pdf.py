@@ -12,14 +12,14 @@ except Exception:
 # Postcard dimensions in points (1 inch = 72pt)
 SIZES = {
     '4x6':  {'w': 432, 'h': 288},   # 6" x 4"
-    '6x9':  {'w': 648, 'h': 432},   # 9" x 6"
+    '5.25x8.5': {'w': 612, 'h': 378},   # 9" x 6"
     '6x11': {'w': 792, 'h': 432},   # 11" x 6"
 }
 
 
-def render_postcard_html(side_data, size='6x9'):
+def render_postcard_html(side_data, size='5.25x8.5'):
     """Build HTML string for one side of the postcard."""
-    dims = SIZES.get(size, SIZES['6x9'])
+    dims = SIZES.get(size, SIZES['5.25x8.5'])
     w_pt = dims['w']
     h_pt = dims['h']
 
@@ -68,7 +68,7 @@ def render_postcard_html(side_data, size='6x9'):
     return html
 
 
-def generate_postcard_pdf(front_data, back_data, size='6x9', output_dir=None):
+def generate_postcard_pdf(front_data, back_data, size='5.25x8.5', output_dir=None):
     """Generate a 2-page PDF (front + back) and return the file path."""
     if not WEASYPRINT_AVAILABLE:
         raise RuntimeError("WeasyPrint is not installed.")
@@ -83,7 +83,7 @@ def generate_postcard_pdf(front_data, back_data, size='6x9', output_dir=None):
     front_html = render_postcard_html(front_data, size)
     back_html = render_postcard_html(back_data, size)
 
-    dims = SIZES.get(size, SIZES['6x9'])
+    dims = SIZES.get(size, SIZES['5.25x8.5'])
     page_css = CSS(string=f"@page {{ size: {dims['w']}pt {dims['h']}pt; margin: 0; }}")
 
     from weasyprint import HTML as WPHTML

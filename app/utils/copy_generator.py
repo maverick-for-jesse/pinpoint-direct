@@ -142,7 +142,7 @@ def generate_postcard_copy(business_name, business_type, offer_description, targ
     """
     provider, api_key = get_ai_provider()
 
-    prompt = f"""You are an expert direct mail copywriter specializing in 6x9 postcards for local businesses.
+    prompt = f"""You are an expert direct mail copywriter specializing in 5.25x8.5 postcards for local businesses.
 Generate compelling postcard copy that gets recipients to take action.
 For a {business_type} called "{business_name}" with this offer: {offer_description}
 Target audience: {target_audience}
@@ -211,7 +211,7 @@ Return ONLY valid JSON with this exact structure:
     "style_notes": "Different design direction"
   }},
   "compliance_notes": ["note1", "note2"],
-  "recommended_size": "6x9"
+  "recommended_size": "5.25x8.5"
 }}"""
 
     if provider == 'claude':
