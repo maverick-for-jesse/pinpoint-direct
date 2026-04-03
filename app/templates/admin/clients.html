@@ -38,8 +38,13 @@
               <span class="badge badge-gray">{{ status }}</span>
             {% endif %}
           </td>
-          <td>
+          <td style="display:flex; gap:8px; align-items:center;">
             <a href="{{ url_for('admin.client_detail', record_id=c.id) }}" class="btn btn-secondary" style="padding: 5px 12px; font-size: 12px;">View</a>
+            <form method="post" action="{{ url_for('admin.client_delete', record_id=c.id) }}"
+                  onsubmit="return confirm('Delete this client and all their portal users? This cannot be undone.');" style="margin:0;">
+              <button type="submit" style="background:none;border:none;cursor:pointer;color:#ccc;font-size:16px;padding:2px 4px;line-height:1;"
+                      onmouseover="this.style.color='#c00'" onmouseout="this.style.color='#ccc'" title="Delete client">🗑</button>
+            </form>
           </td>
         </tr>
         {% endfor %}

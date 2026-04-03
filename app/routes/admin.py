@@ -134,6 +134,24 @@ def client_detail(record_id):
                            invoices=invoices)
 
 
+@admin_bp.route('/clients/<int:record_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def client_delete(record_id):
+    from app.utils.database import get_db, db_exec
+    db = get_db()
+    try:
+        db_exec(db, 'DELETE FROM users WHERE client_id = ?', (record_id,))
+        db_exec(db, 'DELETE FROM clients WHERE id = ?', (record_id,))
+        db.commit()
+        if hasattr(db, 'close'): db.close()
+        flash('Client deleted.', 'success')
+    except Exception as e:
+        if hasattr(db, 'close'): db.close()
+        flash(f'Error deleting client: {e}', 'error')
+    return redirect(url_for('admin.clients'))
+
+
 @admin_bp.route('/clients/<int:record_id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
