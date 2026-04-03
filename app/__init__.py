@@ -31,6 +31,7 @@ def create_app():
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-me')
     app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
     app.config['EXPORT_FOLDER'] = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'exports')
+    app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB — supports many large files
 
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'

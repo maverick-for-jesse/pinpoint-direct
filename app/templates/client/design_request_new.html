@@ -325,12 +325,13 @@
         <label class="form-label">Logo File(s)</label>
         <div class="file-upload-area" id="logo-drop">
           <input type="file" name="logo_files" multiple
-                 accept=".jpg,.jpeg,.png,.pdf,.ai,.eps,.svg,.tif,.tiff"
+                 accept=".jpg,.jpeg,.png,.pdf,.ai,.eps,.svg,.tif,.tiff,.psd"
                  onchange="showFiles(this, 'logo-names')">
           <div class="upload-icon">🖼️</div>
-          <p><strong>Click to upload</strong> or drag and drop</p>
-          <p>Your logo in any format — vector preferred (AI, EPS, SVG)</p>
-          <div id="logo-names" style="margin-top:8px;font-size:12px;color:#e63946;"></div>
+          <p><strong>Click to select files</strong> or drag and drop</p>
+          <p style="color:#aaa;font-size:12px;">Hold Ctrl / Cmd to select multiple files at once</p>
+          <p>Logo in any format — vector preferred (AI, EPS, SVG)</p>
+          <div id="logo-names" style="margin-top:8px;font-size:12px;color:#e63946;text-align:left;"></div>
         </div>
       </div>
 
@@ -338,12 +339,13 @@
         <label class="form-label">Product / Marketing Images <span class="optional">(optional)</span></label>
         <div class="file-upload-area">
           <input type="file" name="product_files" multiple
-                 accept=".jpg,.jpeg,.png,.pdf,.ai,.eps,.svg,.tif,.tiff"
+                 accept=".jpg,.jpeg,.png,.pdf,.ai,.eps,.svg,.tif,.tiff,.psd"
                  onchange="showFiles(this, 'product-names')">
           <div class="upload-icon">📸</div>
-          <p><strong>Click to upload</strong> or drag and drop</p>
+          <p><strong>Click to select files</strong> or drag and drop</p>
+          <p style="color:#aaa;font-size:12px;">Hold Ctrl / Cmd to select multiple files at once</p>
           <p>Product photos, lifestyle images, anything you want featured</p>
-          <div id="product-names" style="margin-top:8px;font-size:12px;color:#e63946;"></div>
+          <div id="product-names" style="margin-top:8px;font-size:12px;color:#e63946;text-align:left;"></div>
         </div>
       </div>
 
@@ -351,12 +353,13 @@
         <label class="form-label">Inspiration / Examples <span class="optional">(optional)</span></label>
         <div class="file-upload-area">
           <input type="file" name="inspiration_files" multiple
-                 accept=".jpg,.jpeg,.png,.pdf,.ai,.eps,.svg,.tif,.tiff"
+                 accept=".jpg,.jpeg,.png,.pdf,.ai,.eps,.svg,.tif,.tiff,.psd"
                  onchange="showFiles(this, 'inspi-names')">
           <div class="upload-icon">💡</div>
-          <p><strong>Click to upload</strong> or drag and drop</p>
+          <p><strong>Click to select files</strong> or drag and drop</p>
+          <p style="color:#aaa;font-size:12px;">Hold Ctrl / Cmd to select multiple files at once</p>
           <p>Postcards, ads, or designs you like — give the designer direction</p>
-          <div id="inspi-names" style="margin-top:8px;font-size:12px;color:#e63946;"></div>
+          <div id="inspi-names" style="margin-top:8px;font-size:12px;color:#e63946;text-align:left;"></div>
         </div>
       </div>
     </div>
@@ -438,8 +441,10 @@ function showFiles(input, targetId) {
   const el = document.getElementById(targetId);
   if (!el) return;
   const files = Array.from(input.files);
-  if (files.length === 0) { el.textContent = ''; return; }
-  el.innerHTML = files.map(f => `📎 ${f.name}`).join('<br>');
+  if (files.length === 0) { el.innerHTML = ''; return; }
+  const fmt = b => b < 1048576 ? (b/1024).toFixed(0)+'KB' : (b/1048576).toFixed(1)+'MB';
+  el.innerHTML = `<strong style="color:#333;">${files.length} file${files.length>1?'s':''} selected:</strong><br>` +
+    files.map(f => `📎 ${f.name} <span style="color:#aaa;">(${fmt(f.size)})</span>`).join('<br>');
 }
 
 function getFormValue(name) {
