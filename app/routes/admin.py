@@ -3721,14 +3721,14 @@ def _build_master_where(args):
     upload_batch = args.get('upload_batch', '')
     year_built_max = args.get('year_built_max', '')
 
-    # Multi-value neighborhood — getlist handles repeated params, also split comma-joined
-    neighborhoods = args.getlist('neighborhoods[]') or args.getlist('neighborhood[]')
+    # Multi-value neighborhood — filter out empty strings
+    neighborhoods = [v for v in (args.getlist('neighborhoods[]') or args.getlist('neighborhood[]')) if v.strip()]
     if not neighborhoods:
         raw = args.get('neighborhoods', '') or args.get('neighborhood', '')
         neighborhoods = [n.strip() for n in raw.split(',') if n.strip()] if raw else []
 
-    # Multi-value tier
-    tiers = args.getlist('tiers[]') or args.getlist('tier[]')
+    # Multi-value tier — filter out empty strings (submitted when "All Tiers" selected)
+    tiers = [v for v in (args.getlist('tiers[]') or args.getlist('tier[]')) if v.strip()]
     if not tiers:
         raw = args.get('tiers', '') or args.get('tier', '')
         tiers = [t.strip() for t in raw.split(',') if t.strip()] if raw else []
@@ -3781,6 +3781,10 @@ def master_list():
     total_row = db_fetchone(db, f'SELECT COUNT(*) as cnt FROM master_addresses WHERE {where_sql}', tuple(params))
     total = total_row['cnt'] if total_row else 0
 
+    # Grand total (unfiltered) for stats bar
+    grand_total_row = db_fetchone(db, 'SELECT COUNT(*) as cnt FROM master_addresses')
+    grand_total = grand_total_row['cnt'] if grand_total_row else 0
+
     records = db_fetchall(db,
         f'SELECT * FROM master_addresses WHERE {where_sql} ORDER BY created_at DESC LIMIT ? OFFSET ?',
         tuple(params + [per_page, offset])
@@ -3792,7 +3796,7 @@ def master_list():
     categories = db_fetchall(db, 'SELECT DISTINCT permit_category FROM master_addresses WHERE permit_category IS NOT NULL ORDER BY permit_category')
     neighborhoods = db_fetchall(db, 'SELECT DISTINCT neighborhood FROM master_addresses WHERE neighborhood IS NOT NULL AND neighborhood != \'\' ORDER BY neighborhood')
 
-    # Stats summary
+    # Stats summary (always unfiltered)
     stats = db_fetchall(db, '''
         SELECT list_type, COUNT(*) as cnt
         FROM master_addresses
@@ -3807,6 +3811,7 @@ def master_list():
     return render_template('admin/master_list.html',
         records=records,
         total=total,
+        grand_total=grand_total,
         page=page,
         total_pages=total_pages,
         counties=[r['county'] for r in counties],

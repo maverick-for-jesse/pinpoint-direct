@@ -17,7 +17,7 @@
 <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 24px;">
   <div class="stat-card blue">
     <div class="stat-label">Total Records</div>
-    <div class="stat-value">{{ '{:,}'.format(total) }}</div>
+    <div class="stat-value">{{ '{:,}'.format(grand_total) }}</div>
     <div class="stat-sub">in master list</div>
   </div>
   {% for s in stats %}
