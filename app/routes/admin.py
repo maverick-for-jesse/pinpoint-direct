@@ -3422,6 +3422,44 @@ def master_list_delete_batch():
     return redirect(url_for('admin.master_list'))
 
 
+@admin_bp.route('/master-list/reclassify-tiers', methods=['POST'])
+@login_required
+@admin_required
+def master_list_reclassify_tiers():
+    """Backfill Luxury and Elite tiers on existing records based on sale_price."""
+    from app.utils.database import get_db, db_exec, db_fetchone
+    db = get_db()
+    try:
+        # Elite: $1.5M+
+        db_exec(db, """
+            UPDATE master_addresses SET tier = 'Elite'
+            WHERE sale_price >= 1500000 AND tier != 'Elite'
+        """)
+        # Luxury: $1M – $1.49M
+        db_exec(db, """
+            UPDATE master_addresses SET tier = 'Luxury'
+            WHERE sale_price >= 1000000 AND sale_price < 1500000 AND tier != 'Luxury'
+        """)
+        # Fix Ultra-Premium to only be $750k-$999k (demote any that slipped through)
+        db_exec(db, """
+            UPDATE master_addresses SET tier = 'Ultra-Premium'
+            WHERE sale_price >= 750000 AND sale_price < 1000000 AND tier NOT IN ('Ultra-Premium')
+        """)
+        db.commit()
+
+        elite_row = db_fetchone(db, "SELECT COUNT(*) as cnt FROM master_addresses WHERE tier = 'Elite'")
+        luxury_row = db_fetchone(db, "SELECT COUNT(*) as cnt FROM master_addresses WHERE tier = 'Luxury'")
+        if hasattr(db, 'close'): db.close()
+
+        elite = elite_row['cnt'] if elite_row else 0
+        luxury = luxury_row['cnt'] if luxury_row else 0
+        flash(f'✅ Tiers reclassified — {elite:,} Elite, {luxury:,} Luxury records updated.', 'success')
+    except Exception as e:
+        if hasattr(db, 'close'): db.close()
+        flash(f'Error: {e}', 'error')
+    return redirect(url_for('admin.master_list'))
+
+
 @admin_bp.route('/master-list/builder-count')
 @login_required
 def master_list_builder_count():
