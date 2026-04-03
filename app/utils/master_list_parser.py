@@ -19,16 +19,16 @@ COLUMN_MAP = {
     'city':                ['city', 'town', 'municipality'],
     'state':               ['state', 'st', 'province'],
     'zip':                 ['zip', 'zip_code', 'zipcode', 'postal', 'postal_code'],
-    'permit_description':  ['permit_description', 'permit_type', 'description', 'work_description', 'type_of_work', 'scope', 'permit description', 'type', 'work type'],
+    'permit_description':  ['permit_description', 'permit_type', 'description', 'work_description', 'type_of_work', 'scope', 'permit description', 'type', 'work type', 'record_type', 'record type'],
     'permit_value':        ['permit_value', 'value', 'job_value', 'estimated_value', 'cost', 'valuation', 'estimated cost'],
-    'permit_date':         ['permit_date', 'issued_date', 'issue_date', 'date_issued', 'date', 'application_date'],
-    'permit_number':       ['permit_number', 'permit_no', 'permit #', 'permit_id', 'number'],
+    'permit_date':         ['permit_date', 'issued_date', 'issue_date', 'date_issued', 'date', 'application_date', 'permit_date', 'record_date'],
+    'permit_number':       ['permit_number', 'permit_no', 'permit #', 'permit_id', 'number', 'record_number', 'record number'],
     'permit_status':       ['permit_status', 'status', 'permit_status_description', 'record_status'],
     'sale_price':          ['sale_price', 'price', 'amount', 'sales_price', 'sale_amount', 'lastsaleprice', 'last_sale_price'],
     'sale_date':           ['sale_date', 'transfer_date', 'deed_date', 'close_date', 'closing_date', 'lastsaledate', 'last_sale_date'],
     'year_built':          ['year_built', 'year built', 'yr_built', 'yr built', 'built', 'year_constructed', 'yearbuilt'],
     'square_ft':           ['square_ft', 'square ft', 'sqft', 'sq_ft', 'sq ft', 'living_area', 'heated_sq_ft', 'floor_area'],
-    'neighborhood':        ['neighborhood', 'subdivision', 'sub', 'community', 'development', 'plat'],
+    'neighborhood':        ['neighborhood', 'subdivision', 'sub', 'community', 'development', 'plat', 'project_name', 'project name'],
     'parcel_class':        ['parcel class', 'parcel_class', 'class', 'property_class', 'property class'],
     'occupancy':           ['occupancy', 'use', 'property_use', 'use_type'],
     'street_number':       ['streetnumber', 'street_number', 'street number', 'house_number', 'housenumber'],
@@ -46,6 +46,34 @@ INVESTOR_KEYWORDS = [
     'PROPERTIES', 'INVESTMENTS', 'REALTY', 'GROUP', 'PARTNERS',
     'FUND', 'ESTATE',
 ]
+
+def _parse_project_name(project_name):
+    """
+    Clean up Coweta County's 'Project Name' field.
+    Coweta sometimes stuffs "ADDRESS, CITY, STATE ZIP : Owner Name" in this field.
+    Returns (neighborhood, first_name, last_name).
+    """
+    import re
+    if not project_name or not project_name.strip():
+        return None, None, None
+    pn = project_name.strip()
+    # Pattern: "ADDRESS : Name" — address + owner in the field
+    if ':' in pn:
+        parts = pn.split(':', 1)
+        name_part = parts[1].strip()
+        name_tokens = name_part.split()
+        first = name_tokens[0].title() if name_tokens else None
+        last = ' '.join(name_tokens[1:]).title() if len(name_tokens) > 1 else None
+        return None, first, last
+    # Looks like a bare street address (starts with number)
+    if re.match(r'^\d+\s+\w', pn):
+        return None, None, None
+    # All-caps address-like
+    if re.match(r'^\d+\s+[A-Z\s]+$', pn):
+        return None, None, None
+    # Legitimate subdivision/lot name
+    return pn, None, None
+
 
 def _is_investor(name):
     """Return True if buyer name looks like an LLC/corporation/entity."""
@@ -279,7 +307,18 @@ def parse_master_list_file(file_storage, county, list_type_override=None, batch_
         except (ValueError, TypeError):
             pass
 
-        neighborhood = row.get('neighborhood', '').strip() or None
+        raw_neighborhood = row.get('neighborhood', '').strip()
+        # For permit files: run project name cleaner to strip address/owner junk
+        if detected_type == 'permit' and raw_neighborhood:
+            _neigh, _fname, _lname = _parse_project_name(raw_neighborhood)
+            neighborhood = _neigh or None
+            # Only fill name fields if they're currently blank
+            if not first_name and _fname:
+                first_name = _fname
+            if not last_name and _lname:
+                last_name = _lname
+        else:
+            neighborhood = raw_neighborhood or None
         parcel_class = row.get('parcel_class', '').strip() or None
 
         rec = {
