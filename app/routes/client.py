@@ -114,7 +114,7 @@ def onboarding():
         fields = [
             'business_name', 'business_type', 'years_in_business',
             'average_transaction_value', 'top_services', 'best_customer_description',
-            'customer_compliment', 'main_competitor', 'competitive_advantage'
+            'customer_compliment', 'main_competitor', 'competitive_advantage', 'website_url'
         ]
         values = {f: request.form.get(f, '').strip() for f in fields}
 
@@ -565,7 +565,7 @@ def ai_copy():
     profile_dict = dict(profile) if profile else {}
     for field in ['business_name', 'business_type', 'top_services', 'best_customer_description',
                   'customer_compliment', 'competitive_advantage', 'years_in_business',
-                  'average_transaction_value']:
+                  'average_transaction_value', 'website_url']:
         if data.get(field):
             profile_dict[field] = data[field]
 

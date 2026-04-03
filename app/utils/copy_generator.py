@@ -98,6 +98,29 @@ def _generate_with_gemini(api_key, system_prompt):
     return json.loads(text)
 
 
+def _scrape_website(url: str, max_chars: int = 2000) -> str:
+    """Fetch a website and return clean text content for AI context."""
+    if not url:
+        return ''
+    try:
+        import re as _re
+        if not url.startswith('http'):
+            url = 'https://' + url
+        headers = {'User-Agent': 'Mozilla/5.0 (compatible; PinpointDirect/1.0)'}
+        resp = requests.get(url, headers=headers, timeout=8)
+        resp.raise_for_status()
+        html = resp.text
+        # Strip scripts, styles, nav, footer
+        html = _re.sub(r'<(script|style|nav|footer|header)[^>]*>.*?</\1>', ' ', html, flags=_re.DOTALL|_re.IGNORECASE)
+        # Strip all tags
+        text = _re.sub(r'<[^>]+>', ' ', html)
+        # Collapse whitespace
+        text = _re.sub(r'\s+', ' ', text).strip()
+        return text[:max_chars]
+    except Exception:
+        return ''
+
+
 def generate_campaign_copy(profile: dict, campaign: dict) -> dict:
     """
     Generate postcard copy using business profile + campaign data.
@@ -114,9 +137,17 @@ def generate_campaign_copy(profile: dict, campaign: dict) -> dict:
     else:
         deadline_text = 'None'
 
+    # Optionally scrape website for brand voice context
+    website_context = ''
+    website_url = profile.get('website_url', '')
+    if website_url:
+        scraped = _scrape_website(website_url)
+        if scraped:
+            website_context = f'\n\nWEBSITE CONTENT (use for brand voice, tone, and specific offerings):\n{scraped}'
+
     prompt = f"""You are an expert direct mail copywriter. Based on this business info and campaign details, generate compelling postcard copy.
 
-BUSINESS: {profile.get('business_name', 'this business')}, {profile.get('business_type', 'local')} business, {profile.get('years_in_business', 'established')} years in business. Average transaction: ${profile.get('average_transaction_value', 'varies')}. Services: {profile.get('top_services', 'see below')}. Best customers: {profile.get('best_customer_description', 'local residents')}. Known for: {profile.get('customer_compliment', 'quality service')}. Differentiator vs {profile.get('main_competitor', 'competitors')}: {profile.get('competitive_advantage', 'superior service')}.
+BUSINESS: {profile.get('business_name', 'this business')}, {profile.get('business_type', 'local')} business, {profile.get('years_in_business', 'established')} years in business. Average transaction: ${profile.get('average_transaction_value', 'varies')}. Services: {profile.get('top_services', 'see below')}. Best customers: {profile.get('best_customer_description', 'local residents')}. Known for: {profile.get('customer_compliment', 'quality service')}. Differentiator vs {profile.get('main_competitor', 'competitors')}: {profile.get('competitive_advantage', 'superior service')}.{website_context}
 
 CAMPAIGN: Promoting {campaign.get('what_promoting', 'services')}. Offer type: {campaign.get('offer_type', 'special offer')}. Offer: {campaign.get('offer_detail', 'contact us for details')}. Deadline: {deadline_text}. Desired action: {campaign.get('desired_action', 'call us')}.
 

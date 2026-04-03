@@ -305,6 +305,7 @@ if DATABASE_URL:
                     ('customer_compliment', 'TEXT'),
                     ('main_competitor', 'TEXT'),
                     ('competitive_advantage', 'TEXT'),
+                    ('website_url', 'TEXT'),
                     ('updated_at', 'TIMESTAMP'),
                 ]:
                     try:

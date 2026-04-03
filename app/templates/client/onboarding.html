@@ -76,6 +76,14 @@
         </div>
       </div>
 
+      <div class="form-group">
+        <label for="website_url">Website URL</label>
+        <div class="hint">We'll use your site to inform ad copy and understand your brand voice.</div>
+        <input type="url" id="website_url" name="website_url" class="form-control"
+               value="{{ profile.website_url if profile else '' }}"
+               placeholder="https://yourwebsite.com">
+      </div>
+
       <div class="form-row">
         <div class="form-group">
           <label for="years_in_business">Years in Business</label>
