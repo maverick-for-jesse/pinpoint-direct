@@ -140,11 +140,29 @@
           <div class="field-label">Postcard Size</div>
           <div class="field-value" style="font-weight:700;">5.25 × 8.5 inches</div>
         </div>
-        <div class="field-row">
-          <div class="field-label">Mailing List</div>
-          <div class="field-value">{{ f.get('Mailing List Status') or '—' }}</div>
-        </div>
+
       </div>
+    </div>
+
+    <!-- Mailing List -->
+    <div class="section-card">
+      <h3>Mailing List &amp; Targeting</h3>
+      <div class="field-row">
+        <div class="field-label">List Source</div>
+        <div class="field-value">{{ f.get('Mailing List Status') or '—' }}</div>
+      </div>
+      {% if f.get('Target Zips') %}
+      <div class="field-row">
+        <div class="field-label">Target ZIPs / Neighborhoods</div>
+        <div class="field-value">{{ f.get('Target Zips') }}</div>
+      </div>
+      {% endif %}
+      {% if f.get('Mailing List Targeting') %}
+      <div class="field-row">
+        <div class="field-label">Targeting Details</div>
+        <div class="field-value" style="white-space:pre-line;">{{ f.get('Mailing List Targeting') }}</div>
+      </div>
+      {% endif %}
     </div>
 
     <!-- Message -->
@@ -209,19 +227,19 @@
         {% if logo_urls %}
           <p class="field-label" style="margin-bottom:6px;">Logo</p>
           {% for file in logo_urls %}
-            <a href="{{ file.url }}" target="_blank" class="file-link">📎 {{ file.name }}</a>
+            <a href="{{ url_for('admin.design_request_download', dr_id=dr.id, key=file.key) }}" target="_blank" class="file-link">📎 {{ file.name }}</a>
           {% endfor %}
         {% endif %}
         {% if product_urls %}
           <p class="field-label" style="margin:12px 0 6px;">Product Images</p>
           {% for file in product_urls %}
-            <a href="{{ file.url }}" target="_blank" class="file-link">📎 {{ file.name }}</a>
+            <a href="{{ url_for('admin.design_request_download', dr_id=dr.id, key=file.key) }}" target="_blank" class="file-link">📎 {{ file.name }}</a>
           {% endfor %}
         {% endif %}
         {% if inspiration_urls %}
           <p class="field-label" style="margin:12px 0 6px;">Inspiration</p>
           {% for file in inspiration_urls %}
-            <a href="{{ file.url }}" target="_blank" class="file-link">📎 {{ file.name }}</a>
+            <a href="{{ url_for('admin.design_request_download', dr_id=dr.id, key=file.key) }}" target="_blank" class="file-link">📎 {{ file.name }}</a>
           {% endfor %}
         {% endif %}
       {% else %}

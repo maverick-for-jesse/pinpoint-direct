@@ -295,6 +295,22 @@ if DATABASE_URL:
                         updated_at                  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
+                # Idempotent migrations for business_profiles
+                for col, col_type in [
+                    ('client_id', 'INTEGER'),
+                    ('years_in_business', 'TEXT'),
+                    ('average_transaction_value', 'TEXT'),
+                    ('top_services', 'TEXT'),
+                    ('best_customer_description', 'TEXT'),
+                    ('customer_compliment', 'TEXT'),
+                    ('main_competitor', 'TEXT'),
+                    ('competitive_advantage', 'TEXT'),
+                    ('updated_at', 'TIMESTAMP'),
+                ]:
+                    try:
+                        cur.execute(f"ALTER TABLE business_profiles ADD COLUMN IF NOT EXISTS {col} {col_type}")
+                    except Exception:
+                        pass
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS drip_campaigns (
                         id              SERIAL PRIMARY KEY,
@@ -563,6 +579,16 @@ if DATABASE_URL:
                     )
                 """)
 
+                # ── Design Requests columns migration (idempotent) ────────────────
+                for _dr_col, _dr_type in [
+                    ('mailing_list_targeting', 'TEXT'),
+                    ('target_zips',            'TEXT'),
+                ]:
+                    try:
+                        cur.execute(f"ALTER TABLE design_requests ADD COLUMN IF NOT EXISTS {_dr_col} {_dr_type}")
+                    except Exception:
+                        pass
+
                 # ── Design Requests ───────────────────────────────────────────────
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS design_requests (
@@ -583,6 +609,8 @@ if DATABASE_URL:
                         brand_tone VARCHAR(100),
                         target_audience TEXT,
                         mailing_list_status VARCHAR(50) DEFAULT 'Have one',
+                        mailing_list_targeting TEXT,
+                        target_zips VARCHAR(500),
                         return_address TEXT,
                         quantity INTEGER,
                         target_mail_date DATE,
@@ -920,6 +948,8 @@ else:
                     brand_tone VARCHAR(100),
                     target_audience TEXT,
                     mailing_list_status VARCHAR(50) DEFAULT 'Have one',
+                    mailing_list_targeting TEXT,
+                    target_zips VARCHAR(500),
                     return_address TEXT,
                     quantity INTEGER,
                     target_mail_date DATE,
@@ -970,6 +1000,17 @@ else:
             ]:
                 try:
                     conn.execute(f"ALTER TABLE campaigns ADD COLUMN {col} {col_type}")
+                except Exception:
+                    pass  # Column already exists
+            conn.commit()
+
+            # Add design_requests columns (idempotent)
+            for col, col_type in [
+                ('mailing_list_targeting', 'TEXT'),
+                ('target_zips',            'TEXT'),
+            ]:
+                try:
+                    conn.execute(f"ALTER TABLE design_requests ADD COLUMN {col} {col_type}")
                 except Exception:
                     pass  # Column already exists
             conn.commit()

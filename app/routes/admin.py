@@ -1417,6 +1417,23 @@ def new_movers_export():
 
 # ── Leads ─────────────────────────────────────────────────────────────────────
 
+@admin_bp.route('/business-profiles')
+@login_required
+@admin_required
+def business_profiles():
+    from app.utils.database import get_db, db_fetchall
+    db = get_db()
+    profiles = db_fetchall(db, """
+        SELECT bp.*, u.name as user_name, u.email as user_email, c.company_name
+        FROM business_profiles bp
+        LEFT JOIN users u ON u.id = bp.user_id
+        LEFT JOIN clients c ON c.id = bp.client_id
+        ORDER BY bp.created_at DESC
+    """)
+    if hasattr(db, 'close'): db.close()
+    return render_template('admin/business_profiles.html', profiles=profiles)
+
+
 @admin_bp.route('/leads')
 @login_required
 @admin_required
@@ -3234,6 +3251,24 @@ def design_request_update_admin(dr_id):
 
     flash('Admin notes saved.', 'success')
     return redirect(url_for('admin.design_request_detail', dr_id=dr_id))
+
+
+@admin_bp.route('/design-requests/<int:dr_id>/download')
+@login_required
+@admin_required
+def design_request_download(dr_id):
+    """Redirect to a 1-hour presigned R2 URL for a given file key."""
+    from app.utils.r2 import get_presigned_url
+    key = request.args.get('key', '').strip()
+    if not key:
+        flash('No file key specified.', 'error')
+        return redirect(url_for('admin.design_request_detail', dr_id=dr_id))
+    try:
+        url = get_presigned_url(key, expires_in=3600)
+        return redirect(url)
+    except Exception as e:
+        flash(f'Could not generate download link: {e}', 'error')
+        return redirect(url_for('admin.design_request_detail', dr_id=dr_id))
 
 
 @admin_bp.route('/design-requests/<int:dr_id>/advance', methods=['POST'])

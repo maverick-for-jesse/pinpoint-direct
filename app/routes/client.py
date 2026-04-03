@@ -123,11 +123,13 @@ def onboarding():
             params = list(values.values()) + [user_id]
             db_exec(db, f'UPDATE business_profiles SET {set_clause} WHERE user_id=?', params)
         else:
-            cols = ', '.join(['user_id', 'client_id'] + fields)
-            placeholders = ', '.join(['?'] * (2 + len(fields)))
-            client_id = current_user.client_id if hasattr(current_user, 'client_id') else None
-            params = [user_id, client_id] + list(values.values())
-            db_insert(db, f'INSERT INTO business_profiles ({cols}) VALUES ({placeholders})', params)
+            # Only include client_id if available
+            client_id = getattr(current_user, 'client_id', None)
+            insert_cols = ['user_id'] + (['client_id'] if client_id is not None else []) + fields
+            insert_vals = [user_id] + ([client_id] if client_id is not None else []) + list(values.values())
+            placeholders = ', '.join(['?'] * len(insert_vals))
+            cols = ', '.join(insert_cols)
+            db_insert(db, f'INSERT INTO business_profiles ({cols}) VALUES ({placeholders})', insert_vals)
 
         db.commit()
         if hasattr(db, 'close'):
@@ -344,6 +346,16 @@ def design_request_new():
     except Exception:
         pass
 
+    # Load business profile for pre-fill
+    profile = None
+    try:
+        from app.utils.database import get_db, db_fetchone
+        with get_db() as db:
+            profile = db_fetchone(db, 'SELECT * FROM business_profiles WHERE user_id = ?',
+                                  (current_user.id,))
+    except Exception:
+        pass
+
     if request.method == 'POST':
         from app.utils.database import get_db, get_db_type
         ph = '%s' if get_db_type() == 'postgres' else '?'
@@ -368,8 +380,10 @@ def design_request_new():
             'brand_colors':         request.form.get('brand_colors', '').strip(),
             'brand_tone':           request.form.get('brand_tone', '').strip(),
             'target_audience':      request.form.get('target_audience', '').strip(),
-            'mailing_list_status':  request.form.get('mailing_list_status', 'Have one'),
-            'return_address':       request.form.get('return_address', '').strip(),
+            'mailing_list_status':      request.form.get('mailing_list_status', 'Need one'),
+            'mailing_list_targeting':   request.form.get('mailing_list_targeting', '').strip(),
+            'target_zips':              request.form.get('target_zips', '').strip(),
+            'return_address':           request.form.get('return_address', '').strip(),
             'additional_notes':     request.form.get('additional_notes', '').strip(),
             'submitted_at':         now,
             'created_at':           now,
@@ -437,7 +451,7 @@ def design_request_new():
         flash('Your design request has been submitted! We\'ll be in touch soon.', 'success')
         return redirect(url_for('client.design_requests'))
 
-    return render_template('client/design_request_new.html', prefill_name=prefill_name)
+    return render_template('client/design_request_new.html', prefill_name=prefill_name, profile=profile)
 
 
 @client_bp.route('/design-request/<int:dr_id>')
