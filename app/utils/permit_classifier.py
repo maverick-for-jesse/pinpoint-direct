@@ -10,9 +10,7 @@ PERMIT_RULES = [
         'pool/spa', 'spa', 'hot tub', 'swim spa',
     ]),
     ('Detached Garage', [
-        'detached garage', 'det garage', 'detached gar', 'carport', 'detached carport',
-        'accessory structure', 'accessory building', 'outbuilding', 'storage building',
-        'pole barn', 'barn', 'shop building',
+        'detached garage',
     ]),
     ('Deck/Patio', [
         'deck', 'patio', 'pergola', 'gazebo', 'screen porch', 'screened porch',

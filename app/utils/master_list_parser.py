@@ -279,7 +279,17 @@ def parse_master_list_file(file_storage, county, list_type_override=None, batch_
         seen_hashes.add(h)
 
         permit_description = row.get('permit_description', '').strip()
-        permit_category = classify_permit(permit_description) if detected_type == 'permit' else None
+        # Classify using both the Project Name AND the Record Type.
+        # Project Name wins if it's more specific (e.g. "Detached Garage" beats "Accessory Structure").
+        # Record Type is the fallback (catches Pool, Roof, HVAC, etc. from their own type names).
+        if detected_type == 'permit':
+            raw_project = row.get('neighborhood', '').strip()  # Project Name mapped here before cleaning
+            cat_from_project = classify_permit(raw_project)
+            cat_from_type    = classify_permit(permit_description)
+            # Prefer project name category unless it's Other
+            permit_category  = cat_from_project if cat_from_project != 'Other' else cat_from_type
+        else:
+            permit_category = None
         permit_value = _parse_value(row.get('permit_value', ''))
         permit_date = row.get('permit_date', '').strip()
         permit_number = row.get('permit_number', '').strip()

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, send_file
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, send_file, current_app
 from flask_login import login_required, current_user
 from app.utils.db_helpers import get_records, get_record, create_record, update_record, at_str
 import os, base64
@@ -3364,53 +3364,38 @@ def master_list_delete_batch():
 @login_required
 def master_list_search():
     """Real-time address search — returns JSON rows matching query."""
-    from app.utils.database import get_db, db_fetchall
+    from app.utils.database import get_db, db_fetchall, get_db_type
     import json as _json
 
     q = request.args.get('q', '').strip()
     if not q or len(q) < 2:
-        return current_app.response_class(
-            response=_json.dumps({'results': [], 'total': 0}),
-            mimetype='application/json'
-        )
+        return jsonify({'results': [], 'total': 0})
 
     db = get_db()
     like = f'%{q}%'
-    ph = '%s' if 'postgres' in str(type(db)).lower() else '?'
+    is_pg = get_db_type() == 'postgres'
+    ph = '%s' if is_pg else '?'
 
+    like_op = 'ILIKE' if is_pg else 'LIKE'
     sql = f"""
         SELECT id, first_name, last_name, address1, address2, city, state, zip,
                county, list_type, tier, permit_category, sale_price, permit_value,
                sale_date, permit_date, year_built, square_ft, neighborhood,
-               permit_status, added_date
+               permit_status, added_date, permit_description
         FROM master_addresses
-        WHERE address1 ILIKE {ph}
-           OR first_name ILIKE {ph}
-           OR last_name ILIKE {ph}
-           OR city ILIKE {ph}
-           OR zip ILIKE {ph}
-           OR neighborhood ILIKE {ph}
-           OR permit_number ILIKE {ph}
-        ORDER BY added_date DESC
-        LIMIT 50
-    """ if ph == '%s' else f"""
-        SELECT id, first_name, last_name, address1, address2, city, state, zip,
-               county, list_type, tier, permit_category, sale_price, permit_value,
-               sale_date, permit_date, year_built, square_ft, neighborhood,
-               permit_status, added_date
-        FROM master_addresses
-        WHERE address1 LIKE {ph}
-           OR first_name LIKE {ph}
-           OR last_name LIKE {ph}
-           OR city LIKE {ph}
-           OR zip LIKE {ph}
-           OR neighborhood LIKE {ph}
-           OR permit_number LIKE {ph}
+        WHERE address1 {like_op} {ph}
+           OR first_name {like_op} {ph}
+           OR last_name {like_op} {ph}
+           OR city {like_op} {ph}
+           OR zip {like_op} {ph}
+           OR neighborhood {like_op} {ph}
+           OR permit_number {like_op} {ph}
+           OR permit_description {like_op} {ph}
         ORDER BY added_date DESC
         LIMIT 50
     """
 
-    rows = db_fetchall(db, sql, (like,) * 7)
+    rows = db_fetchall(db, sql, (like,) * 8)
     if hasattr(db, 'close'):
         db.close()
 
@@ -3437,12 +3422,10 @@ def master_list_search():
             'neighborhood': r.get('neighborhood'),
             'permit_status': r.get('permit_status'),
             'added_date': r.get('added_date'),
+            'permit_description': r.get('permit_description'),
         })
 
-    return current_app.response_class(
-        response=_json.dumps({'results': results, 'total': len(results)}),
-        mimetype='application/json'
-    )
+    return jsonify({'results': results, 'total': len(results)})
 
 
 @admin_bp.route('/master-list/enrich-zips', methods=['POST'])
