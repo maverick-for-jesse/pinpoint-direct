@@ -19,7 +19,9 @@ COUNTY_CONFIG = {
 # Price tiers
 TIER_STANDARD      = 'Standard'       # < $500k
 TIER_PREMIUM       = 'Premium'        # $500k – $749,999
-TIER_ULTRA_PREMIUM = 'Ultra-Premium'  # $750k+
+TIER_ULTRA_PREMIUM = 'Ultra-Premium'  # $750k – $999,999
+TIER_LUXURY        = 'Luxury'         # $1M – $1,499,999
+TIER_ELITE         = 'Elite'          # $1.5M+
 
 # Investor/entity keywords — records with these in the buyer name are skipped
 INVESTOR_KEYWORDS = [
@@ -50,7 +52,11 @@ def _parse_price(price_str):
 
 
 def _get_tier(price):
-    if price >= 750_000:
+    if price >= 1_500_000:
+        return TIER_ELITE
+    elif price >= 1_000_000:
+        return TIER_LUXURY
+    elif price >= 750_000:
         return TIER_ULTRA_PREMIUM
     elif price >= 500_000:
         return TIER_PREMIUM

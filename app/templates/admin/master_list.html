@@ -89,7 +89,9 @@
         <option value="">All Tiers</option>
         <option value="Standard" {% if filters.tier == 'Standard' %}selected{% endif %}>Standard (&lt;$500k)</option>
         <option value="Premium" {% if filters.tier == 'Premium' %}selected{% endif %}>Premium ($500k–$749k)</option>
-        <option value="Ultra-Premium" {% if filters.tier == 'Ultra-Premium' %}selected{% endif %}>Ultra-Premium ($750k+)</option>
+        <option value="Ultra-Premium" {% if filters.tier == 'Ultra-Premium' %}selected{% endif %}>Ultra-Premium ($750k–$999k)</option>
+        <option value="Luxury" {% if filters.tier == 'Luxury' %}selected{% endif %}>Luxury ($1M–$1.49M)</option>
+        <option value="Elite" {% if filters.tier == 'Elite' %}selected{% endif %}>Elite ($1.5M+)</option>
       </select>
     </div>
     <div>
@@ -227,7 +229,11 @@
           <td>
             {# Tier for new movers #}
             {% if r.tier %}
-              {% if r.tier == 'Ultra-Premium' %}
+              {% if r.tier == 'Elite' %}
+                <span class="badge" style="background:#1a1a2e;color:#ffd700;">👑 {{ r.tier }}</span>
+              {% elif r.tier == 'Luxury' %}
+                <span class="badge" style="background:#4a0080;color:#e8c4ff;">💎 {{ r.tier }}</span>
+              {% elif r.tier == 'Ultra-Premium' %}
                 <span class="badge" style="background:#fce4ec;color:#880e4f;">⭐ {{ r.tier }}</span>
               {% elif r.tier == 'Premium' %}
                 <span class="badge" style="background:#e8eaf6;color:#1a237e;">{{ r.tier }}</span>
