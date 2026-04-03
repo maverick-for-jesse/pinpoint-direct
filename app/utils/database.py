@@ -584,6 +584,8 @@ if DATABASE_URL:
                 for _dr_col, _dr_type in [
                     ('mailing_list_targeting', 'TEXT'),
                     ('target_zips',            'TEXT'),
+                    ('staff_notes',            'TEXT'),
+                    ('admin_notes',            'TEXT'),
                 ]:
                     try:
                         cur.execute(f"ALTER TABLE design_requests ADD COLUMN IF NOT EXISTS {_dr_col} {_dr_type}")
@@ -1009,6 +1011,8 @@ else:
             for col, col_type in [
                 ('mailing_list_targeting', 'TEXT'),
                 ('target_zips',            'TEXT'),
+                ('staff_notes',            'TEXT'),
+                ('admin_notes',            'TEXT'),
             ]:
                 try:
                     conn.execute(f"ALTER TABLE design_requests ADD COLUMN {col} {col_type}")
