@@ -252,6 +252,9 @@
       <a href="{{ url_for('admin.clients') }}" class="nav-item {% if 'client' in request.endpoint %}active{% endif %}">
         <span class="icon">🏢</span> Clients
       </a>
+      <a href="{{ url_for('admin.business_profiles') }}" class="nav-item {% if 'business_profile' in request.endpoint %}active{% endif %}">
+        <span class="icon">📋</span> Business Profiles
+      </a>
       <a href="{{ url_for('admin.campaigns') }}" class="nav-item {% if 'campaign' in request.endpoint %}active{% endif %}">
         <span class="icon">📬</span> Campaigns
       </a>

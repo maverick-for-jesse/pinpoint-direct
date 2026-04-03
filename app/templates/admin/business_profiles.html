@@ -1,0 +1,67 @@
+{% extends "admin/base.html" %}
+{% block title %}Business Profiles{% endblock %}
+{% block page_title %}Business Profiles{% endblock %}
+
+{% block content %}
+{% if profiles %}
+{% for p in profiles %}
+<div class="card" style="margin-bottom:24px; padding:24px 28px;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;">
+    <div>
+      <div style="font-size:18px; font-weight:700; color:#1a1a2e;">{{ p.business_name or '—' }}</div>
+      <div style="font-size:13px; color:#888; margin-top:2px;">
+        {{ p.user_name or p.user_email or '—' }}
+        {% if p.company_name %} · {{ p.company_name }}{% endif %}
+        {% if p.created_at %} · Submitted {{ p.created_at|string|truncate(10, True, '') }}{% endif %}
+      </div>
+    </div>
+    <span class="badge" style="background:#e8f5e9;color:#2e7d32;">{{ p.business_type or 'Unknown type' }}</span>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#e63946;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Years in Business</div>
+      <div style="font-size:14px;">{{ p.years_in_business or '—' }}</div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#e63946;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Avg Transaction Value</div>
+      <div style="font-size:14px;">{{ p.average_transaction_value or '—' }}</div>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;">
+    <div style="font-size:11px;font-weight:700;color:#e63946;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Top Services / Products</div>
+    <div style="font-size:14px;color:#333;">{{ p.top_services or '—' }}</div>
+  </div>
+
+  <div style="margin-top:16px;">
+    <div style="font-size:11px;font-weight:700;color:#e63946;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Best Customer</div>
+    <div style="font-size:14px;color:#333;">{{ p.best_customer_description or '—' }}</div>
+  </div>
+
+  <div style="margin-top:16px;">
+    <div style="font-size:11px;font-weight:700;color:#e63946;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">What Customers Compliment</div>
+    <div style="font-size:14px;color:#333;">{{ p.customer_compliment or '—' }}</div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:16px;">
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#e63946;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Main Competitor</div>
+      <div style="font-size:14px;">{{ p.main_competitor or '—' }}</div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#e63946;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Their Advantage</div>
+      <div style="font-size:14px;">{{ p.competitive_advantage or '—' }}</div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-icon">📋</div>
+    <p>No business profiles submitted yet.</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
