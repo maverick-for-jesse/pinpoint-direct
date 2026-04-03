@@ -438,8 +438,20 @@
 
     <!-- Submit -->
     <div class="submit-bar">
-      <p>Submitting will notify our design team. We'll be in touch within 1–2 business days.</p>
-      <button type="submit" class="btn-submit">{{ 'Update Design Request →' if editing else 'Submit Design Request →' }}</button>
+      <div>
+        <p style="margin-bottom:4px;">Submitting will notify our design team. We'll be in touch within 1–2 business days.</p>
+        <p style="font-size:12px;color:#aaa;">Not ready? Save as a draft and come back later.</p>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <button type="submit" name="action" value="draft"
+          style="background:#f0f0f0;color:#555;padding:12px 22px;border-radius:8px;font-size:14px;font-weight:600;border:1.5px solid #ddd;cursor:pointer;transition:background 0.15s;"
+          onmouseover="this.style.background='#e0e0e0'" onmouseout="this.style.background='#f0f0f0'">
+          💾 Save as Draft
+        </button>
+        <button type="submit" name="action" value="submit" class="btn-submit">
+          {{ 'Update Design Request →' if editing else 'Submit to Design Team →' }}
+        </button>
+      </div>
     </div>
 
   </form>

@@ -364,10 +364,13 @@ def design_request_new():
         now = datetime.utcnow()
         ts = int(time.time())
 
+        action = request.form.get('action', 'submit')
+        save_status = 'Draft' if action == 'draft' else 'Submitted'
+
         # Text fields
         fields_data = {
             'client_id':            client_id,
-            'status':               'Submitted',
+            'status':               save_status,
             'business_name':        request.form.get('business_name', '').strip(),
             'industry':             request.form.get('industry', '').strip(),
             'campaign_goal':        request.form.get('campaign_goal', '').strip(),
@@ -448,8 +451,12 @@ def design_request_new():
                         db.execute(f"UPDATE design_requests SET {set_clause} WHERE id = {ph}", update_vals)
                     db.commit()
 
-        flash('Your design request has been submitted! We\'ll be in touch soon.', 'success')
-        return redirect(url_for('client.design_requests'))
+        if save_status == 'Draft':
+            flash('💾 Draft saved — come back any time to finish and submit.', 'success')
+            return redirect(url_for('client.design_request_edit', dr_id=new_id))
+        else:
+            flash('✅ Design request submitted! We\'ll be in touch within 1–2 business days.', 'success')
+            return redirect(url_for('client.design_request_detail', dr_id=new_id))
 
     return render_template('client/design_request_new.html', prefill_name=prefill_name, profile=profile)
 
@@ -647,7 +654,7 @@ def design_request_edit(dr_id):
             'additional_notes':     request.form.get('additional_notes', '').strip(),
             'mailing_list_targeting': request.form.get('mailing_list_targeting', '').strip(),
             'target_zips':          request.form.get('target_zips', '').strip(),
-            'status':               'Submitted',
+            'status':               'Draft' if request.form.get('action') == 'draft' else 'Submitted',
         }
         qty = request.form.get('quantity', '').strip()
         if qty:
@@ -691,7 +698,10 @@ def design_request_edit(dr_id):
         db3.commit()
         if hasattr(db3, 'close'): db3.close()
 
-        flash('✅ Design request updated.', 'success')
+        if request.form.get('action') == 'draft':
+            flash('💾 Draft saved — submit when you\'re ready.', 'success')
+        else:
+            flash('✅ Design request updated and submitted.', 'success')
         return redirect(url_for('client.design_request_detail', dr_id=dr_id))
 
     return render_template('client/design_request_new.html',

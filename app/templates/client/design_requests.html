@@ -33,7 +33,11 @@
             {% if f.get('Campaign') %}<br><span style="font-size:12px;color:#888;">{{ f.get('Campaign') }}</span>{% endif %}
           </td>
           <td>
-            {% if status == 'Final Approved' %}
+            {% if status == 'Draft' %}
+              <span class="badge badge-gray">💾 Draft</span>
+            {% elif status == 'Needs Client Input' %}
+              <span class="badge" style="background:#fff8e1;color:#b45309;">⚠️ Action Required</span>
+            {% elif status == 'Final Approved' %}
               <span class="badge badge-green">{{ status }}</span>
             {% elif status in ('Submitted', 'Revision Requested') %}
               <span class="badge badge-orange">{{ status }}</span>
